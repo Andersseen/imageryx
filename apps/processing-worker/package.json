@@ -24,7 +24,7 @@
     "@imageryx/test-utils": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
     "typescript": "^5.9.2",
-    "vite": "^7.3.6",
+    "vite": "^8.2.0",
     "vitest": "^4.1.10",
     "wrangler": "^4.115.0"
   }
