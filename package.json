@@ -5,6 +5,12 @@
   "license": "MIT",
   "scripts": {
     "dev": "turbo run dev",
+    "dev:dashboard": "turbo run dev --filter=@imageryx/dashboard",
+    "dev:web": "turbo run dev --filter=@imageryx/web",
+    "dev:api": "turbo run dev --filter=@imageryx/api-worker",
+    "dev:delivery": "turbo run dev --filter=@imageryx/delivery-worker",
+    "dev:processing": "turbo run dev --filter=@imageryx/processing-worker",
+    "dev:workers": "turbo run dev --filter=@imageryx/api-worker --filter=@imageryx/delivery-worker --filter=@imageryx/processing-worker",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

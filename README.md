@@ -41,6 +41,7 @@ limitations from this phase.
 ```
 apps/
   dashboard/           Analog + Angular dashboard            → :5173
+  web/                 Analog + Angular marketing site        → :5174
   api-worker/          Public API entry point (Hono)          → :8787
   delivery-worker/     Asset delivery edge (Hono)              → :8788
   processing-worker/   Queue consumer for transformation jobs  → :8789
@@ -84,7 +85,7 @@ Run from the repository root; Turborepo fans these out to every app/package
 with the matching script, respecting dependency order:
 
 ```bash
-pnpm dev        # start dashboard + all three Workers concurrently
+pnpm dev        # start dashboard + web + all three Workers concurrently
 pnpm build      # production build of every app/package
 pnpm lint       # ESLint across the workspace
 pnpm typecheck  # TypeScript project-reference typecheck across the workspace
@@ -92,7 +93,19 @@ pnpm test       # Vitest across every app/package that has tests
 pnpm check      # lint + typecheck + test + build, in dependency order
 ```
 
-Target a single app/package while iterating:
+Run a single app's dev server from the root (useful when you only need one
+piece running):
+
+```bash
+pnpm dev:dashboard   # dashboard only                → :5173
+pnpm dev:web         # marketing site only            → :5174
+pnpm dev:api         # api-worker only                → :8787
+pnpm dev:delivery    # delivery-worker only           → :8788
+pnpm dev:processing  # processing-worker only         → :8789
+pnpm dev:workers     # all three Workers, no dashboard/web
+```
+
+Or target any single app/package directly:
 
 ```bash
 pnpm --filter @imageryx/api-worker dev
