@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.9.4",
-    "prettier": "^3.7.4",
+    "prettier": "^3.9.6",
     "turbo": "^2.10.7",
     "typescript": "^5.9.2"
   },
