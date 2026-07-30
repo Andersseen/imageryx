@@ -41,6 +41,7 @@ limitations from this phase.
 ```
 apps/
   dashboard/           Analog + Angular dashboard            → :5173
+  web/                 Analog + Angular marketing site        → :5174
   api-worker/          Public API entry point (Hono)          → :8787
   delivery-worker/     Asset delivery edge (Hono)              → :8788
   processing-worker/   Queue consumer for transformation jobs  → :8789
@@ -84,7 +85,7 @@ Run from the repository root; Turborepo fans these out to every app/package
 with the matching script, respecting dependency order:
 
 ```bash
-pnpm dev        # start dashboard + all three Workers concurrently
+pnpm dev        # start dashboard + web + all three Workers concurrently
 pnpm build      # production build of every app/package
 pnpm lint       # ESLint across the workspace
 pnpm typecheck  # TypeScript project-reference typecheck across the workspace
@@ -92,7 +93,19 @@ pnpm test       # Vitest across every app/package that has tests
 pnpm check      # lint + typecheck + test + build, in dependency order
 ```
 
-Target a single app/package while iterating:
+Run a single app's dev server from the root (useful when you only need one
+piece running):
+
+```bash
+pnpm dev:dashboard   # dashboard only                → :5173
+pnpm dev:web         # marketing site only            → :5174
+pnpm dev:api         # api-worker only                → :8787
+pnpm dev:delivery    # delivery-worker only           → :8788
+pnpm dev:processing  # processing-worker only         → :8789
+pnpm dev:workers     # all three Workers, no dashboard/web
+```
+
+Or target any single app/package directly:
 
 ```bash
 pnpm --filter @imageryx/api-worker dev
@@ -107,6 +120,50 @@ pnpm --filter @imageryx/dashboard test
 | API Worker                            | http://localhost:8787 |
 | Delivery Worker                       | http://localhost:8788 |
 | Processing Worker (HTTP dev endpoint) | http://localhost:8789 |
+
+## Deployment
+
+Every app deploys to Cloudflare — `dashboard` and `web` as Pages projects,
+the three Workers as Cloudflare Workers:
+
+| App                | Deploys to                | Production URL                      |
+| ------------------ | -------------------------- | ------------------------------------ |
+| dashboard           | Cloudflare Pages           | https://imageryx-dashboard.pages.dev |
+| web                 | Cloudflare Pages           | https://imageryx-web.pages.dev       |
+| api-worker          | Cloudflare Workers         | `imageryx-api-worker` (Workers subdomain) |
+| delivery-worker     | Cloudflare Workers         | `imageryx-delivery-worker` (Workers subdomain) |
+| processing-worker   | Cloudflare Workers         | `imageryx-processing-worker` (Workers subdomain) |
+
+`.github/workflows/ci.yml` runs a single `check` job (verify structure,
+lint, typecheck, test, build) on every push and pull request. On a push to
+`main`, once `check` passes, all five apps deploy as independent parallel
+jobs — a failure in one doesn't block the others. Deploys need the
+repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+(Workers/Pages/D1/Queues write scope).
+
+Each app also has its own `deploy` script for deploying manually from a
+machine authenticated with `wrangler login`:
+
+```bash
+pnpm --filter @imageryx/dashboard run deploy
+pnpm --filter @imageryx/web run deploy
+pnpm --filter @imageryx/api-worker run deploy
+pnpm --filter @imageryx/delivery-worker run deploy
+pnpm --filter @imageryx/processing-worker run deploy
+```
+
+`api-worker` reads/writes the real `imageryx-db` D1 database in
+production (separate from the `--local` database used by `wrangler dev`).
+Apply new migrations before deploying code that depends on them:
+
+```bash
+pnpm --filter @imageryx/api-worker run db:migrate:production
+pnpm --filter @imageryx/api-worker run db:status:production
+```
+
+Nothing deployed is auth-protected yet (see "Current limitations") — this
+stage only wires up the pipeline and exposes the same diagnostic-only
+surface described above, publicly.
 
 ## Local database & storage setup
 
@@ -219,7 +276,9 @@ incomplete combination (e.g. `STORAGE_PROVIDER=local` with no
   transform pixels itself.
 - Dashboard routes other than **Overview** are static "Upcoming — Phase 4"
   placeholders with no interactive controls.
-- No deployment configuration for any app; CI only lints/typechecks/tests/builds.
+- CI deploys every app to Cloudflare on push to `main` (see "Deployment"
+  above), but nothing deployed is auth-protected — it's the same
+  diagnostic-only surface, now public.
 - No authentication on any route, including the new diagnostic routes —
   Phase 1 never implemented the `IMAGERYX_API_KEY` placeholder as a real
   middleware, so there is nothing yet to hook diagnostics auth into.

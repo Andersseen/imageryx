@@ -1,33 +1,26 @@
 {
-  "name": "@imageryx/dashboard",
+  "name": "@imageryx/web",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Imageryx dashboard - Analog + Angular 21 (zoneless) application shell.",
+  "description": "Imageryx marketing site - Analog + Angular 21 (zoneless) landing page.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --port 5173",
+    "preview": "vite preview --port 5174",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
-    "test": "vitest run",
-    "deploy": "wrangler pages deploy dist/client --project-name imageryx-dashboard --branch main"
+    "deploy": "wrangler pages deploy dist/client --project-name imageryx-web --branch main"
   },
   "dependencies": {
     "@analogjs/router": "^2.6.4",
-    "@angular/cdk": "^21.2.0",
     "@angular/common": "^21.2.0",
     "@angular/core": "^21.2.0",
-    "@angular/forms": "^21.2.0",
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
-    "@imageryx/contracts": "workspace:*",
-    "@imageryx/providers": "workspace:*",
     "angular-movement": "^0.5.0",
     "lumen-icons": "^0.2.0",
-    "quartz-headless": "^0.0.3",
-    "rxjs": "^7.8.2",
     "tslib": "^2.8.1",
     "@voltui/components": "^0.7.0"
   },
@@ -44,7 +37,6 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.2",
     "vite": "^7.3.6",
-    "vitest": "^4.1.10",
     "wrangler": "^4.115.0"
   }
 }

@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 
-const expectedApps = ['dashboard', 'api-worker', 'delivery-worker', 'processing-worker'];
+const expectedApps = ['dashboard', 'web', 'api-worker', 'delivery-worker', 'processing-worker'];
 const expectedPackages = [
   'contracts',
   'database',

@@ -157,10 +157,12 @@ Two distinct, deliberately incompatible identifier spaces:
   the identical `defaultPersistRoot` (`apps/api-worker/.wrangler/state/v3`)
   wrangler itself uses — confirmed empirically (`pnpm setup:local` then
   `wrangler dev` then `curl` the diagnostics routes all see the same rows).
-  The `database_id` in `wrangler.jsonc` (`00000000-0000-0000-0000-000000000001`)
-  is a **fixed local-only placeholder** — D1 `--local` mode only uses it as
-  a key for the on-disk SQLite file, but it must be replaced via
-  `wrangler d1 create` before any real deployment.
+  `wrangler.jsonc`'s top-level `database_id` now points at the real
+  `imageryx-db` D1 database (created via `wrangler d1 create`, see
+  "Deployment" below) — `--local` mode still only uses it as a key for the
+  on-disk SQLite file, so local state stays independent of the remote
+  database either way. Pulling this change resets your local D1 cache key;
+  re-run `pnpm setup:local` if diagnostics routes come back empty.
 
 ### Provider-capability decisions
 
@@ -350,8 +352,28 @@ Tracked in each placeholder package's own README, but summarized here:
 - `api-worker` — only diagnostic `GET` routes were added in Phase 2; still
   no upload routes, no auth beyond the Phase 1 placeholder, no write paths
   other than the local seed script.
-- No deployment configuration for any app (CI builds/tests only; no
-  `wrangler deploy`, no Pages/Vercel config).
+- CI (`.github/workflows/ci.yml`) now deploys all five apps to Cloudflare
+  on every push to `main`, gated behind the lint/typecheck/test/build
+  job — see "Deployment" below. There is still no auth on any business
+  route, so this exposes diagnostic-only endpoints and a static dashboard,
+  not a production-ready write path.
+
+### Deployment
+
+- `dashboard` and `web` deploy to Cloudflare Pages (`imageryx-dashboard`,
+  `imageryx-web` projects) via `wrangler pages deploy dist/client`.
+- `api-worker`, `delivery-worker`, `processing-worker` deploy to Cloudflare
+  Workers via `wrangler deploy --env production`, each with its own
+  `env.production` block in `wrangler.jsonc` (production `vars`, and for
+  `api-worker`, the real `imageryx-db` D1 binding).
+- `api-worker`'s CI job runs `db:migrate:production`
+  (`wrangler d1 migrations apply imageryx-db --remote --env production`)
+  before deploying.
+- All five apps deploy as independent, parallel GitHub Actions jobs (each
+  `needs: check`), authenticating with the repo's `CLOUDFLARE_API_TOKEN` /
+  `CLOUDFLARE_ACCOUNT_ID` secrets. Every app also has a `pnpm --filter
+  <name> run deploy` script for deploying manually from a local machine
+  authenticated with `wrangler login`.
 
 ## Package compatibility notes
 

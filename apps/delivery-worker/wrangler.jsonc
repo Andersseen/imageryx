@@ -10,5 +10,13 @@
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
+  },
+  "env": {
+    "production": {
+      "vars": {
+        "APP_ENV": "production",
+        "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev"
+      }
+    }
   }
 }

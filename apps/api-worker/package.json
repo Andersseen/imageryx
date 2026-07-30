@@ -8,12 +8,15 @@
   "scripts": {
     "dev": "wrangler dev --port 8787 --inspector-port 9229",
     "build": "wrangler deploy --dry-run --outdir dist",
+    "deploy": "wrangler deploy --env production",
     "lint": "eslint .",
     "typecheck": "wrangler types && tsc --noEmit",
     "test": "vitest run",
     "cf-typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply imageryx-db --local",
-    "db:status:local": "wrangler d1 migrations list imageryx-db --local"
+    "db:status:local": "wrangler d1 migrations list imageryx-db --local",
+    "db:migrate:production": "wrangler d1 migrations apply imageryx-db --remote --env production",
+    "db:status:production": "wrangler d1 migrations list imageryx-db --remote --env production"
   },
   "dependencies": {
     "@imageryx/contracts": "workspace:*",
