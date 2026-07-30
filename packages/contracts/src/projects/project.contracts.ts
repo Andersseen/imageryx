@@ -12,8 +12,16 @@ export const createProjectInputSchema = z.object({
   slug: projectSlugSchema.optional(),
   description: projectDescriptionSchema.optional(),
   isDefault: z.boolean().optional(),
+  /** Creates the standard system preset set (see @imageryx/database's system-presets service) for the new project. Defaults to true so a freshly created project is immediately useful. */
+  withSystemPresets: z.boolean().default(true),
 });
 export type CreateProjectInput = z.infer<typeof createProjectInputSchema>;
+
+/** An explicit, non-default destructive flag — never used by the development dashboard. */
+export const deleteProjectQuerySchema = z.object({
+  cascade: z.boolean().default(false),
+});
+export type DeleteProjectQuery = z.infer<typeof deleteProjectQuerySchema>;
 
 export const updateProjectInputSchema = z
   .object({

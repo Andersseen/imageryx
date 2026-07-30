@@ -22,8 +22,21 @@ export class AssetPersistenceService {
     this.activity = new AssetActivityRepository(db);
   }
 
-  async createAssetWithActivity(input: CreateAssetRow): Promise<ImageAsset> {
-    const assetId = generateId();
+  /**
+   * `options.id`, when provided, lets a caller pre-generate the asset ID
+   * before this call (e.g. to build its physical storage key and write
+   * the object *before* the metadata row exists) so the stored bytes and
+   * the persisted row always agree on the same ID.
+   */
+  async createAssetWithActivity(
+    input: CreateAssetRow,
+    options: {
+      id?: string;
+      event?: string;
+      metadata?: Record<string, unknown> | null;
+    } = {},
+  ): Promise<ImageAsset> {
+    const assetId = options.id ?? generateId();
     const activityId = generateId();
     const timestamp = nowIso();
 
@@ -34,8 +47,8 @@ export class AssetPersistenceService {
         {
           assetId,
           projectId: input.projectId,
-          event: "asset.created",
-          metadata: { storageKey: input.storageKey },
+          event: options.event ?? "asset.created",
+          metadata: options.metadata ?? { storageKey: input.storageKey },
         },
         timestamp,
       ),

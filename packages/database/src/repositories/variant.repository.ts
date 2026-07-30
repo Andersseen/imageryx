@@ -94,6 +94,22 @@ export class VariantRepository {
     return row ? mapRow(row) : null;
   }
 
+  async countReadyByAssetIds(
+    assetIds: readonly string[],
+  ): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (assetIds.length === 0) return map;
+    const placeholders = assetIds.map(() => "?").join(", ");
+    const result = await this.db
+      .prepare(
+        `SELECT asset_id, COUNT(*) as count FROM variants WHERE asset_id IN (${placeholders}) AND status = 'ready' GROUP BY asset_id`,
+      )
+      .bind(...assetIds)
+      .all<{ asset_id: string; count: number }>();
+    for (const row of result.results) map.set(row.asset_id, row.count);
+    return map;
+  }
+
   /** Unexecuted counterpart to `create()`, for combining with another repository's statement in a `db.batch()` call (e.g. `VariantPersistenceService`). */
   buildInsertStatement(id: string, input: CreateVariantRow, timestamp: string) {
     return this.db

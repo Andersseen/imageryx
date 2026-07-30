@@ -23,9 +23,12 @@
   "dependencies": {
     "@imageryx/contracts": "workspace:*",
     "@imageryx/database": "workspace:*",
-    "@imageryx/image-core": "workspace:*"
+    "@imageryx/image-core": "workspace:*",
+    "@imageryx/providers": "workspace:*",
+    "miniflare": "^4.20260722.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260722.1",
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
     "typescript": "^5.9.2",

@@ -1,21 +1,22 @@
 #!/usr/bin/env node
 /**
  * DESTRUCTIVE: wipes the local D1 database's on-disk state
- * (`apps/api-worker/.wrangler/state/v3/d1`) so the next
- * `pnpm db:migrate:local` starts from an empty schema. Does not run
- * implicitly as part of `pnpm setup:local` or any other script — only run
- * this when you explicitly want to start over.
+ * (`.wrangler-state/v3/d1`, shared by every Worker's `wrangler dev` and
+ * the seed script — see context.md) so the next `pnpm db:migrate:local`
+ * starts from an empty schema. Does not run implicitly as part of
+ * `pnpm setup:local` or any other script — only run this when you
+ * explicitly want to start over.
  *
  * Refuses to run unless the resolved target is exactly
- * `<repoRoot>/apps/api-worker/.wrangler/state/v3/d1`.
+ * `<repoRoot>/.wrangler-state/v3/d1`.
  */
 import { existsSync, rmSync } from 'node:fs';
 import { relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
-const target = resolve(repoRoot, 'apps', 'api-worker', '.wrangler', 'state', 'v3', 'd1');
-const expectedRelative = ['apps', 'api-worker', '.wrangler', 'state', 'v3', 'd1'].join(sep);
+const target = resolve(repoRoot, '.wrangler-state', 'v3', 'd1');
+const expectedRelative = ['.wrangler-state', 'v3', 'd1'].join(sep);
 
 const targetRelativeToRoot = relative(repoRoot, target);
 const isExpectedSubpath = targetRelativeToRoot === expectedRelative && !targetRelativeToRoot.startsWith('..');

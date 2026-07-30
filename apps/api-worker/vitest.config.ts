@@ -25,6 +25,12 @@ export default defineConfig(async () => {
     test: {
       pool: cloudflarePool(workersOptions),
       setupFiles: ["./test/apply-migrations.ts"],
+      // Excludes test/integration/**: that suite runs under plain Node (see
+      // vitest.integration.config.ts) against a real Miniflare-backed D1 + R2 pair directly —
+      // it must never be picked up by this workerd-based pool, which cannot run Node-only code
+      // (Miniflare itself, `node:` built-ins) inside the Workers sandbox.
+      include: ["test/**/*.spec.ts"],
+      exclude: ["test/integration/**"],
     },
   };
 });

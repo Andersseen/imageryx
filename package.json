@@ -15,6 +15,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:workers": "turbo run test --filter=@imageryx/api-worker --filter=@imageryx/delivery-worker --filter=@imageryx/processing-worker",
+    "test:integration": "turbo run test:integration",
     "check": "turbo run lint typecheck test build",
     "format": "prettier --write \"**/*.{ts,tsx,html,json,md,yml,yaml}\" --ignore-unknown",
     "format:check": "prettier --check \"**/*.{ts,tsx,html,json,md,yml,yaml}\" --ignore-unknown",
@@ -26,7 +28,8 @@
     "db:reset:local": "node tooling/scripts/db-reset-local.mjs",
     "db:status:local": "pnpm --filter @imageryx/api-worker run db:status:local",
     "storage:prepare:local": "node tooling/scripts/storage-prepare-local.mjs",
-    "storage:reset:local": "node tooling/scripts/storage-reset-local.mjs"
+    "storage:reset:local": "node tooling/scripts/storage-reset-local.mjs",
+    "processing:run-local": "pnpm --filter @imageryx/scripts run processing:run-local"
   },
   "devDependencies": {
     "@types/node": "^22.9.4",

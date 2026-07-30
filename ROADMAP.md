@@ -45,37 +45,72 @@ Still no upload API, delivery flow, real transformation pipeline, SDK, or
 functional dashboard beyond Phase 1's Overview page — see context.md for
 the exact Phase 3 starting point.
 
-## Phase 3 — Uploads, Transformation Pipeline and Delivery
+## Phase 3 — Functional Backend and Delivery Flow ✅ (current)
 
-- `api-worker` gains real multipart upload routes backed by the storage
-  providers introduced in Phase 2.
-- `@imageryx/image-core` implements the provider-independent
-  decode/resize/crop/encode pipeline (or delegates to a real transformation
-  provider's API).
-- `processing-worker`'s Queue consumer runs real transformation jobs
-  instead of acknowledging placeholders, using `@imageryx/database`'s
-  processing-job repository and the provider registry from Phase 2.
-- `delivery-worker` serves real transformed assets, cache-first, replacing
+- `api-worker` gains real multipart upload routes (22-step validation and
+  consistency flow), full CRUD for projects/folders/tags/presets/assets,
+  idempotent variant-generation requests, processing-job list/retry/cancel,
+  and an aggregate `/v1/stats` route — all behind Bearer auth on every
+  `/v1/*` route.
+- `processing-worker`'s Queue consumer runs two real job handlers:
+  `inspect-metadata` (real per-format dimension/alpha parsing —
+  PNG/JPEG/GIF/WebP/SVG; AVIF reports `null` with a warning, never a
+  fabricated value — plus deterministic placeholder generation) and
+  `generate-variant` (renders a real, visibly-labeled "Simulated
+  transformation" SVG and persists it through `StorageProvider` when
+  requested) — using `@imageryx/database`'s processing-job repository and
+  the provider registry from Phase 2. Real local Cloudflare Queue delivery
+  across separate `wrangler dev` processes, confirmed working via live
+  testing.
+- `delivery-worker` serves real originals and ready variants, cache-first,
+  with correct ETag/Cache-Control/nosniff headers, visibility enforcement,
+  and HMAC-signed time-limited private download tokens — replacing
   `/preview-placeholder`.
-- The Cloudflare Images and Cloudinary adapters prepared in Phase 2 make
-  their first real network calls.
+- `@imageryx/sdk` ships as a real, tested, framework-independent client;
+  `@imageryx/angular` ships a real, tested `<imgyx-image>` component.
+- The dashboard gains one dev-only `/dev-flow` route exercising the whole
+  pipeline through a server-side proxy that keeps the API key out of
+  browser code — no other dashboard route changes.
+- All of the above runs **locally with zero Cloudflare or Cloudinary
+  credentials**: local storage is a Miniflare-simulated R2 bucket shared
+  across all three Workers via a common `--persist-to` directory, local
+  Queues are real Cloudflare Queues simulated the same way, and
+  transformation is the deterministic mock provider. The Cloudflare Images
+  and Cloudinary adapters remain mapping-only — `transform()` still always
+  throws; no real network call to either happens in this phase.
+
+See context.md's "Phase 3 decisions and limitations" for the full detail,
+including known gaps (AVIF dimension detection, folder-move not cascading
+to descendant asset paths, project/folder/preset activity as logs rather
+than rows, in-memory job-list pagination) and the exact Phase 4 starting
+point.
 
 ## Phase 4 — Complete Dashboard
 
 - `/library`, `/projects`, `/presets`, `/processing`, `/api`, and
-  `/settings` become functional, backed by `@imageryx/sdk` and
-  `@imageryx/angular`.
+  `/settings` become functional, backed by the real `@imageryx/sdk` and
+  `@imageryx/angular` shipped in Phase 3 — no new backend surface should
+  be needed for basic CRUD/browsing.
 - Project switcher, global search, and upload button (currently disabled
   placeholders) become real.
-- API key management UI, wired to real auth on `api-worker`.
+- API key management UI. Phase 3's auth is a single shared static
+  `IMAGERYX_API_KEY` with no scoping/rotation — a real key-management UI
+  likely needs the `api_keys` table's per-key model wired up for the first
+  time (the table exists as of Phase 2 but nothing writes to it yet).
+- Revisit project/folder/preset-scoped activity (log-only as of Phase 3)
+  if the dashboard wants a real project-level activity feed.
 
 ## Phase 5 — Production Hardening & Release
 
-- Authentication/authorization on business routes (CI/CD and basic
-  Cloudflare deployment already exist as of Phase 2 — see context.md,
-  "Deployment" — but nothing deployed is auth-protected yet).
+- Real authentication/authorization on business routes — replacing Phase
+  3's single shared static API key with per-user/per-team credentials
+  (CI/CD and basic Cloudflare deployment already exist as of Phase 2 — see
+  context.md, "Deployment" — but nothing deployed uses more than that
+  static key yet).
 - First tagged release; package publishing workflows for `@imageryx/sdk`
   and `@imageryx/angular`.
+- A real transformation pipeline (or first real Cloudflare
+  Images/Cloudinary network calls) replacing Phase 3's mock provider.
 
 ## Out of scope for now
 

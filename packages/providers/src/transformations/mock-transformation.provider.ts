@@ -36,7 +36,10 @@ export const MOCK_CAPABILITIES: TransformationProviderCapabilities = {
   provider: "mock",
   supportedOperations: IMAGE_OPERATION_TYPES,
   supportedOutputFormats: ["auto", "avif", "webp", "jpeg", "png"],
-  supportsPersistentOutput: false,
+  // true as of Phase 3: processing-worker's generate-variant handler renders a real SVG
+  // derivative and writes it through StorageProvider when `persist: true` — this is no longer
+  // the Phase 2 stand-in that only returned a fabricated `/preview-placeholder` URL.
+  supportsPersistentOutput: true,
   supportsRemoteSources: false,
   supportsDynamicDelivery: false,
 };

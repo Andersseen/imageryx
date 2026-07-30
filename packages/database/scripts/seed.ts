@@ -1,12 +1,17 @@
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { R2Bucket } from "@cloudflare/workers-types";
 import {
   buildOriginalStorageKey,
   computeSha256Checksum,
 } from "@imageryx/image-core";
-import { LocalStorageProvider } from "@imageryx/providers/node";
+import { R2StorageProvider } from "@imageryx/providers";
 import { Miniflare } from "miniflare";
 import type { D1Client } from "../src/client";
+import {
+  readApiWorkerD1Config,
+  readApiWorkerR2Config,
+} from "../src/config/wrangler-config";
 import { AssetRepository } from "../src/repositories/asset.repository";
 import { FolderRepository } from "../src/repositories/folder.repository";
 import { PresetRepository } from "../src/repositories/preset.repository";
@@ -19,10 +24,6 @@ import {
   SEED_TAGS,
   generateFixtureSvg,
 } from "./seed-data";
-import {
-  readApiWorkerD1Config,
-  readApiWorkerLocalStoragePath,
-} from "./wrangler-config";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "../../..");
@@ -43,27 +44,31 @@ async function assertSchemaReady(db: D1Client): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const { binding, databaseId } = readApiWorkerD1Config(wranglerJsoncPath);
-  const localStorageRelativePath =
-    readApiWorkerLocalStoragePath(wranglerJsoncPath);
-  const storageRoot = resolve(apiWorkerDir, localStorageRelativePath);
-  const persistRoot = join(apiWorkerDir, ".wrangler", "state", "v3");
+  const { binding: d1Binding, databaseId } = readApiWorkerD1Config(wranglerJsoncPath);
+  const { binding: r2Binding, bucketName } = readApiWorkerR2Config(wranglerJsoncPath);
+  // A repo-root-level shared directory, not `apps/api-worker/.wrangler/state`: every Worker's
+  // `wrangler dev` (api-worker, delivery-worker, processing-worker) is a *separate* local process
+  // launched from its own app directory, and would otherwise default to its own isolated
+  // `.wrangler/state`. Passing the same `--persist-to` to all three (and to this script) is what
+  // makes them see the same local D1 rows and R2 objects — see context.md's "Local Queue
+  // development" / "Local-mode architecture" notes.
+  const persistRoot = join(repoRoot, ".wrangler-state", "v3");
 
-  // Matches wrangler's own local persistence layout exactly (same binding value + persist root),
-  // so this writes to the same on-disk database `wrangler dev` reads — not a separate copy.
   const mf = new Miniflare({
     modules: true,
     script: 'export default { async fetch() { return new Response("ok"); } };',
-    d1Databases: { [binding]: databaseId },
+    d1Databases: { [d1Binding]: databaseId },
     d1Persist: true,
+    r2Buckets: { [r2Binding]: bucketName },
+    r2Persist: true,
     defaultPersistRoot: persistRoot,
   });
 
   try {
-    const db = (await mf.getD1Database(binding)) as unknown as D1Client;
+    const db = (await mf.getD1Database(d1Binding)) as unknown as D1Client;
     await assertSchemaReady(db);
-
-    const storage = new LocalStorageProvider({ rootDirectory: storageRoot });
+    const bucket = (await mf.getR2Bucket(r2Binding)) as unknown as R2Bucket;
+    const storage = new R2StorageProvider(bucket);
     const projectRepo = new ProjectRepository(db);
     const folderRepo = new FolderRepository(db);
     const tagRepo = new TagRepository(db);

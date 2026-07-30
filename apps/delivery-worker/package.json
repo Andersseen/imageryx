@@ -3,10 +3,28 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Imageryx Delivery Worker - health and a repository-owned placeholder preview image. Real asset delivery arrives in a later phase.",
+  "description": "Imageryx Delivery Worker - serves public originals and ready variants, and signed private downloads.",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./resolve-delivery": {
+      "types": "./src/lib/resolve-delivery.ts",
+      "default": "./src/lib/resolve-delivery.ts"
+    },
+    "./signed-download": {
+      "types": "./src/lib/signed-download.ts",
+      "default": "./src/lib/signed-download.ts"
+    },
+    "./path": {
+      "types": "./src/lib/path.ts",
+      "default": "./src/lib/path.ts"
+    }
+  },
   "scripts": {
-    "dev": "wrangler dev --port 8788 --inspector-port 9230",
+    "dev": "wrangler dev --port 8788 --inspector-port 9230 --persist-to ../../.wrangler-state",
     "build": "wrangler deploy --dry-run --outdir dist",
     "deploy": "wrangler deploy --env production",
     "lint": "eslint .",
@@ -16,6 +34,9 @@
   },
   "dependencies": {
     "@imageryx/contracts": "workspace:*",
+    "@imageryx/database": "workspace:*",
+    "@imageryx/image-core": "workspace:*",
+    "@imageryx/providers": "workspace:*",
     "hono": "^4.12.32"
   },
   "devDependencies": {

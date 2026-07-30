@@ -1,6 +1,7 @@
 import type { HealthCheckResponse, ServiceName } from "@imageryx/contracts";
 
 export * from "./fixtures/asset.fixture";
+export * from "./fixtures/decodable-image.fixture";
 export * from "./fixtures/folder.fixture";
 export * from "./fixtures/image-bytes.fixture";
 export * from "./fixtures/preset.fixture";

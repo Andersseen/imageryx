@@ -3,6 +3,7 @@ import {
   assetIdSchema,
   checksumSchema,
   folderIdSchema,
+  isoTimestampSchema,
   projectIdSchema,
   supportedImageExtensionSchema,
   supportedImageMimeTypeSchema,
@@ -90,3 +91,30 @@ export const assetDetailsResponseSchema = assetSchema.extend({
   tags: z.array(tagSchema),
 });
 export type AssetDetailsResponse = z.infer<typeof assetDetailsResponseSchema>;
+
+export const duplicateCandidateSchema = z.object({
+  assetId: assetIdSchema,
+  path: z.string(),
+});
+export type DuplicateCandidate = z.infer<typeof duplicateCandidateSchema>;
+
+export const downloadUrlVariantSchema = z.union([
+  z.literal("original"),
+  z.string().min(1),
+]);
+
+export const createDownloadUrlInputSchema = z.object({
+  id: assetIdSchema,
+  variant: downloadUrlVariantSchema.default("original"),
+  expiresIn: z.number().int().min(60).max(86400).default(900),
+});
+export type CreateDownloadUrlInput = z.infer<typeof createDownloadUrlInputSchema>;
+
+export const createDownloadUrlResponseSchema = z.object({
+  url: z.string(),
+  expiresAt: isoTimestampSchema,
+  variant: downloadUrlVariantSchema,
+});
+export type CreateDownloadUrlResponse = z.infer<
+  typeof createDownloadUrlResponseSchema
+>;

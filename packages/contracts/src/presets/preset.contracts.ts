@@ -52,3 +52,25 @@ export type ListPresetsInput = z.infer<typeof listPresetsInputSchema>;
 /** System presets may be read but never deleted — enforced by the repository, not just this schema. */
 export const deletePresetInputSchema = z.object({ id: presetIdSchema });
 export type DeletePresetInput = z.infer<typeof deletePresetInputSchema>;
+
+/**
+ * Preview always runs through the mock provider (see context.md) — no
+ * source asset is decoded, only deterministic expected dimensions/size are
+ * reported against a caller-supplied (or default) source size.
+ */
+export const previewPresetInputSchema = z.object({
+  id: presetIdSchema,
+  sourceWidth: z.number().int().min(1).max(8192).optional(),
+  sourceHeight: z.number().int().min(1).max(8192).optional(),
+});
+export type PreviewPresetInput = z.infer<typeof previewPresetInputSchema>;
+
+export const previewPresetResponseSchema = z.object({
+  width: z.number().int().positive().nullable(),
+  height: z.number().int().positive().nullable(),
+  sizeBytes: z.number().int().nonnegative(),
+  outputFormat: outputImageFormatSchema,
+  simulated: z.literal(true),
+  previewUrl: z.string(),
+});
+export type PreviewPresetResponse = z.infer<typeof previewPresetResponseSchema>;

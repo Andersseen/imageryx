@@ -153,6 +153,55 @@ describe("FolderRepository", () => {
     ).resolves.toBeTruthy();
   });
 
+  it("moves a folder to a new parent, rewriting its own path and its descendants' paths", async () => {
+    const archive = await repository.create({
+      projectId,
+      name: "Archive",
+      slug: "archive",
+      path: "archive",
+    });
+    const courses = await repository.create({
+      projectId,
+      name: "Courses",
+      slug: "courses",
+      path: "courses",
+    });
+    const signals = await repository.create({
+      projectId,
+      parentId: courses.id,
+      name: "Signals",
+      slug: "signals",
+      path: "courses/signals",
+    });
+
+    const moved = await repository.move(courses.id, archive.id);
+    expect(moved?.path).toBe("archive/courses");
+    expect(moved?.parentId).toBe(archive.id);
+
+    const reloadedSignals = await repository.findById(signals.id);
+    expect(reloadedSignals?.path).toBe("archive/courses/signals");
+  });
+
+  it("moves a folder to the project root when newParentId is null", async () => {
+    const parent = await repository.create({
+      projectId,
+      name: "Projects",
+      slug: "projects",
+      path: "projects",
+    });
+    const child = await repository.create({
+      projectId,
+      parentId: parent.id,
+      name: "Angular Lab",
+      slug: "angular-lab",
+      path: "projects/angular-lab",
+    });
+
+    const moved = await repository.move(child.id, null);
+    expect(moved?.parentId).toBeNull();
+    expect(moved?.path).toBe("angular-lab");
+  });
+
   it("cascade-deletes child folders when the parent is deleted", async () => {
     const parent = await repository.create({
       projectId,

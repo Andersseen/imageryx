@@ -1,4 +1,4 @@
-import type { ImageOperation, OutputImageFormat } from "@imageryx/contracts";
+import { SYSTEM_PRESET_DEFINITIONS } from "../src/presets/system-presets";
 
 export interface SeedFolder {
   name: string;
@@ -92,104 +92,13 @@ export const SEED_TAGS: readonly string[] = [
   "documentation",
 ];
 
-export interface SeedPreset {
-  name: string;
-  slug: string;
-  operations: readonly ImageOperation[];
-  outputFormat: OutputImageFormat;
-  quality: number | null;
-}
-
-export const SEED_PRESETS: readonly SeedPreset[] = [
-  {
-    name: "Thumbnail",
-    slug: "thumbnail",
-    operations: [
-      {
-        type: "resize",
-        width: 320,
-        height: 320,
-        fit: "cover",
-        withoutEnlargement: true,
-      },
-    ],
-    outputFormat: "auto",
-    quality: 75,
-  },
-  {
-    name: "Avatar",
-    slug: "avatar",
-    operations: [
-      {
-        type: "resize",
-        width: 512,
-        height: 512,
-        fit: "cover",
-        withoutEnlargement: true,
-      },
-    ],
-    outputFormat: "auto",
-    quality: 80,
-  },
-  {
-    name: "Content",
-    slug: "content",
-    operations: [
-      {
-        type: "resize",
-        width: 1280,
-        fit: "scale-down",
-        withoutEnlargement: true,
-      },
-    ],
-    outputFormat: "auto",
-    quality: 80,
-  },
-  {
-    name: "Hero",
-    slug: "hero",
-    operations: [
-      {
-        type: "resize",
-        width: 1920,
-        height: 1080,
-        fit: "cover",
-        withoutEnlargement: true,
-      },
-    ],
-    outputFormat: "auto",
-    quality: 82,
-  },
-  {
-    name: "Project Card",
-    slug: "project-card",
-    operations: [
-      {
-        type: "resize",
-        width: 800,
-        height: 450,
-        fit: "cover",
-        withoutEnlargement: true,
-      },
-    ],
-    outputFormat: "auto",
-    quality: 80,
-  },
-  {
-    name: "Download High",
-    slug: "download-high",
-    operations: [
-      {
-        type: "resize",
-        width: 3000,
-        fit: "scale-down",
-        withoutEnlargement: true,
-      },
-    ],
-    outputFormat: "jpeg",
-    quality: 92,
-  },
-];
+/**
+ * The seed script's system presets are now exactly `@imageryx/database`'s
+ * `SYSTEM_PRESET_DEFINITIONS` (see `src/presets/system-presets.ts`) — the
+ * same list `POST /v1/projects`' `withSystemPresets` flow uses, so a
+ * seeded project and an API-created project always get identical presets.
+ */
+export const SEED_PRESETS = SYSTEM_PRESET_DEFINITIONS;
 
 /** A tiny, deterministic, code-generated placeholder — never a committed binary. Clearly labeled as local development fixture data, both in its own content and in the asset name the seed script assigns it. */
 export function generateFixtureSvg(label: string): string {

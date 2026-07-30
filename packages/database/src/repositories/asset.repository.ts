@@ -87,6 +87,8 @@ export interface CreateAssetRow {
 
 export interface UpdateAssetRow {
   name?: string;
+  slug?: string;
+  path?: string;
   folderId?: string | null;
   visibility?: ImageAsset["visibility"];
   processingStatus?: ImageAsset["processingStatus"];
@@ -262,6 +264,51 @@ export class AssetRepository {
     return row ? mapRow(row) : null;
   }
 
+  /** All active assets sharing a checksum — used to surface upload-time duplicate candidates without blocking the upload. */
+  async listByChecksum(
+    projectId: string,
+    checksum: string,
+  ): Promise<ImageAsset[]> {
+    const result = await this.db
+      .prepare(
+        "SELECT * FROM assets WHERE project_id = ? AND checksum = ? AND deleted_at IS NULL",
+      )
+      .bind(projectId, checksum)
+      .all<AssetRow>();
+    return result.results.map(mapRow);
+  }
+
+  async listByIds(ids: readonly string[]): Promise<ImageAsset[]> {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => "?").join(", ");
+    const result = await this.db
+      .prepare(`SELECT * FROM assets WHERE id IN (${placeholders})`)
+      .bind(...ids)
+      .all<AssetRow>();
+    return result.results.map(mapRow);
+  }
+
+  /** One grouped query instead of one COUNT/SUM per project — used by the project list endpoint. Active (non-deleted) assets only. */
+  async countAndSizeByProjectIds(
+    projectIds: readonly string[],
+  ): Promise<Map<string, { count: number; totalBytes: number }>> {
+    const map = new Map<string, { count: number; totalBytes: number }>();
+    if (projectIds.length === 0) return map;
+    const placeholders = projectIds.map(() => "?").join(", ");
+    const result = await this.db
+      .prepare(
+        `SELECT project_id, COUNT(*) as count, COALESCE(SUM(size_bytes), 0) as total_bytes
+         FROM assets WHERE project_id IN (${placeholders}) AND deleted_at IS NULL
+         GROUP BY project_id`,
+      )
+      .bind(...projectIds)
+      .all<{ project_id: string; count: number; total_bytes: number }>();
+    for (const row of result.results) {
+      map.set(row.project_id, { count: row.count, totalBytes: row.total_bytes });
+    }
+    return map;
+  }
+
   /**
    * Builds the INSERT statement without executing it, so a caller that
    * needs true `db.batch()` atomicity across tables (see
@@ -310,8 +357,8 @@ export class AssetRepository {
       );
   }
 
-  async create(input: CreateAssetRow): Promise<ImageAsset> {
-    const id = generateId();
+  /** `id`, when provided, lets a caller pre-generate the asset ID (e.g. to build its physical storage key before writing the object) so the stored bytes and the row agree on the same ID. */
+  async create(input: CreateAssetRow, id: string = generateId()): Promise<ImageAsset> {
     const timestamp = nowIso();
     await this.buildInsertStatement(id, input, timestamp).run();
 
@@ -327,6 +374,8 @@ export class AssetRepository {
     const timestamp = nowIso();
     const merged = {
       name: input.name ?? existing.name,
+      slug: input.slug ?? existing.slug,
+      path: input.path ?? existing.path,
       folderId:
         input.folderId !== undefined ? input.folderId : existing.folderId,
       visibility: input.visibility ?? existing.visibility,
@@ -353,12 +402,14 @@ export class AssetRepository {
 
     await this.db
       .prepare(
-        `UPDATE assets SET name = ?, folder_id = ?, visibility = ?, processing_status = ?, download_original_enabled = ?,
+        `UPDATE assets SET name = ?, slug = ?, path = ?, folder_id = ?, visibility = ?, processing_status = ?, download_original_enabled = ?,
           width = ?, height = ?, aspect_ratio = ?, has_alpha = ?, dominant_color = ?, placeholder = ?, updated_at = ?
         WHERE id = ?`,
       )
       .bind(
         merged.name,
+        merged.slug,
+        merged.path,
         merged.folderId,
         merged.visibility,
         merged.processingStatus,
