@@ -13,7 +13,7 @@
     "@imageryx/database": "workspace:*",
     "@imageryx/processing-worker": "workspace:*",
     "@imageryx/providers": "workspace:*",
-    "miniflare": "^4.20260722.1"
+    "miniflare": "^4.20260730.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260722.1",
