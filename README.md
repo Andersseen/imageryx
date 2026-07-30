@@ -1,5 +1,12 @@
 # Imageryx
 
+[![CI](https://github.com/Andersseen/imageryx/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Andersseen/imageryx/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-5FA04E?logo=node.js&logoColor=white)](.nvmrc)
+[![pnpm](https://img.shields.io/badge/pnpm-9-F69220?logo=pnpm&logoColor=white)](https://pnpm.io)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com)
+[![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white)](https://angular.dev)
+
 Imageryx is an open, provider-independent image delivery and
 transformation platform: upload once, transform on request, and serve from
 the edge — without locking storage or transformation logic to a single
@@ -223,9 +230,16 @@ the three Workers as Cloudflare Workers:
 `.github/workflows/ci.yml` runs a single `check` job (verify structure,
 lint, typecheck, test, build) on every push and pull request. On a push to
 `main`, once `check` passes, all five apps deploy as independent parallel
-jobs — a failure in one doesn't block the others. Deploys need the
+matrix jobs — a failure in one doesn't block the others. Deploys need the
 repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
 (Workers/Pages/D1/Queues write scope).
+
+Each matrix leg publishes to its own GitHub Environment
+(`web (production)`, `dashboard (production)`, `api-worker (production)`,
+…), so every deploy is recorded with its live URL under the repository's
+**Environments** tab and in the sidebar. Add required reviewers or branch
+protection rules per environment in **Settings → Environments** to gate any
+individual app without touching the workflow.
 
 Each app also has its own `deploy` script for deploying manually from a
 machine authenticated with `wrangler login`:
