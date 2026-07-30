@@ -5,10 +5,16 @@ updates:
     schedule:
       interval: "weekly"
     groups:
+      # The Angular compiler pins a narrow TypeScript range (Angular 22
+      # requires >=6.0.0 <6.1.0), so typescript and the TS-aware lint
+      # packages must move in the same PR or the build fails on arrival.
       angular:
         patterns:
           - "@angular/*"
           - "@analogjs/*"
+          - "angular-eslint"
+          - "typescript"
+          - "typescript-eslint"
       cloudflare:
         patterns:
           - "wrangler"

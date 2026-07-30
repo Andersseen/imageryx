@@ -28,6 +28,13 @@
   },
   "env": {
     "production": {
+      // Without an explicit name, `wrangler deploy --env production`
+      // publishes as "imageryx-delivery-worker-production".
+      "name": "imageryx-delivery-worker",
+      // FIXME(security): DOWNLOAD_SIGNING_SECRET is a real secret and must
+      // not ship as a plaintext var in a public repo. Move it to
+      // `wrangler secret put DOWNLOAD_SIGNING_SECRET --env production`
+      // (needs a `.dev.vars` story for local dev first — see README).
       "vars": {
         "APP_ENV": "production",
         "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev",

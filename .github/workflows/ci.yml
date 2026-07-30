@@ -51,65 +51,36 @@ jobs:
       - name: Build
         run: pnpm build
 
-  deploy-dashboard:
-    name: Deploy dashboard (Cloudflare Pages)
+  deploy:
+    name: Deploy ${{ matrix.app }}
     needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-
-      - name: Install dependencies (frozen lockfile)
-        run: pnpm install --frozen-lockfile
-
-      - name: Build and deploy
-        run: pnpm turbo run deploy --filter=@imageryx/dashboard
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-  deploy-web:
-    name: Deploy web (Cloudflare Pages)
-    needs: check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-
-      - name: Install dependencies (frozen lockfile)
-        run: pnpm install --frozen-lockfile
-
-      - name: Build and deploy
-        run: pnpm turbo run deploy --filter=@imageryx/web
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-  deploy-api-worker:
-    name: Deploy api-worker (Cloudflare Workers)
-    needs: check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: ${{ matrix.app }} (production)
+      url: ${{ matrix.url }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: web
+            package: "@imageryx/web"
+            url: https://imageryx-web.pages.dev
+          - app: dashboard
+            package: "@imageryx/dashboard"
+            url: https://imageryx-dashboard.pages.dev
+          - app: api-worker
+            package: "@imageryx/api-worker"
+            url: https://imageryx-api-worker.workers.dev
+          - app: delivery-worker
+            package: "@imageryx/delivery-worker"
+            url: https://imageryx-delivery-worker.workers.dev
+          - app: processing-worker
+            package: "@imageryx/processing-worker"
+            url: https://imageryx-processing-worker.workers.dev
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -127,67 +98,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Apply D1 migrations
+        if: matrix.app == 'api-worker'
         run: pnpm --filter @imageryx/api-worker run db:migrate:production
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Deploy
-        run: pnpm turbo run deploy --filter=@imageryx/api-worker
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-  deploy-delivery-worker:
-    name: Deploy delivery-worker (Cloudflare Workers)
-    needs: check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-
-      - name: Install dependencies (frozen lockfile)
-        run: pnpm install --frozen-lockfile
-
-      - name: Deploy
-        run: pnpm turbo run deploy --filter=@imageryx/delivery-worker
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-  deploy-processing-worker:
-    name: Deploy processing-worker (Cloudflare Workers)
-    needs: check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-
-      - name: Install dependencies (frozen lockfile)
-        run: pnpm install --frozen-lockfile
-
-      - name: Deploy
-        run: pnpm turbo run deploy --filter=@imageryx/processing-worker
+      - name: Build and deploy
+        run: pnpm turbo run deploy --filter=${{ matrix.package }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
