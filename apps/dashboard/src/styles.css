@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+@import '@voltui/components/themes/presets/glacier-sharp.css';
+
+/*
+ * Safety net for reduced-motion: covers our own transitions AND any
+ * third-party component transitions we don't author (e.g. Volt's sidebar
+ * slide-in). Lumen icon animations and Angular Movement's directives
+ * already respect prefers-reduced-motion internally.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Visible focus ring for any native element not already wrapped by Volt UI. */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+html,
+body {
+  height: 100%;
+}

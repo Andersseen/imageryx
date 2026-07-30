@@ -1,0 +1,30 @@
+{
+  "name": "@imageryx/processing-worker",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Imageryx Processing Worker - health endpoint and Queue consumer structure for future transformation jobs.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8789 --inspector-port 9231",
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "lint": "eslint .",
+    "typecheck": "wrangler types && tsc --noEmit",
+    "test": "vitest run",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "@imageryx/contracts": "workspace:*",
+    "hono": "^4.12.32"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.19.0",
+    "@imageryx/eslint-config": "workspace:*",
+    "@imageryx/test-utils": "workspace:*",
+    "@imageryx/typescript-config": "workspace:*",
+    "typescript": "^5.9.2",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.115.0"
+  }
+}

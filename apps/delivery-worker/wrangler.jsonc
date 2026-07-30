@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "imageryx-delivery-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-29",
+  "vars": {
+    "APP_ENV": "development",
+    "DASHBOARD_URL": "http://localhost:5173"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

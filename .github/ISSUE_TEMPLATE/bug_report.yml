@@ -1,0 +1,56 @@
+name: Bug report
+description: Report something that's broken in Imageryx
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Imageryx is in Phase 1
+        (repository foundation) — see ROADMAP.md before filing a bug about
+        functionality that isn't implemented yet (uploads, transformation,
+        storage providers, etc.).
+  - type: input
+    id: app
+    attributes:
+      label: Affected app or package
+      description: e.g. apps/api-worker, apps/dashboard, packages/contracts
+      placeholder: apps/api-worker
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. `pnpm dev`
+        2. Visit ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node version (`node -v`), pnpm version (`pnpm -v`), browser (if UI-related)
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or output
+      render: shell
+    validations:
+      required: false

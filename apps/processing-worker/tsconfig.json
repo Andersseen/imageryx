@@ -1,0 +1,8 @@
+{
+  "extends": "@imageryx/typescript-config/worker.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": ["src", "test", "worker-configuration.d.ts"]
+}

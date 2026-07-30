@@ -1,0 +1,23 @@
+{
+  "name": "@imageryx/image-core",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Provider-independent image transformation core (resize, format, crop, encode), introduced in a later phase.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@imageryx/eslint-config": "workspace:*",
+    "@imageryx/typescript-config": "workspace:*",
+    "typescript": "^5.9.2"
+  }
+}

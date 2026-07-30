@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "imageryx-processing-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-29",
+  "vars": {
+    "APP_ENV": "development",
+    "DASHBOARD_URL": "http://localhost:5173"
+  },
+  "queues": {
+    "producers": [{ "binding": "PROCESSING_QUEUE", "queue": "imageryx-processing-queue" }],
+    "consumers": [
+      {
+        "queue": "imageryx-processing-queue",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5
+      }
+    ]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

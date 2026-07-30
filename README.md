@@ -1,159 +1,149 @@
-# Turborepo starter
+# Imageryx
 
-This Turborepo starter is maintained by the Turborepo core team.
+Imageryx is an open, provider-independent image delivery and
+transformation platform: upload once, transform on request, and serve from
+the edge — without locking storage or transformation logic to a single
+vendor.
 
-## Using this example
+## Status: Phase 1 — Repository Foundation
 
-Run the following command:
+This repository is currently at **Phase 1**: the monorepo structure, local
+dev experience, and open-source scaffolding. There is **no image
+processing, no real uploads, no R2/Cloudinary integration, no database
+repositories, and no complete dashboard yet** — every app starts, builds,
+and reports real health, and that's the whole scope of this phase. See
+[ROADMAP.md](ROADMAP.md) for what's next and [context.md](context.md) for
+the full working context.
 
-```sh
-npx create-turbo@latest
+## Stack
+
+- **Monorepo:** pnpm workspaces + [Turborepo](https://turborepo.dev)
+- **Backend:** [Hono](https://hono.dev) on Cloudflare Workers
+- **Frontend:** [Analog](https://analogjs.org) + Angular 21 — standalone
+  components, signals, zoneless change detection, `OnPush`, Tailwind CSS 4
+- **UI libraries:** [Volt UI](https://volt-ui.andersseen.dev),
+  [Quartz Headless](https://quartz-headless.pages.dev),
+  [Angular Movement](https://github.com/Andersseen/angular-movement),
+  [Lumen Icons](https://lumen-icons.dev)
+- **Testing:** Vitest (+ `@cloudflare/vitest-pool-workers` for Workers)
+- **Language:** TypeScript, strict mode, everywhere
+
+## Monorepo structure
+
+```
+apps/
+  dashboard/           Analog + Angular dashboard            → :5173
+  api-worker/          Public API entry point (Hono)          → :8787
+  delivery-worker/     Asset delivery edge (Hono)              → :8788
+  processing-worker/   Queue consumer for transformation jobs  → :8789
+
+packages/
+  contracts/           Shared TypeScript contracts (HealthCheckResponse)
+  database/            D1 schema/repositories — placeholder until Phase 2
+  image-core/          Transformation pipeline — placeholder until Phase 3
+  providers/           Storage/transformation provider identifiers
+  sdk/                 Framework-agnostic API client — placeholder until Phase 4
+  angular/             Angular SDK bindings — placeholder until Phase 4
+  test-utils/          Shared testing helpers
+  typescript-config/   Shared strict tsconfig bases
+  eslint-config/        Shared ESLint 9 flat configs
+
+tooling/
+  scripts/             Repository maintenance scripts
 ```
 
-## What's inside?
+Every `apps/*` and `packages/*` entry above has its own README describing
+what's implemented and what's deferred.
 
-This Turborepo includes the following packages/apps:
+## Requirements
 
-### Apps and Packages
+- Node.js **22+** (see `.nvmrc`)
+- pnpm **9+** (`corepack enable` will get you the right version)
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+## Installation
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```bash
+git clone <this-repo-url>
+cd imageryx
+pnpm install
+cp .env.example .env
+cp apps/dashboard/.env.example apps/dashboard/.env.local
 ```
 
-Without global `turbo`, use your package manager:
+## Commands
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+Run from the repository root; Turborepo fans these out to every app/package
+with the matching script, respecting dependency order:
+
+```bash
+pnpm dev        # start dashboard + all three Workers concurrently
+pnpm build      # production build of every app/package
+pnpm lint       # ESLint across the workspace
+pnpm typecheck  # TypeScript project-reference typecheck across the workspace
+pnpm test       # Vitest across every app/package that has tests
+pnpm check      # lint + typecheck + test + build, in dependency order
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Target a single app/package while iterating:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+```bash
+pnpm --filter @imageryx/api-worker dev
+pnpm --filter @imageryx/dashboard test
 ```
 
-Without global `turbo`:
+## Local URLs
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+| App | URL |
+| --- | --- |
+| Dashboard | http://localhost:5173 |
+| API Worker | http://localhost:8787 |
+| Delivery Worker | http://localhost:8788 |
+| Processing Worker (HTTP dev endpoint) | http://localhost:8789 |
+
+## Environment variables
+
+See `.env.example` (repo root) for the full reference list and
+`apps/dashboard/.env.example` for the `VITE_`-prefixed subset the
+dashboard actually reads. Cloudflare Workers get their local non-secret
+vars from each app's `wrangler.jsonc`, not from a `.env` file — see
+`context.md` for why.
+
+```env
+APP_ENV=development
+DASHBOARD_URL=http://localhost:5173
+API_URL=http://localhost:8787
+DELIVERY_URL=http://localhost:8788
+IMAGERYX_API_KEY=imgx_dev_local
+STORAGE_PROVIDER=local
+TRANSFORMATION_PROVIDER=mock
 ```
 
-### Develop
+Never commit a working `.env` file or real secrets — `.env*` (except
+`*.example`) is git-ignored.
 
-To develop all apps and packages, run the following command:
+## Current limitations
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+- No uploads, storage, or transformation logic (`STORAGE_PROVIDER=local`
+  and `TRANSFORMATION_PROVIDER=mock` are placeholders, not working
+  integrations).
+- No database — `@imageryx/database` is metadata-only.
+- Dashboard routes other than **Overview** are static "Upcoming — Phase 4"
+  placeholders with no interactive controls.
+- No deployment configuration for any app; CI only lints/typechecks/tests/builds.
+- No authentication on any route.
 
-```sh
-cd my-turborepo
-turbo dev
-```
+## Roadmap summary
 
-Without global `turbo`, use your package manager:
+Phase 1 (this repo) → Phase 2 storage & uploads → Phase 3 transformation
+pipeline → Phase 4 complete dashboard → Phase 5 production hardening &
+release. Full detail in [ROADMAP.md](ROADMAP.md).
 
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
+## Contributing
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+See [CONTRIBUTING.md](CONTRIBUTING.md). Please also read
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) and, for vulnerabilities,
+[SECURITY.md](SECURITY.md) instead of opening a public issue.
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+## License
 
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+[MIT](LICENSE)

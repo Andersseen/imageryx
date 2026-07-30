@@ -1,0 +1,23 @@
+{
+  "name": "@imageryx/angular",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Angular bindings for the Imageryx SDK (directives/pipes for transformed images), introduced in a later phase.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@imageryx/eslint-config": "workspace:*",
+    "@imageryx/typescript-config": "workspace:*",
+    "typescript": "^5.9.2"
+  }
+}

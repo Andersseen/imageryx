@@ -1,0 +1,42 @@
+name: Feature request
+description: Suggest an idea for Imageryx
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before requesting a feature, please check ROADMAP.md — it may
+        already be planned for a later phase. Requests that expand scope
+        beyond the current phase may be deferred rather than declined.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What are you trying to do that you currently can't?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Which phase does this belong to (if you know)?
+      options:
+        - Not sure
+        - Phase 2 — Storage & Uploads
+        - Phase 3 — Transformation Pipeline
+        - Phase 4 — Complete Dashboard
+        - Phase 5 — Production Hardening & Release
+        - Something else entirely
+    validations:
+      required: false

@@ -1,0 +1,9 @@
+{
+  "extends": "@imageryx/typescript-config/angular-app.json",
+  "compileOnSave": false,
+  "compilerOptions": {
+    "baseUrl": "."
+  },
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.spec.json" }]
+}

@@ -1,9 +1,14 @@
 {
-  "name": "@repo/typescript-config",
+  "name": "@imageryx/typescript-config",
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  }
+  "description": "Shared TypeScript configurations for the Imageryx monorepo.",
+  "files": [
+    "base.json",
+    "node.json",
+    "worker.json",
+    "angular-app.json",
+    "angular-lib.json"
+  ]
 }

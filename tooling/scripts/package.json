@@ -1,0 +1,8 @@
+{
+  "name": "@imageryx/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Repository maintenance scripts shared across the Imageryx monorepo.",
+  "type": "module"
+}

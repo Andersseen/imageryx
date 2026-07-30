@@ -1,0 +1,23 @@
+{
+  "name": "@imageryx/providers",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Storage and transformation provider identifiers shared across Imageryx apps. Provider implementations arrive in a later phase.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@imageryx/eslint-config": "workspace:*",
+    "@imageryx/typescript-config": "workspace:*",
+    "typescript": "^5.9.2"
+  }
+}

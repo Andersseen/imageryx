@@ -1,20 +1,28 @@
 {
   "name": "imageryx",
   "private": true,
+  "description": "Imageryx monorepo - open, provider-independent image delivery and transformation platform.",
+  "license": "MIT",
   "scripts": {
-    "build": "turbo run build",
     "dev": "turbo run dev",
+    "build": "turbo run build",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "turbo run lint typecheck test build",
+    "format": "prettier --write \"**/*.{ts,tsx,html,json,md,yml,yaml}\" --ignore-unknown",
+    "format:check": "prettier --check \"**/*.{ts,tsx,html,json,md,yml,yaml}\" --ignore-unknown",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "verify:structure": "node tooling/scripts/verify-workspace-structure.mjs"
   },
   "devDependencies": {
+    "@types/node": "^22.9.4",
     "prettier": "^3.7.4",
     "turbo": "^2.10.7",
-    "typescript": "5.9.2"
+    "typescript": "^5.9.2"
   },
   "packageManager": "pnpm@9.0.0",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }
