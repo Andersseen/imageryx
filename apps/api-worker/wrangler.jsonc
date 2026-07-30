@@ -40,6 +40,14 @@
   },
   "env": {
     "production": {
+      // Without an explicit name, `wrangler deploy --env production`
+      // publishes as "imageryx-api-worker-production".
+      "name": "imageryx-api-worker",
+      // FIXME(security): IMAGERYX_API_KEY and DOWNLOAD_SIGNING_SECRET are
+      // real secrets and must not ship as plaintext vars in a public repo —
+      // as written, the production API is protected by a key anyone can
+      // read. Move both to `wrangler secret put <NAME> --env production`
+      // (needs a `.dev.vars` story for local dev first — see README).
       "vars": {
         "APP_ENV": "production",
         "STORAGE_PROVIDER": "r2",

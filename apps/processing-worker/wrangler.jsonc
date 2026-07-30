@@ -39,6 +39,9 @@
   },
   "env": {
     "production": {
+      // Without an explicit name, `wrangler deploy --env production`
+      // publishes as "imageryx-processing-worker-production".
+      "name": "imageryx-processing-worker",
       "vars": {
         "APP_ENV": "production",
         "STORAGE_PROVIDER": "r2",
