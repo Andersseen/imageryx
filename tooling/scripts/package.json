@@ -4,5 +4,21 @@
   "private": true,
   "license": "MIT",
   "description": "Repository maintenance scripts shared across the Imageryx monorepo.",
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "processing:run-local": "tsx processing-run-local.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@imageryx/database": "workspace:*",
+    "@imageryx/processing-worker": "workspace:*",
+    "@imageryx/providers": "workspace:*",
+    "miniflare": "^4.20260722.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260722.1",
+    "@imageryx/typescript-config": "workspace:*",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.2"
+  }
 }

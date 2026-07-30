@@ -1,6 +1,7 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalEnv": ["API_URL", "IMAGERYX_API_KEY"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -16,6 +17,10 @@
       "outputs": []
     },
     "test": {
+      "dependsOn": [],
+      "outputs": []
+    },
+    "test:integration": {
       "dependsOn": [],
       "outputs": []
     },

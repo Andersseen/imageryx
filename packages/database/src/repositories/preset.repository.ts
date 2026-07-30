@@ -83,6 +83,22 @@ export class PresetRepository {
     return row ? mapRow(row) : null;
   }
 
+  async countByProjectIds(
+    projectIds: readonly string[],
+  ): Promise<Map<string, number>> {
+    const map = new Map<string, number>();
+    if (projectIds.length === 0) return map;
+    const placeholders = projectIds.map(() => "?").join(", ");
+    const result = await this.db
+      .prepare(
+        `SELECT project_id, COUNT(*) as count FROM presets WHERE project_id IN (${placeholders}) GROUP BY project_id`,
+      )
+      .bind(...projectIds)
+      .all<{ project_id: string; count: number }>();
+    for (const row of result.results) map.set(row.project_id, row.count);
+    return map;
+  }
+
   /** Unexecuted counterpart to `create()`, for combining with another repository's statement in a `db.batch()` call. */
   buildInsertStatement(id: string, input: CreatePresetRow, timestamp: string) {
     return this.db
@@ -122,6 +138,42 @@ export class PresetRepository {
       createdAt: timestamp,
       updatedAt: timestamp,
     };
+  }
+
+  async update(
+    id: string,
+    input: Partial<
+      Pick<CreatePresetRow, "name" | "description" | "operations" | "outputFormat" | "quality">
+    >,
+  ): Promise<ImagePreset | null> {
+    const existing = await this.findById(id);
+    if (!existing) return null;
+
+    const timestamp = nowIso();
+    const merged = {
+      name: input.name ?? existing.name,
+      description: input.description !== undefined ? input.description : existing.description,
+      operations: input.operations ?? existing.operations,
+      outputFormat: input.outputFormat ?? existing.outputFormat,
+      quality: input.quality !== undefined ? input.quality : existing.quality,
+    };
+
+    await this.db
+      .prepare(
+        "UPDATE presets SET name = ?, description = ?, operations = ?, output_format = ?, quality = ?, updated_at = ? WHERE id = ?",
+      )
+      .bind(
+        merged.name,
+        merged.description,
+        JSON.stringify(merged.operations),
+        merged.outputFormat,
+        merged.quality,
+        timestamp,
+        id,
+      )
+      .run();
+
+    return { ...existing, ...merged, updatedAt: timestamp };
   }
 
   /** System presets may be read but never deleted — this is the one place that rule is enforced. */

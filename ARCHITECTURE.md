@@ -1,10 +1,12 @@
 # Architecture
 
 This document describes how Imageryx's apps and packages fit together:
-what exists today (through Phase 2) and what each is designed to do once
+what exists today (through Phase 3) and what each is designed to do once
 later phases land. See [ROADMAP.md](ROADMAP.md) for the phase breakdown
 and [context.md](context.md) for product/technology decisions and the
-detailed rationale behind the choices summarized here.
+detailed rationale behind the choices summarized here — in particular its
+"Phase 3 decisions and limitations" section, which this document only
+summarizes.
 
 ## Applications
 
@@ -19,60 +21,88 @@ apps/
 ### dashboard
 
 **Responsibility:** the human-facing control plane — browsing assets,
-managing projects/presets, inspecting API usage, and (this phase) showing
-whether the rest of the system is healthy.
+managing projects/presets, inspecting API usage, and showing whether the
+rest of the system is healthy.
 
-- **Phase 1 (current):** application shell, navigation, theme, and an
-  Overview page that polls every Worker's `/health` endpoint live. The
-  other six routes are static "upcoming" placeholders.
+- **Phase 1:** application shell, navigation, theme, and an Overview page
+  that polls every Worker's `/health` endpoint live. The other six routes
+  are static "upcoming" placeholders.
+- **Phase 3 (current):** adds one dev-only route, `/dev-flow`, that drives
+  the real backend end to end (project/folder pick, upload, processing
+  status, preset variant generation, delivery URLs, a live `<imgyx-image>`
+  render) through `@imageryx/sdk`, itself routed through a same-origin
+  server-side proxy (`server/routes/api/[...path].ts`, an Analog/Nitro h3
+  route) that injects the API key server-side — the browser never holds
+  it. Every other route is still a Phase 4 placeholder.
 - **Later phases:** real asset library, project/preset CRUD, upload flow,
-  API key management — all built on `@imageryx/sdk` and `@imageryx/angular`.
+  API key management — all built on the same `@imageryx/sdk` and
+  `@imageryx/angular` this phase already ships and tests.
 
 ### api-worker
 
 **Responsibility:** the single public entry point. Owns auth, request
-validation, and orchestration — it never touches image bytes directly.
+validation, and orchestration — it never touches image bytes directly and
+never runs expensive processing inline in a route handler.
 
-- **Phase 1:** `GET /health`, `GET /v1/info` only. Request ID middleware,
-  structured logging, CORS (scoped to the local dashboard origin), and
-  central error handling are in place so business routes have somewhere
-  consistent to land.
-- **Phase 2 (current):** adds a real D1 binding (`env.DB`, see
-  `wrangler.jsonc`) and four read-only diagnostic routes —
-  `GET /v1/diagnostics/domain`, `GET /v1/diagnostics/database`,
-  `GET /v1/diagnostics/providers`, `GET /v1/diagnostics/seed` — that
-  report real local domain/database/provider/seed state, so Phase 2 can be
-  inspected end to end without a full upload API. No write routes exist
-  yet; the only thing that writes to the local D1 database is
-  `packages/database/scripts/seed.ts`.
-- **Later phases:** upload routes (issuing storage writes via
-  `@imageryx/providers`), transformation-request routes (enqueuing jobs
-  for `processing-worker`), and project/preset/API-key CRUD backed by
-  `@imageryx/database`.
+- **Phase 1:** `GET /health`, `GET /v1/info` only.
+- **Phase 2:** adds a D1 binding and four read-only diagnostic routes.
+- **Phase 3 (current):** every `/v1/*` route requires `Authorization:
+  Bearer <IMAGERYX_API_KEY>` (constant-time comparison). Full CRUD for
+  projects, folders, tags, presets (+ preview), assets (+ multipart
+  upload, move, tagging, activity, variant listing, delivery info, signed
+  download-url issuance, soft delete/restore), variant generation
+  (idempotent), processing-job management (list/retry/cancel), and an
+  aggregate `/v1/stats` route. Upload writes go through the configured
+  `StorageProvider` (R2 locally, via Miniflare); a job is persisted and
+  dispatched to `processing-worker` — via a real Cloudflare Queue message
+  by default, or inline under `waitUntil` in `PROCESSING_MODE=inline-local`
+  — never processed synchronously in the request.
+- **Later phases:** project/preset-scoped activity as real rows (currently
+  structured logs only — see context.md), richer job-listing pagination.
 
 ### delivery-worker
 
-**Responsibility:** the read path. Serves transformed assets to end users,
-cache-first, independent of `api-worker`'s request/response cycle.
+**Responsibility:** the read path. Serves original and transformed assets
+to end users, cache-first, independent of `api-worker`'s request/response
+cycle. Never an open image proxy — every path resolves to a specific
+asset/variant this system produced.
 
-- **Phase 1 (current):** `GET /health` and `GET /preview-placeholder`, a
-  small SVG generated in code — no stored assets, no cache, no R2.
-- **Later phases:** fetches a transformed asset (from cache or by asking
-  `processing-worker` to produce it), sets long-lived cache headers, and
-  serves it. Never runs untrusted transformation logic itself.
+- **Phase 1:** `GET /health` and a placeholder SVG route.
+- **Phase 3 (current):** `GET /:projectSlug/assets/:assetPath[/p/:presetSlug]`
+  resolves a public original or a `ready` preset variant, with correct
+  ETag/Content-Length/Content-Type/Cache-Control and `nosniff`; private or
+  soft-deleted assets always 404 (never a distinguishing status). A
+  separate `GET /download/:token` route validates an HMAC-signed,
+  time-limited token (issued by `api-worker`) for private or
+  not-yet-public originals/variants — see "Signed downloads" in
+  context.md. The old placeholder route is gone.
+- **Later phases:** on-demand variant generation for a preset that hasn't
+  been requested yet (today, a variant must already be `ready`; the
+  delivery route never triggers processing itself).
 
 ### processing-worker
 
 **Responsibility:** runs transformation jobs off the request path, so
 `api-worker` and `delivery-worker` stay fast and don't block on CPU-heavy
-image work.
+image work. Consumes typed `{ jobId }` messages only — full payloads and
+secrets are never put on the Queue; the handler re-reads everything it
+needs from D1/storage by ID.
 
-- **Phase 1 (current):** `GET /health` plus a Cloudflare Queue consumer
-  that only understands one job shape — a typed placeholder it
-  acknowledges (or retries, if malformed). No image decoding happens.
-- **Later phases:** consumes real transformation jobs, calls into
-  `@imageryx/image-core` for the actual pixel work, and writes the result
-  back to storage via `@imageryx/providers`.
+- **Phase 1:** `GET /health` plus a Cloudflare Queue consumer
+  acknowledging one placeholder job shape.
+- **Phase 3 (current):** two real job handlers. `inspect-metadata` parses
+  real dimension/alpha data from image headers (PNG/JPEG/GIF/WebP/SVG; AVIF
+  reports `null` with a warning, never a fabricated value) and generates a
+  deterministic placeholder. `generate-variant` renders a real, visibly
+  "Simulated transformation" SVG (via the mock `TransformationProvider`'s
+  deterministic sizing plus `@imageryx/image-core`'s renderer) and, when
+  `persist: true`, writes it through `StorageProvider` — never fakes a
+  success response for the Cloudflare/Cloudinary providers, which still
+  always throw. Failed jobs are classified retryable/non-retryable and
+  respect `PROCESSING_MAX_ATTEMPTS`.
+- **Later phases:** a real decode/resize/crop/encode pipeline (or a real
+  Cloudflare Images/Cloudinary network call) replacing the mock provider's
+  simulated output.
 
 ## Domain package boundaries
 
@@ -85,7 +115,9 @@ contracts  ->  (nothing — Zod + shared primitives only)
 image-core ->  contracts
 database   ->  contracts, image-core
 providers  ->  contracts, image-core
-test-utils ->  contracts, image-core, database
+test-utils ->  contracts, image-core, database, providers
+sdk        ->  contracts, image-core
+angular    ->  image-core   (deliberately not sdk or contracts — see below)
 ```
 
 - `@imageryx/contracts` never imports `image-core`, `database`, or
@@ -112,6 +144,14 @@ test-utils ->  contracts, image-core, database
   barrel from a Cloudflare Worker must never transitively pull in
   `node:fs`, or the Worker fails to type-check (and would fail to run —
   workerd has no real filesystem).
+- `@imageryx/sdk` is a thin, framework-independent Fetch client — it
+  depends on `contracts` (input/output shapes) and `image-core` (the
+  shared delivery-URL builder, so the SDK and the Workers can never
+  disagree on a delivery path), never on `database` or `providers`.
+- `@imageryx/angular` deliberately depends on `image-core` only, **not**
+  `@imageryx/sdk` — `<imgyx-image>` only ever needs to build a delivery
+  URL string from inputs, never to call an authenticated API or hold a
+  key, so it stays independent of the SDK's HTTP/auth surface entirely.
 
 ## Database schema overview
 
@@ -153,10 +193,10 @@ D1 (SQLite), schema in `packages/database/migrations/0001_initial_schema.sql`,
 (`packages/providers/src/storage/storage-provider.ts` and
 `.../transformations/transformation-provider.ts`) and implements them:
 
-| Interface                | Implementations                                                                                                                                                                                                                     |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `StorageProvider`        | `LocalStorageProvider` (real, filesystem, Node-only, `/node` subpath), `R2StorageProvider` (compiles against the real `R2Bucket` binding type, makes no request yet)                                                                |
-| `TransformationProvider` | `MockTransformationProvider` (real, deterministic simulated results), `CloudflareImagesProvider` / `CloudinaryProvider` (real parameter-mapping functions; `transform()` always throws — no real network calls until a later phase) |
+| Interface                | Implementations                                                                                                                                                                                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `StorageProvider`        | `R2StorageProvider` (real — all three Workers use it against a real, if locally Miniflare-simulated, `R2Bucket` binding as of Phase 3), `LocalStorageProvider` (real, filesystem, Node-only, `/node` subpath — Node tooling/tests only, unreachable from any Worker)                |
+| `TransformationProvider` | `MockTransformationProvider` (real — persists real, visibly-labeled simulated image bytes when `persist: true`), `CloudflareImagesProvider` / `CloudinaryProvider` (real parameter-mapping functions; `transform()` always throws — reachable but inert without real credentials) |
 
 A `ProviderRegistry` (`packages/providers/src/registry/provider-registry.ts`)
 selects an implementation from validated env config
@@ -217,19 +257,28 @@ ever silently dropped or downgraded.
 
 ## Local-mode architecture
 
-Local development uses **one real D1 database and one real local
-filesystem directory**, shared by every tool that touches them:
+Local development uses **one real D1 database and one real, locally
+Miniflare-simulated R2 bucket**, shared by every process that touches
+them — three separate `wrangler dev` processes (one per Worker), the seed
+script, and `pnpm processing:run-local` all point at the same directory:
 
-- `apps/api-worker/wrangler.jsonc` declares the `DB` D1 binding
+- Every Worker's `wrangler.jsonc` declares the same `DB` D1 binding
   (`database_name: imageryx-db`, `migrations_dir: ../../packages/database/migrations`)
-  and `LOCAL_STORAGE_PATH`.
-- `pnpm db:migrate:local` runs `wrangler d1 migrations apply` (from
-  `apps/api-worker`), writing to `.wrangler/state/v3/d1`.
-- `pnpm db:seed:local` (`packages/database/scripts/seed.ts`) reads that
-  same `wrangler.jsonc`, constructs a `Miniflare` instance with the
-  identical binding value and persist root wrangler itself uses, and
-  writes through the real `ProjectRepository`/`FolderRepository`/etc. plus
-  `LocalStorageProvider` — not a separate copy of the data.
+  and `ASSET_STORAGE` R2 binding (`bucket_name: imageryx-storage`).
+- Every `dev`/`db:migrate:local`/`db:status:local` script across all three
+  apps, plus the seed script and `processing:run-local`, pass
+  `--persist-to ../../.wrangler-state` (or construct a `Miniflare`
+  instance with the equivalent `defaultPersistRoot`), so
+  `.wrangler-state/v3/{d1,r2}` (git-ignored) is genuinely the single
+  source of local state — an asset uploaded via `api-worker` is
+  immediately visible to `processing-worker`'s Queue consumer and
+  `delivery-worker`'s reads, confirmed working via live manual testing of
+  the full pipeline across three concurrently-running processes.
+- `pnpm db:seed:local` (`packages/database/scripts/seed.ts`) reads
+  `api-worker`'s `wrangler.jsonc`, constructs a `Miniflare` instance with
+  the identical bindings and persist root `wrangler dev` uses, and writes
+  through the real repositories plus a real `R2StorageProvider` — not a
+  separate copy of the data.
 - `pnpm setup:local` chains storage-prepare → migrate → seed → status.
   `pnpm db:reset:local` / `pnpm storage:reset:local` are separate,
   explicitly destructive scripts with hard-coded path safeguards — neither
@@ -240,53 +289,114 @@ flowchart LR
   Contracts --> Core[Image Core]
   Core --> Database
   Core --> Providers
-  API[API Worker Diagnostics] --> Database
+  API[api-worker] --> Database
   API --> Providers
-  Providers --> LocalStorage[Local Storage]
+  API -- Queue message: jobId only --> Processing[processing-worker]
+  Processing --> Database
+  Processing --> Providers
+  Delivery[delivery-worker] --> Database
+  Delivery --> Providers
+  Providers --> R2[(R2 — Miniflare-simulated locally)]
   Providers --> MockTransformation[Mock Transformation]
-  Providers -. mapping only .-> CloudflareImages[Cloudflare Images]
-  Providers -. mapping only .-> Cloudinary
-  Providers -. compiles, no call .-> R2
+  Providers -. mapping only, transform&#40;&#41; throws .-> CloudflareImages[Cloudflare Images]
+  Providers -. mapping only, transform&#40;&#41; throws .-> Cloudinary
 ```
 
-## Planned data flows
+## Upload and processing flow
 
-These flows describe **future** behavior — all three are Phase 3 scope.
-Every primitive they need (repositories, providers, domain validation)
-exists as of Phase 2; what's missing is the routes that call them.
+```mermaid
+sequenceDiagram
+  participant Client
+  participant API as api-worker
+  participant Storage as StorageProvider (R2)
+  participant DB as D1
+  participant Queue as PROCESSING_QUEUE
+  participant Worker as processing-worker
 
-### Upload flow (Phase 3)
+  Client->>API: POST /v1/assets/upload (multipart)
+  API->>API: validateImageAsset, checksum, free-path search
+  API->>Storage: put(originalKey, bytes)
+  API->>DB: createAssetWithActivity + inspect-metadata job (queued)
+  API->>Queue: send({ jobId })
+  API-->>Client: 201 { asset, processingDispatch }
+  Queue-->>Worker: { jobId }
+  Worker->>DB: load job + asset by id
+  Worker->>Storage: get(originalKey)
+  Worker->>Worker: inspectImageDimensions(mimeType, bytes)
+  Worker->>DB: update asset (width/height/hasAlpha/placeholder), job -> succeeded, asset -> ready
+```
 
-1. Dashboard (or an SDK consumer) sends the file to `api-worker`.
-2. `api-worker` validates the request (`image-core`'s `validateImageAsset`),
-   writes the original via the configured `StorageProvider`, and records
-   metadata through `AssetPersistenceService.createAssetWithActivity`.
-3. `api-worker` returns an asset ID and a delivery URL template.
+## Variant generation flow
 
-### Processing flow (Phase 3)
+```mermaid
+sequenceDiagram
+  participant Client
+  participant API as api-worker
+  participant DB as D1
+  participant Queue as PROCESSING_QUEUE
+  participant Worker as processing-worker
+  participant Storage as StorageProvider (R2)
 
-1. A transformation is requested (either at upload time or on first
-   delivery request for a given variant).
-2. `api-worker` (or `delivery-worker`, for on-demand variants) enqueues a
-   job for `processing-worker`.
-3. `processing-worker` runs the pipeline in `@imageryx/image-core` and
-   writes the result via the configured `StorageProvider`.
+  Client->>API: POST /v1/assets/:id/variants { presetId }
+  API->>DB: hashPreset -> look up existing (assetId, presetHash) variant
+  alt already ready
+    API-->>Client: 200 existing variant
+  else already pending/processing
+    API-->>Client: 202 existing variant + active jobId
+  else no existing variant
+    API->>DB: insert variant (pending) + generate-variant job (batch, atomic)
+    API->>Queue: send({ jobId })
+    API-->>Client: 202 { variant, jobId }
+    Queue-->>Worker: { jobId }
+    Worker->>DB: load job + asset + preset by id
+    Worker->>Worker: renderSimulatedVariantSvg(name, preset, dims, format)
+    alt persist: true
+      Worker->>Storage: put(derivedKey, svgBytes)
+    end
+    Worker->>DB: update variant (checksum/size, -> ready), job -> succeeded
+  end
+```
 
-### Delivery flow (Phase 3)
+## Delivery flow
 
-1. A client requests an asset variant from `delivery-worker`.
-2. `delivery-worker` checks cache; on a hit, it serves directly.
-3. On a miss, it fetches the source via `StorageProvider`, requests (or
-   waits for) the transformation, caches the result, and serves it.
+```mermaid
+flowchart TD
+  A["GET /:projectSlug/assets/:assetPath (optionally /p/:presetSlug)"] --> B{Project + asset resolve?}
+  B -- no --> N[404 — never distinguishes not-found from private/deleted]
+  B -- yes --> C{Asset public and not deleted?}
+  C -- no --> N
+  C -- yes --> D{presetSlug present?}
+  D -- no --> E[Serve original from StorageProvider]
+  D -- yes --> F{Variant exists and status = ready?}
+  F -- no --> N
+  F -- yes --> G[Serve variant from StorageProvider]
+  E --> H[ETag = checksum, Cache-Control: public max-age=3600 swr=86400]
+  G --> I[ETag = checksum, Cache-Control: public max-age=31536000 immutable]
+
+  J[GET /download/:token] --> K{HMAC signature valid?}
+  K -- no --> L[400]
+  K --> M{Expired?}
+  M -- yes --> O[410]
+  M -- no --> P{Asset exists, not deleted, downloads enabled?}
+  P -- no --> N
+  P -- yes --> Q[Serve original or variant — Cache-Control: private, no-store]
+```
+
+All three flows are implemented as of Phase 3 and verified against real,
+concurrently-running local Workers — not just isolated unit tests. See
+context.md's "Phase 3 decisions and limitations" for the full detail
+behind each step (upload consistency guarantees, idempotency, the
+delivery-route `/p/` marker ambiguity, caching policy, etc.).
 
 ## Shared packages
 
-| Package                              | Role as of Phase 2                                                                                                                                                                                                                                                           |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `contracts`                          | Full domain Zod schemas + inferred types (projects, folders, assets, presets, variants, processing jobs, providers), organized by domain, plus the Phase 1 `HealthCheckResponse` shape                                                                                       |
-| `image-core`                         | Provider-independent domain logic: filename/path normalization, MIME/signature validation, checksums, preset normalization + hashing, transformation validation, provider selection, job/variant state machines                                                              |
-| `database`                           | D1 schema + migrations, 8 repository classes, 3 cross-table persistence services; `/testing` subpath exposes a real Miniflare-backed D1 test harness                                                                                                                         |
-| `providers`                          | `StorageProvider`/`TransformationProvider` interfaces and implementations (local filesystem, R2 binding-ready, mock transform, Cloudflare/Cloudinary parameter mapping) plus a validated-config provider registry; `/node` subpath adds the Node-only local storage provider |
-| `test-utils`                         | `isValidHealthCheckResponse` (every health test) plus domain fixture builders (`createProjectFixture`, etc.) and, via `/node`, a D1 test database + temporary storage directory helper                                                                                       |
-| `typescript-config`, `eslint-config` | Shared strict TS/lint configuration                                                                                                                                                                                                                                          |
-| `sdk`, `angular`                     | Metadata-only placeholders — see each package's README for what's deferred                                                                                                                                                                                                   |
+| Package                              | Role as of Phase 3                                                                                                                                                                                                                                                                        |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `contracts`                          | Full domain Zod schemas + inferred types (projects, folders, assets, presets, variants, processing jobs, stats, providers), organized by domain, plus the Phase 1 `HealthCheckResponse` shape                                                                                            |
+| `image-core`                         | Provider-independent domain logic: filename/path normalization, MIME/signature validation, checksums, preset normalization + hashing, transformation validation, provider selection, job/variant state machines, **plus (Phase 3)** real per-format dimension inspection, HMAC signed tokens, constant-time comparison, the shared delivery-path/URL builder, simulated-variant SVG rendering, and placeholder generation |
+| `database`                           | D1 schema + migrations, repository classes (with Phase 3 additions: bulk counts, folder subtree moves, tag CRUD, activity feeds), 3 cross-table persistence services; `/testing` subpath exposes a real Miniflare-backed D1 test harness                                                |
+| `providers`                          | `StorageProvider`/`TransformationProvider` interfaces and implementations (local filesystem — Node-only, R2 — real, used by every Worker, mock transform — real, Cloudflare/Cloudinary parameter mapping) plus a validated-config provider registry; `/node` subpath adds the Node-only local storage provider |
+| `sdk`                                 | Real, tested, framework-independent Fetch client (`createImageryxClient`) — typed resource namespaces, typed errors, FormData upload, delivery-URL/snippet helpers                                                                                                                       |
+| `angular`                             | Real, tested standalone `<imgyx-image>` component — signal inputs/outputs, responsive preset support, no SDK or API-key dependency                                                                                                                                                       |
+| `test-utils`                         | `isValidHealthCheckResponse` plus domain fixture builders and, via `/node`, a D1 test database + temporary storage directory helper, plus (Phase 3) real decodable-image fixtures (PNG/JPEG/GIF/WebP/SVG/AVIF) for metadata-inspection tests                                            |
+| `typescript-config`, `eslint-config` | Shared strict TS/lint configuration                                                                                                                                                                                                                                                        |

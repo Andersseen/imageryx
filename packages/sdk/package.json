@@ -1,9 +1,9 @@
 {
   "name": "@imageryx/sdk",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Framework-agnostic TypeScript client SDK for the Imageryx API, introduced in a later phase.",
+  "description": "Framework-agnostic TypeScript client SDK for the Imageryx API.",
   "type": "module",
   "exports": {
     ".": {
@@ -13,11 +13,17 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@imageryx/contracts": "workspace:*",
+    "@imageryx/image-core": "workspace:*"
   },
   "devDependencies": {
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.10"
   }
 }

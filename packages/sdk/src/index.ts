@@ -1,10 +1,15 @@
 /**
  * @imageryx/sdk
  *
- * Placeholder entry point. The framework-agnostic client (upload,
- * transform, and delivery URL helpers) is implemented in a later phase,
- * once `api-worker` exposes business routes to wrap. Phase 1 only needs
- * this package to exist and resolve correctly across the workspace.
+ * Framework-agnostic TypeScript client for the Imageryx API — standard
+ * Fetch only, no Node-specific APIs, so it works unchanged in browsers,
+ * Workers, and Node 18+. `@imageryx/angular` builds delivery URLs
+ * directly (see its own README) rather than depending on this package,
+ * to keep the browser-facing image component free of anything
+ * API-key-aware.
  */
-
-export const SDK_PACKAGE_PHASE = 1 as const;
+export { ImageryxClient, createImageryxClient, type ImageryxClientConfig } from "./client";
+export { DeliveryResource, type ResponsivePresetEntry } from "./delivery";
+export { ImageryxApiError, ImageryxNetworkError, ImageryxValidationError } from "./errors";
+export { SnippetsResource, type SnippetInput } from "./snippets";
+export * from "./types";

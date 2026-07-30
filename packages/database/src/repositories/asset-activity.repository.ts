@@ -63,6 +63,39 @@ export class AssetActivityRepository {
     return result.results.map(mapRow);
   }
 
+  async listRecent(limit: number): Promise<AssetActivity[]> {
+    const result = await this.db
+      .prepare("SELECT * FROM asset_activity ORDER BY created_at DESC LIMIT ?")
+      .bind(limit)
+      .all<AssetActivityRow>();
+    return result.results.map(mapRow);
+  }
+
+  /** Most recent activity row per project, in one query — used by the project list endpoint's "latest activity" summary. Ties (identical timestamps) resolve to an arbitrary but stable row. */
+  async latestByProjectIds(
+    projectIds: readonly string[],
+  ): Promise<Map<string, AssetActivity>> {
+    const map = new Map<string, AssetActivity>();
+    if (projectIds.length === 0) return map;
+    const placeholders = projectIds.map(() => "?").join(", ");
+    const result = await this.db
+      .prepare(
+        `SELECT aa.* FROM asset_activity aa
+         INNER JOIN (
+           SELECT project_id, MAX(created_at) as max_created_at
+           FROM asset_activity WHERE project_id IN (${placeholders})
+           GROUP BY project_id
+         ) latest ON latest.project_id = aa.project_id AND latest.max_created_at = aa.created_at`,
+      )
+      .bind(...projectIds)
+      .all<AssetActivityRow>();
+    for (const row of result.results) {
+      const mapped = mapRow(row);
+      if (!map.has(mapped.projectId)) map.set(mapped.projectId, mapped);
+    }
+    return map;
+  }
+
   /** Unexecuted counterpart to `record()`, for combining with another repository's statement in a `db.batch()` call. */
   buildInsertStatement(
     id: string,

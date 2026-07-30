@@ -45,6 +45,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Backend integration test (real D1 + R2, no mocks)
+        run: pnpm test:integration
+
       - name: Build
         run: pnpm build
 

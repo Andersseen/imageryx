@@ -37,12 +37,71 @@ export interface UpdateProjectRow {
   isDefault?: boolean;
 }
 
+export interface ListProjectsFilter {
+  page: number;
+  pageSize: number;
+  search?: string;
+  sortField: "name" | "createdAt" | "updatedAt";
+  sortDirection: "asc" | "desc";
+}
+
+const PROJECT_SORT_COLUMNS: Record<ListProjectsFilter["sortField"], string> = {
+  name: "name",
+  createdAt: "created_at",
+  updatedAt: "updated_at",
+};
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
 export class ProjectRepository {
   constructor(private readonly db: D1Client) {}
 
   async list(): Promise<Project[]> {
     const result = await this.db
       .prepare("SELECT * FROM projects ORDER BY created_at ASC")
+      .all<ProjectRow>();
+    return result.results.map(mapRow);
+  }
+
+  async listFiltered(
+    filter: ListProjectsFilter,
+  ): Promise<{ items: Project[]; total: number }> {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    if (filter.search) {
+      conditions.push("(name LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\')");
+      const escaped = escapeLikePattern(filter.search);
+      params.push(`%${escaped}%`, `%${escaped}%`);
+    }
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const sortColumn = PROJECT_SORT_COLUMNS[filter.sortField];
+    const direction = filter.sortDirection === "asc" ? "ASC" : "DESC";
+    const offset = (filter.page - 1) * filter.pageSize;
+
+    const [rows, countRow] = await Promise.all([
+      this.db
+        .prepare(
+          `SELECT * FROM projects ${where} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`,
+        )
+        .bind(...params, filter.pageSize, offset)
+        .all<ProjectRow>(),
+      this.db
+        .prepare(`SELECT COUNT(*) as total FROM projects ${where}`)
+        .bind(...params)
+        .first<{ total: number }>(),
+    ]);
+
+    return { items: rows.results.map(mapRow), total: countRow?.total ?? 0 };
+  }
+
+  async findByIds(ids: readonly string[]): Promise<Project[]> {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => "?").join(", ");
+    const result = await this.db
+      .prepare(`SELECT * FROM projects WHERE id IN (${placeholders})`)
+      .bind(...ids)
       .all<ProjectRow>();
     return result.results.map(mapRow);
   }

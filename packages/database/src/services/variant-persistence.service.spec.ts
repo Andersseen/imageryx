@@ -56,6 +56,7 @@ describe("VariantPersistenceService", () => {
           assetId,
           presetId,
           presetHash: "hash-1",
+          persist: true,
         },
       },
     );
@@ -83,6 +84,7 @@ describe("VariantPersistenceService", () => {
           assetId,
           presetId,
           presetHash: "hash-1",
+          persist: true,
         },
       },
     );
@@ -106,6 +108,7 @@ describe("VariantPersistenceService", () => {
             assetId,
             presetId,
             presetHash: "hash-1",
+            persist: true,
           },
         },
       ),

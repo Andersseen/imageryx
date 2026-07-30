@@ -1,0 +1,7 @@
+{
+  "extends": "@imageryx/typescript-config/node.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["*.ts"]
+}

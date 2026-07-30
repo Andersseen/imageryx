@@ -111,6 +111,26 @@ export class ProcessingJobRepository {
     return row ? mapRow(row) : null;
   }
 
+  /** Every project's queued jobs, oldest first — used by the local `processing:run-local` drain tool and by any future automatic sweep, not by normal request handling. */
+  async listQueued(limit = 100): Promise<ProcessingJob[]> {
+    const result = await this.db
+      .prepare(
+        "SELECT * FROM processing_jobs WHERE status = 'queued' ORDER BY created_at ASC LIMIT ?",
+      )
+      .bind(limit)
+      .all<ProcessingJobRow>();
+    return result.results.map(mapRow);
+  }
+
+  async countByStatus(): Promise<Map<string, number>> {
+    const result = await this.db
+      .prepare("SELECT status, COUNT(*) as count FROM processing_jobs GROUP BY status")
+      .all<{ status: string; count: number }>();
+    const map = new Map<string, number>();
+    for (const row of result.results) map.set(row.status, row.count);
+    return map;
+  }
+
   /** Unexecuted counterpart to `create()`, for combining with another repository's statement in a `db.batch()` call (e.g. `VariantPersistenceService`). */
   buildInsertStatement(
     id: string,

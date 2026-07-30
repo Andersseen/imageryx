@@ -31,11 +31,18 @@ local D1 database; `pnpm setup:local` seeds two projects end to end. See
 "Phase 2 decisions and limitations" below for the specifics, and
 [CHANGELOG.md](CHANGELOG.md) for the exact file list.
 
-Explicitly **not** in this phase: real upload routes (multipart or
-otherwise), real R2/Cloudflare Images/Cloudinary network calls, public
-delivery routes, real Queue-driven processing, the SDK, the Angular image
-component, or any dashboard route beyond Phase 1's Overview page. Do not
-start Phase 3 work without re-reading ROADMAP.md first.
+**Phase 3 — Functional Backend and Delivery Flow, complete.** Real
+multipart upload, a real Queue-driven processing pipeline (metadata
+inspection + mock variant generation), a real Delivery Worker (public
+originals, ready variants, signed private downloads), a full `/v1/*`
+project/folder/tag/preset/asset/variant/processing-job/stats API behind
+Bearer auth, a working `@imageryx/sdk`, a real `<imgyx-image>` Angular
+component, and a `/dev-flow` dashboard page that exercises the whole
+pipeline through a server-side proxy. The full upload → processing →
+variant → delivery flow works locally with zero Cloudflare or Cloudinary
+credentials — see "Phase 3 decisions and limitations" below for exactly
+how, and for what's still simulated or deferred. Do not start Phase 4 work
+without re-reading ROADMAP.md and the Phase 3 implementation report first.
 
 ## Phase 2 decisions and limitations
 
@@ -276,6 +283,489 @@ should:
    first — several (provider selection strategy, storage-key format,
    preset-scoping-per-project) are load-bearing for what Phase 3 builds on
    top.
+
+## Phase 3 decisions and limitations
+
+Read this section before touching the upload/processing/delivery path — a
+few choices here revisit Phase 2 assumptions on purpose (documented why),
+and several others are deliberate simplifications for this phase.
+
+### The biggest revision to a Phase 2 assumption: local storage is R2, not the filesystem
+
+Phase 2's `LocalStorageProvider` is real but Node-only (`node:fs`), and
+context.md said outright: "If a future phase needs the Worker to serve
+local files, that requires a different mechanism (e.g. a local R2
+simulator), not this provider." Phase 3 is that future phase. workerd has
+no real filesystem, even under `wrangler dev`, so none of the three
+Workers can ever construct a `LocalStorageProvider`. Instead:
+
+- All three Workers bind an R2 bucket (`ASSET_STORAGE`) and use
+  `STORAGE_PROVIDER=r2` — `R2StorageProvider` (already real as of Phase 2,
+  just never wired into a Worker) is the actual runtime storage layer now.
+- Locally, this R2 bucket is entirely simulated by Miniflare — `wrangler
+  dev`'s default (non-`--remote`) mode provisions it automatically, the
+  same zero-credential mechanism that already backed local D1. No
+  Cloudflare account is needed for any command in this phase.
+- `packages/database/scripts/seed.ts` now constructs an `R2StorageProvider`
+  from a Miniflare-provided `R2Bucket` instead of `LocalStorageProvider` —
+  seeded fixture assets live in the same simulated bucket every Worker
+  reads from, not a separate filesystem copy.
+- `LocalStorageProvider` still exists, is still real, and is still used by
+  its own package tests and by `@imageryx/providers/node`'s Node-only
+  registry — it's just no longer part of the local *dev* storage path.
+
+### Sharing local D1 + R2 + Queue state across three separate `wrangler dev` processes
+
+Each Worker's `wrangler dev` is a genuinely separate OS process, launched
+from its own app directory, and defaults to its own isolated
+`.wrangler/state`. For api-worker's uploads to be visible to
+delivery-worker's reads and processing-worker's queue consumer, all three
+(and the seed script, and `pnpm processing:run-local`) now pass the same
+`--persist-to ../../.wrangler-state` (Miniflare's `defaultPersistRoot:
+<repo-root>/.wrangler-state/v3`), verified working end-to-end: an asset
+uploaded through api-worker, queued to processing-worker, and read back
+through delivery-worker in one manual session, with no shared-nothing gaps.
+`pnpm db:migrate:local`/`db:status:local` pass the same flag. `db-reset-local.mjs`
+and `storage-reset-local.mjs` were updated to target
+`.wrangler-state/v3/{d1,r2}` instead of the old per-app paths.
+
+**Real local Cloudflare Queue delivery across separate `wrangler dev`
+processes actually works** with this shared `--persist-to` — confirmed by
+manually uploading through api-worker and watching processing-worker pick
+the job up and complete it (pending → ready) within ~3 seconds, with no
+special configuration beyond the shared persist directory.
+`PROCESSING_MODE=inline-local` (see below) is a documented fallback, not
+the thing that was actually needed to make local dev work.
+
+### `PROCESSING_MODE`: `queue` (default, real Queues) vs `inline-local`
+
+`apps/api-worker/src/lib/dispatch-processing.ts` is the single place that
+decides how a job gets run after being persisted:
+
+- `queue` (default): `await env.PROCESSING_QUEUE.send({ jobId })` —
+  awaited, not fire-and-forget, since a Queue `.send()` is a lightweight
+  enqueue call, not "expensive processing"; this lets a publish failure be
+  detected and reported in the same response (see "Upload consistency"
+  below).
+- `inline-local`: runs `runJobUntilSettled` — the *exact* function the
+  real Queue consumer calls — inside `c.executionCtx.waitUntil(...)`, so
+  the actual job work (metadata inspection, mock transform) never blocks
+  the HTTP response, but no real Queue message is ever sent. Exists for
+  environments where local multi-worker Queue delivery isn't available.
+
+Both modes call into `@imageryx/processing-worker`'s exported `./jobs` and
+`./jobs/deps` subpaths (see `apps/processing-worker/package.json`'s
+`exports` field) — api-worker depends on the `processing-worker` app
+package directly (a real, if slightly unusual, pnpm workspace pattern) so
+there is exactly one implementation of "run a processing job," never a
+second copy for the inline-local path. `buildProcessingDeps` takes an
+explicit `ProcessingEnvBindings` interface, not the ambient `Env` global —
+each Worker's own generated `Env` (from its own `worker-configuration.d.ts`)
+is a separate ambient declaration only visible within that Worker's own
+tsconfig program, so a bare `Env` parameter type would silently resolve to
+the *caller's* ambient type instead of failing loudly across packages.
+
+### Central auth, error handling, request IDs
+
+- `apps/api-worker/src/middleware/auth.ts` protects every `/v1/*` route
+  (mounted once in `index.ts`, never per-route) — Bearer token compared to
+  `env.IMAGERYX_API_KEY` via `@imageryx/image-core`'s new
+  `constantTimeEqual` (byte-by-byte XOR accumulator, no early return).
+  `/health` and `/v1/info` are the only unauthenticated routes in api-worker
+  (`/v1/info` is inside `/v1/*` and *is* now protected — see "Dashboard dev
+  proxy" below for how the Overview page still reaches it).
+- `apps/api-worker/src/middleware/error-handler.ts` is the single place
+  every thrown error becomes the shared `ApiError` envelope:
+  `ApiHttpError` subclasses (`lib/errors.ts`) carry their own
+  status/code/message/details; `ZodError` becomes a 400 with field issues;
+  every `ImageryxDomainError` subclass maps to a fixed status via a lookup
+  table; anything unrecognized becomes a generic 500 with the real error
+  only logged server-side. Never a stack trace, SQL fragment, absolute
+  path, or provider error in the response body.
+- Request IDs (`X-Request-Id`, generated or echoed) already existed from
+  Phase 1 and are unchanged; `logActivity` (`lib/log-activity.ts`) adds a
+  structured console line for project/folder/preset/tag-level events (see
+  "Activity events" below for why those aren't in `asset_activity`).
+
+### Upload flow and consistency guarantees
+
+`apps/api-worker/src/services/upload-asset.service.ts` is a pure,
+dependency-injected function (`uploadAsset(deps, input)`) — not tied to
+Hono — called by both the real HTTP route and the backend integration
+test directly. Order: validate project → validate folder (same project) →
+enforce `MAX_UPLOAD_SIZE_MB` → `validateImageAsset` (claimed MIME +
+extension + magic bytes, from `@imageryx/image-core`, unchanged from Phase
+2) → `normalizeFilename` → checksum → duplicate-checksum lookup
+(non-blocking, returned as `duplicateCandidates`) → free-path search
+(numeric suffix loop, bounded at 1000 attempts) → generate the asset ID
+*before* building its storage key → `storage.put` → `AssetPersistenceService.createAssetWithActivity`
+(now accepts a pre-generated `id` and an `event`/`metadata` override — a
+small, backward-compatible extension) → optional tag association →
+`inspect-metadata` job created. The route layer then dispatches the job
+(see `PROCESSING_MODE` above) and returns `201`.
+
+Consistency, matching the phase's explicit requirements:
+
+- **Storage succeeds, DB insert fails:** the service catches the DB error,
+  attempts `storage.delete(key)`, logs a cleanup failure separately if
+  *that* also fails, then rethrows the original error (translated by the
+  central error handler, never masked by the cleanup attempt).
+- **DB insert succeeds, Queue publish fails:** the asset and job rows are
+  already committed; the response's `processingDispatch: { mode, dispatched }`
+  field reports `dispatched: false` for a failed `queue` publish, but the
+  asset is never deleted and the job stays `queued` — visible via
+  `GET /v1/processing-jobs` and republishable via
+  `POST /v1/processing-jobs/:jobId/retry`.
+
+### Metadata inspection: format support and the mock-provider capability fix
+
+`@imageryx/image-core`'s new `inspectImageDimensions` (pure, no decode
+pipeline) parses real header bytes: PNG (IHDR — width/height/color type,
+color type 4/6 ⇒ alpha), JPEG (scans markers for the first SOF0-family
+segment — JFIF/EXIF headers vary in length, so no fixed offset works),
+GIF (fixed-offset logical screen descriptor; per-frame transparency is not
+scanned, reported as `null`, not `false`), WebP (VP8X's explicit alpha
+flag, or VP8L's bit-packed 14-bit width/height/alpha field; plain lossy
+VP8 has no alpha), SVG (`width`/`height` attributes, falling back to
+`viewBox`). **AVIF dimension detection is unimplemented** — its
+ISOBMFF/HEIF-derived container needs a real box parser this phase doesn't
+include; it always reports `null`/`null` with a warning, exactly as the
+phase spec allows. An unparseable/truncated header for any format never
+invents a dimension — `null` fields plus a warning, asset still becomes
+`ready`.
+
+Placeholder generation is the phase's explicitly-allowed first
+implementation, not real pixel analysis: `dominantColor` is the first 3
+bytes of the asset's own SHA-256 checksum treated as an RGB triple
+(`approximateDominantColorFromChecksum`), and `placeholder` is a tiny
+solid-color SVG as a `data:` URI (`buildColorPlaceholderDataUri`) — both
+deterministic, neither a real sample of the image's pixels.
+
+**A real bug found during manual verification, now fixed:**
+`MOCK_CAPABILITIES.supportsPersistentOutput` was `false` in Phase 2
+(accurate then — the mock provider only returned a fabricated
+`/preview-placeholder` URL, never wrote anything). Phase 3's
+`generate-variant` handler *does* now persist real bytes when
+`persist: true`, so the capability flag was stale and made
+`selectTransformationProvider` reject every persistent variant request
+with `unsupported_operation` — caught by testing the real upload → variant
+flow against live local Workers, not by any unit test (the unit tests all
+used synthetic capability fixtures that never touched the real constant).
+Fixed in `packages/providers/src/transformations/mock-transformation.provider.ts`.
+
+### Variant generation: real SVG bytes, never JSON pretending to be an image
+
+`apps/processing-worker/src/jobs/handlers/generate-variant.ts` calls the
+resolved `TransformationProvider.transform()` only to reuse its
+deterministic width/height derivation and its `assetSlug.includes("fail")`
+test hook (`MockTransformationFailureError`, classified non-retryable) —
+every other field of the mock provider's fabricated result (mimeType,
+sizeBytes, deliveryUrl, checksum) is discarded. Instead, the handler
+renders a real SVG via `@imageryx/image-core`'s new
+`renderSimulatedVariantSvg` (visibly encodes the asset name, preset name,
+resolved dimensions, output format, and the literal text "Simulated
+transformation"), computes a real checksum over those real bytes, and — if
+`persist: true` (the default; threaded through `generate-variant`'s job
+input, a small contract addition) — writes them through `StorageProvider`
+at `buildDerivedStorageKey(...)`. `variant.deliveryUrl` is deliberately
+left `null` in the DB — delivery paths are computed on demand from
+project slug + asset path + preset slug (`@imageryx/image-core`'s
+`buildDeliveryUrl`/`buildDeliveryPath`, the one implementation
+`api-worker`, `@imageryx/sdk`, and `@imageryx/angular` all share), never
+persisted, so a project slug rename can never leave a stale URL behind.
+
+Only the Cloudflare/Cloudinary providers' `transform()` still always
+throws `ProviderUnavailableError` (unchanged from Phase 2) — provider
+selection only ever picks them when `externalProvidersEnabled: true`,
+which nothing in this phase's default configuration sets, so this path is
+reachable but inert without deliberately configured credentials.
+
+### Idempotent variant generation
+
+`apps/api-worker/src/services/generate-variant.service.ts`'s
+`requestVariant` is the read-before-write fast path;
+`idx_variants_unique_asset_preset_hash` remains the actual guarantee. On a
+repeat request for the same asset+preset: `ready` → returns the existing
+variant as-is (200); `pending`/`processing` → returns the existing variant
+plus the still-active job ID (202, no new job); `failed` → returns the
+existing variant and the associated (failed) job ID — retry goes through
+`POST /v1/processing-jobs/:jobId/retry`, which is the one place a variant
+legally moves `failed → pending` again (per
+`VARIANT_STATUS_TRANSITIONS`), not a special case in the generation route.
+An `Idempotency-Key` header is accepted but not separately tracked — the
+`(assetId, presetHash)` uniqueness constraint already makes repeat
+requests naturally idempotent without a separate key store.
+
+### Delivery Worker route design
+
+Chosen: `/:projectSlug/assets/:assetPath[/p/:presetSlug]` — the explicit
+`/assets/` + `/p/` marker option the phase spec offered, over the
+longest-match-first alternative. Implemented as a single Hono route
+`/:projectSlug/assets/:rest{.+}` (regex-constrained catch-all param),
+parsed by `apps/delivery-worker/src/lib/path.ts`: the preset marker is
+recognized only when it's literally the **second-to-last** path segment
+(`rest.split("/")`, checking `segments[length-2] === "p"`), not "the last
+`/p/` anywhere in the string" — deliberately, so a real asset path
+containing an unrelated `p` segment earlier on is never misparsed.
+
+**Known, documented, narrow ambiguity:** an asset whose own logical path's
+second-to-last segment is literally `p` (e.g. `docs/p/screenshot`) cannot
+be requested as an original through this route — it will always be parsed
+as `presetSlug: "screenshot"` of asset `docs`. No asset in this phase's
+seed data or fixtures hits this; it's called out here and in SECURITY.md
+rather than silently left for someone to discover.
+
+### Visibility: binary, not three-tier
+
+`@imageryx/contracts`' `assetVisibilitySchema` is `"public" | "private"` —
+Phase 2's schema, unchanged. The phase spec's delivery section separately
+describes "unlisted" behavior; since the domain model has no third value,
+Phase 3 treats "private" as the complete answer for anything that isn't
+plainly public: the normal path-based delivery route always returns a
+generic 404 for both private and soft-deleted assets (`resolveDelivery`
+never distinguishes "exists but private/deleted" from "never existed" in
+its response), and the *only* way to fetch a private original or a
+not-yet-public asset is a signed `/download/:token` link. 404 (not 410) is
+used uniformly for deleted assets too, for the same non-disclosure reason.
+
+### Signed downloads
+
+`@imageryx/image-core`'s new `createSignedToken`/`verifySignedToken`
+(HMAC-SHA256 over a base64url payload, `<payload>.<signature>` — never a
+bare base64-encoded JSON blob) are shared verbatim by `api-worker` (issues)
+and `delivery-worker` (verifies) via the same package, so the two can never
+drift on token format. Payload: `{ assetId, variant: "original" | variantId,
+exp, nonce }` — no secrets inside the token itself. Verification always
+checks the HMAC signature (via `crypto.subtle.verify`, itself
+constant-time) before trusting *any* payload field, including `exp`, and
+distinguishes "malformed/bad signature" (400) from "validly-signed but
+expired" (410) from "asset not found/deleted" or "downloads disabled for
+this asset" (404) — `apps/delivery-worker/src/lib/signed-download.ts`
+re-checks `asset.downloadOriginalEnabled` at delivery time, not only at
+issuance, as defense in depth against the flag changing in between.
+
+### Caching
+
+Public originals: `public, max-age=3600, stale-while-revalidate=86400`,
+ETag = `"<asset.checksum>"`, conditional `If-None-Match` → 304. Ready
+variants: `public, max-age=31536000, immutable` (safe — variant identity
+is keyed by preset hash, so a preset edit is a new hash, not a mutation of
+existing bytes), ETag = `"<variant.checksum>"`, plus
+`X-Imageryx-Simulated: true` whenever `variant.provider === "mock"`.
+Signed downloads: `private, no-store`. Every delivery response also sets
+`X-Content-Type-Options: nosniff`.
+
+### Activity: asset-scoped events are real rows, project/folder/preset-scoped events are structured logs only
+
+`asset_activity.asset_id` is `NOT NULL` (Phase 2's schema, unchanged) — a
+project-created or preset-created event has no asset to attach to. Rather
+than a risky SQLite table-rebuild migration under time pressure, Phase 3
+keeps the schema as-is: every asset-scoped event in the phase spec's list
+(uploaded, metadata inspected, ready, updated, moved, tags changed,
+deleted, restored, variant requested/processing/ready, processing failed,
+original/variant downloaded) is a real `AssetActivityRepository.record()`
+row, queryable via `GET /v1/assets/:id/activity`. Project/folder/preset/tag
+-scoped events (project created/updated, folder created, preset
+created/updated, tag created/updated/deleted) go through
+`apps/api-worker/src/lib/log-activity.ts` instead — a structured
+`console.log`, not a database row. This is a real, documented scope
+narrowing versus the phase spec's activity list, not an oversight.
+
+### Stats and processing-job listing: bulk queries, but pagination is in-memory
+
+`GET /v1/stats` is entirely aggregate `COUNT`/`SUM`/`GROUP BY` SQL — never
+loads asset/job rows into the Worker. `GET /v1/processing-jobs`, by
+contrast, calls `ProcessingJobRepository.list()` (no SQL-level
+`LIMIT`/`OFFSET` — the repository method predates pagination) and slices
+the array in the route handler. Fine for this phase's realistic local job
+volumes; a documented, deliberate simplification, not a claim of
+unbounded-scale correctness.
+
+### Project cascade delete: `waitUntil` cleanup, not a `processing_jobs` row
+
+`DELETE /v1/projects/:id?cascade=true` deletes the project row
+synchronously (D1's real `ON DELETE CASCADE` handles every child table in
+one fast statement) but cleans up the deleted assets' R2 objects inside
+`c.executionCtx.waitUntil(...)`, never blocking the response. This is
+**not** a `processing_jobs` row with a `delete-object` handler — Phase 3
+doesn't implement one (see "Unimplemented job types" below) — so a
+cascade-delete's storage cleanup has no retry/visibility if it fails
+beyond a structured error log. The development dashboard never sends
+`cascade=true`, per the phase spec.
+
+### Unimplemented processing-job types
+
+Only `inspect-metadata` and `generate-variant` have real handlers.
+`extract-placeholder` (as a *standalone* job — placeholder generation is
+folded into `inspect-metadata`, see above), `strip-metadata`,
+`copy-provider-result`, `delete-object`, and `batch-operation` all throw a
+classified, non-retryable `UnsupportedJobTypeError` if ever dispatched —
+none of Phase 3's routes ever create a job of these types, so this is
+reachable-but-inert, matching the mock-only-real-behavior spirit
+elsewhere in this phase.
+
+### SDK and Angular package notes
+
+- `@imageryx/sdk` is plain Fetch, framework-independent, with `ImageryxApiError`
+  / `ImageryxNetworkError` / `ImageryxValidationError`. Every dynamic path
+  segment goes through `seg()` (`encodeURIComponent`) — verified by a test
+  asserting a slash inside an ID doesn't silently become an extra path
+  segment. `assets.upload()` builds real `FormData` (browser `File` or any
+  `Blob`), never assumes Node's file APIs.
+- `@imageryx/angular`'s `<imgyx-image>` uses signal `input()`/`output()`
+  as required, but its outputs are named `imageLoad`/`imageError`, **not**
+  `load`/`error`: `@angular-eslint/no-output-native` correctly flags a
+  component output shadowing a native DOM event name as ambiguous on a
+  host binding. It depends on `@imageryx/image-core` (for the shared
+  delivery-URL builder) but deliberately not on `@imageryx/sdk` — the
+  image component never needs an API key or JSON parsing, just URL
+  strings, so it stays that much smaller and can never accidentally call
+  an authenticated endpoint.
+- Getting `@imageryx/angular`'s own component tests running under Vitest
+  (via `@analogjs/vite-plugin-angular`, zoneless — no zone.js anywhere in
+  this workspace) needed two non-obvious files the framework silently
+  degrades without: a `tsconfig.spec.json` (its absence produced a
+  logged-but-easy-to-miss "Unable to resolve tsconfig… causes compilation
+  issues" warning, and *silently* compiled decorators as inert no-ops,
+  producing the confusing runtime error `NG0303: ... input()` on a field
+  that plainly used `input()`) and `tslib` as a real dependency (once
+  decorator compilation actually ran). If a future package's Angular tests
+  fail with `NG0303`/`NG0950` despite correct signal-input code, check for
+  both files first.
+
+### Dashboard production build: workspace-package barrel files need a manual esbuild fallback
+
+Found only by actually running `pnpm build` (not caught by `pnpm dev`, `pnpm test`, or
+`pnpm typecheck` — all of which passed throughout development): `apps/dashboard`'s production
+build (`vite build`, via `@analogjs/platform`'s `analog()` plugin) failed with `"createImageryxClient"
+is not exported by "../../packages/sdk/src/index.ts"` even though the export is plainly there.
+Root cause, confirmed by instrumenting a debug Vite plugin to print each file's post-transform
+content: `@analogjs/vite-plugin-angular`'s TypeScript/Angular compiler (`fileEmitter`) intercepts
+*every* `.ts` file reachable in the module graph, including workspace packages resolved through
+pnpm's symlinks — not just `apps/dashboard/src/**`. For pure re-export barrel files with no
+Angular decorators (`@imageryx/sdk`'s and `@imageryx/angular`'s `src/index.ts` — both just
+`export { ... } from "./x"` lines), its production-build emit path returns **empty content**
+instead of the correctly-transpiled JS. Rollup then parses that empty string, sees zero
+import/export statements, and silently never even requests the files `index.ts` was supposed to
+import (`client.ts`, `imgyx-image.component.ts`, etc.) — the whole subgraph past the barrel
+vanishes. `pnpm dev` never hits this (the dev-server code path handles unrecognized/out-of-program
+files differently), which is why manual E2E testing of `/dev-flow` earlier in this phase never
+caught it.
+
+Fixed in `apps/dashboard/vite.config.ts`, without touching `node_modules`, using two of the
+Angular plugin's own supported options together:
+
+1. `analog({ vite: { transformFilter: (code, id) => !id.includes("/packages/") } })` — tells the
+   Angular compiler to skip every file under the workspace's `packages/` directory entirely
+   (return `undefined`, decline to handle it), rather than let it silently mis-emit them.
+2. A small custom plugin (`enforce: "pre"`, so it runs before the Angular plugin's own hook)
+   that runs those same `packages/**/*.ts` files through `transformWithEsbuild` (re-exported
+   directly by the `vite` package — no extra dependency needed) — the same plain esbuild
+   transform Vite would apply by default if the Angular plugin weren't claiming ownership of
+   every `.ts` file's transform.
+
+Verified via a from-scratch bisection (isolating `analog()` from `tailwindcss()`, confirming a
+plain `vite build` with no Angular plugin at all succeeds, then confirming the fix restores a
+full, successful build including the Nitro server bundle) — not just "it built once." This is a
+**general, not sdk-specific** fix: it applies to any current or future workspace package the
+dashboard imports whose entry file is a pure re-export barrel, not only `@imageryx/sdk`/`@imageryx/angular`.
+Anyone adding a new workspace package dependency to `apps/dashboard` should run `pnpm --filter
+@imageryx/dashboard build` (not just `pnpm dev`) before considering it done.
+
+### Dashboard dev-only proxy and `/dev-flow`
+
+`apps/dashboard/src/server/routes/api/[...path].ts` is an h3/Nitro server
+route (Analog's dev-server middleware serves it under `/api/*` — confirmed
+by `vite`'s own startup log, "The server endpoints are accessible under
+the '/api' path") that forwards to `api-worker`, injecting
+`Authorization: Bearer ${process.env.IMAGERYX_API_KEY || "imgx_dev_local"}`
+server-side. This is the chosen "local development proxy" strategy from
+the phase spec's three options. The browser never holds the key: `IMAGERYX_CLIENT`
+(`apps/dashboard/src/app/core/sdk/imageryx-client.token.ts`) configures
+the SDK with `baseUrl: "/api"` and no `apiKey`. `HealthService.loadInfo()`
+was moved from calling `env.apiUrl` directly to the same relative
+`/api/v1/info` path, since `/v1/info` is inside `/v1/*` and is now
+auth-protected — verified manually: `curl localhost:5173/api/v1/info` with
+*no* Authorization header returns a real 200 from api-worker. `/health` on
+each Worker is unchanged (outside `/v1/*`, never required auth, still
+called directly). This proxy is confirmed working under `pnpm dev`
+(Vite's dev middleware); it is **not** verified to run in this dashboard's
+current production deployment (`ssr: false`, `wrangler pages deploy
+dist/client` — a static-only SPA build), since `/dev-flow` and this proxy
+are explicitly dev-only per the phase spec.
+
+`/dev-flow` (`apps/dashboard/src/app/pages/dev-flow.page.ts`) drives the
+real pipeline through the real SDK: project/folder selection, file
+upload, polled processing status, preset selection, polled variant
+generation, original/preset delivery URLs, a live `<imgyx-image>` render
+(dogfooding the real Angular component against real delivery URLs), and
+generated HTML/Angular snippets. No hardcoded success states — every
+section reflects real SDK responses or a real `ImageryxApiError`.
+
+### Backend integration test: real D1 + R2, direct function calls, not a multi-worker network topology
+
+`apps/api-worker/test/integration/upload-to-delivery.spec.ts` runs under
+plain Node (`vitest.integration.config.ts`, **not**
+`@cloudflare/vitest-pool-workers`) against a real Miniflare-backed D1
+(`@imageryx/database/testing`'s existing ephemeral harness) and a second,
+independent ephemeral Miniflare R2 bucket. It calls the same production
+functions the three Workers' HTTP/Queue entry points call —
+`uploadAsset`, `runJobUntilSettled` (`@imageryx/processing-worker/jobs`),
+`requestVariant`, `resolveDelivery` and `resolveSignedDownload`
+(exported from new `@imageryx/delivery-worker` subpaths:
+`./resolve-delivery`, `./signed-download`) — directly, rather than
+spinning up three real network servers or configuring
+`@cloudflare/vitest-pool-workers`' multi-worker service-binding auxiliary
+workers. This was a deliberate scope decision: the auxiliary-worker
+topology adds real config complexity for equivalent coverage of the
+actual business logic, which is what this test exists to exercise. **Must
+never live inside `apps/api-worker/test/**` matched by the default
+`vitest.config.ts`** — that pool is workerd-based and cannot run
+Node-only code (Miniflare itself); `vitest.config.ts` now explicitly
+excludes `test/integration/**`. (This exact mismatch caused a `workerd`
+segfault-on-exit with an exit code of 1 despite every individual test
+passing, found during verification — a reminder that a passing test count
+doesn't guarantee a passing process exit code.)
+
+### `pnpm processing:run-local`
+
+`tooling/scripts/processing-run-local.ts` (a real `.ts` script now, not
+just `.mjs` — `tooling/scripts` gained a `tsconfig.json` and a
+`typecheck` script) connects to the same shared `--persist-to` D1 + R2
+state as `wrangler dev`/the seed script, finds every `queued`
+`processing_jobs` row across all projects, and runs each through
+`processJob` (`@imageryx/processing-worker/jobs`) — the same function
+everything else in this phase uses. Useful for draining jobs without a
+live Queue consumer running. Verified against live local state (reports
+"No queued processing jobs found" correctly when nothing is pending).
+
+### Exact starting point for Phase 4
+
+Phase 3 delivers a functional backend and delivery flow, verified against
+real running Workers (not just isolated unit tests): upload → real D1 row
+→ real Queue message → real processing-worker consumer → metadata
+inspection with real dimension/alpha parsing → asset ready → variant
+request → real Queue message → mock transformation → real SVG bytes
+persisted to R2 → delivery-worker resolution → correct headers and body,
+plus signed downloads, all confirmed live via `curl` against three
+concurrently-running `wrangler dev` processes and the dashboard's own dev
+server. Phase 4 ("Complete Dashboard") should:
+
+1. Build the real `/library`, `/projects`, `/presets`, `/processing`,
+   `/api`, `/settings` pages on `@imageryx/sdk` (already a complete,
+   tested client — no new backend surface should be needed for basic
+   CRUD/browsing) and `@imageryx/angular` (already renders real assets).
+2. Revisit the project/folder/preset activity gap (see "Activity" above)
+   if Phase 4's UI wants a real project-level activity feed — that needs
+   an actual schema change (a new table, or a nullable `asset_id`), not
+   just a route.
+3. Decide whether `ProcessingJobRepository.list()` needs real SQL
+   pagination before a dashboard job-monitoring view ships (see "Stats and
+   processing-job listing" above).
+4. Do **not** re-litigate the Phase 3 decisions above without reading them
+   first — the R2-backed local storage architecture, the shared
+   `--persist-to` state, the binary visibility model, and the Delivery
+   Worker route design are all load-bearing for what Phase 4 builds on top.
 
 ## Technology decisions
 

@@ -1,5 +1,5 @@
 {
-  "extends": "@imageryx/typescript-config/node.json",
+  "extends": "@imageryx/typescript-config/angular-lib.json",
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src"

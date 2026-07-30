@@ -57,7 +57,12 @@ export class HealthService {
   private async loadInfo(): Promise<void> {
     this.apiInfo.set({ status: "loading" });
     try {
-      const data = await fetchJson<ApiInfo>(`${this.env.apiUrl}/v1/info`);
+      // Relative, same-origin path: /v1/* now requires a Bearer API key (see
+      // src/middleware/auth.ts in api-worker), so this goes through the server-side
+      // proxy (src/server/routes/api/[...path].ts) instead of calling api-worker
+      // directly — the browser never needs to hold the key. /health (above) stays
+      // direct since it's outside /v1/* and unauthenticated.
+      const data = await fetchJson<ApiInfo>("/api/v1/info");
       this.apiInfo.set({ status: "success", data });
     } catch (error) {
       this.apiInfo.set({ status: "error", message: toErrorMessage(error) });

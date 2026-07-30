@@ -39,3 +39,5 @@ export * from "./variants/variant.schema";
 
 export * from "./processing/processing-job.contracts";
 export * from "./processing/processing-job.schema";
+
+export * from "./stats/stats.schema";

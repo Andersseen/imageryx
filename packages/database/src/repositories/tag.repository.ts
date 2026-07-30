@@ -43,6 +43,52 @@ export class TagRepository {
     return row ? mapRow(row) : null;
   }
 
+  async findById(id: string): Promise<Tag | null> {
+    const row = await this.db
+      .prepare("SELECT * FROM tags WHERE id = ?")
+      .bind(id)
+      .first<TagRow>();
+    return row ? mapRow(row) : null;
+  }
+
+  async rename(id: string, name: string): Promise<Tag | null> {
+    const existing = await this.findById(id);
+    if (!existing) return null;
+    await this.db
+      .prepare("UPDATE tags SET name = ? WHERE id = ?")
+      .bind(name, id)
+      .run();
+    return { ...existing, name };
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.db.prepare("DELETE FROM tags WHERE id = ?").bind(id).run();
+  }
+
+  /** One join instead of one query per asset — used by the asset list endpoint. */
+  async listForAssets(
+    assetIds: readonly string[],
+  ): Promise<Map<string, Tag[]>> {
+    const map = new Map<string, Tag[]>();
+    if (assetIds.length === 0) return map;
+    const placeholders = assetIds.map(() => "?").join(", ");
+    const result = await this.db
+      .prepare(
+        `SELECT asset_tags.asset_id as asset_id, tags.* FROM tags
+         INNER JOIN asset_tags ON asset_tags.tag_id = tags.id
+         WHERE asset_tags.asset_id IN (${placeholders})
+         ORDER BY tags.name ASC`,
+      )
+      .bind(...assetIds)
+      .all<TagRow & { asset_id: string }>();
+    for (const row of result.results) {
+      const list = map.get(row.asset_id) ?? [];
+      list.push(mapRow(row));
+      map.set(row.asset_id, list);
+    }
+    return map;
+  }
+
   /** Idempotent: returns the existing tag if `name` is already registered for the project. */
   async findOrCreate(projectId: string, name: string): Promise<Tag> {
     const existing = await this.findByName(projectId, name);

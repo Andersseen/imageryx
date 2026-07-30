@@ -5,20 +5,27 @@ transformation platform: upload once, transform on request, and serve from
 the edge — without locking storage or transformation logic to a single
 vendor.
 
-## Status: Phase 2 — Domain, Persistence and Provider Foundations
+## Status: Phase 3 — Functional Backend and Delivery Flow
 
-Phase 1 shipped the monorepo structure, local dev experience, and
-open-source scaffolding. **Phase 2** (current) adds the provider-independent
-image domain (`@imageryx/contracts` + `@imageryx/image-core`), a real D1
-schema with tested repositories (`@imageryx/database`), and real local
-storage / mock transformation / Cloudflare & Cloudinary mapping providers
-(`@imageryx/providers`) — plus `/v1/diagnostics/*` routes on `api-worker`
-to inspect all of it locally.
+Phase 1 shipped the monorepo structure and local dev experience. Phase 2
+added the provider-independent image domain, a real D1 schema, and real
+local storage / mock transformation providers. **Phase 3** (current) wires
+all of that into a real, working vertical slice: create a project, upload
+an image through a real multipart route, watch it get inspected by a real
+Cloudflare Queue-driven `processing-worker`, request a preset variant
+(idempotent, mock-transformed), and fetch it back through `delivery-worker`
+at a stable public URL — plus a signed-download path for private assets, a
+Bearer-auth-protected `/v1/*` API, a working `@imageryx/sdk`, a real
+`<imgyx-image>` Angular component, and a minimal `/dev-flow` dashboard page
+that exercises the whole pipeline. **All of it runs locally with zero
+Cloudflare or Cloudinary credentials** — local storage is a
+Miniflare-simulated R2 bucket, local Queues are real Cloudflare Queues
+simulated the same way, and transformation is a deterministic mock that
+returns real (if simulated) image bytes.
 
-There is still **no upload API, no real R2/Cloudflare Images/Cloudinary
-network calls, no delivery flow, no real Queue-driven processing, no SDK,
-and no complete dashboard** — everything above is domain logic, storage,
-and diagnostics, not yet wired into a public write path. See
+There is still **no polished library/asset-browsing UI, no
+production auth/teams/billing, and no real network calls to Cloudflare
+Images, Cloudinary, or an R2 bucket that isn't Miniflare-simulated** — see
 [ROADMAP.md](ROADMAP.md) for what's next and [context.md](context.md) for
 the full working context, including the specific decisions and known
 limitations from this phase.
@@ -49,10 +56,11 @@ apps/
 packages/
   contracts/           Domain Zod schemas + inferred types, by domain
   database/            D1 schema/migrations/repositories (+ /testing subpath)
-  image-core/          Provider-independent domain logic (no pixel pipeline yet)
+  image-core/          Provider-independent domain logic (validation, hashing,
+                       metadata inspection, signed tokens, simulated rendering)
   providers/           Storage + transformation provider implementations (+ /node subpath)
-  sdk/                 Framework-agnostic API client — placeholder until Phase 4
-  angular/             Angular SDK bindings — placeholder until Phase 4
+  sdk/                 Framework-agnostic, typed API client (@imageryx/sdk)
+  angular/             Real <imgyx-image> standalone Angular component
   test-utils/          Shared testing helpers + domain fixtures (+ /node subpath)
   typescript-config/   Shared strict tsconfig bases
   eslint-config/        Shared ESLint 9 flat configs
@@ -85,13 +93,22 @@ Run from the repository root; Turborepo fans these out to every app/package
 with the matching script, respecting dependency order:
 
 ```bash
-pnpm dev        # start dashboard + web + all three Workers concurrently
-pnpm build      # production build of every app/package
-pnpm lint       # ESLint across the workspace
-pnpm typecheck  # TypeScript project-reference typecheck across the workspace
-pnpm test       # Vitest across every app/package that has tests
-pnpm check      # lint + typecheck + test + build, in dependency order
+pnpm dev              # start dashboard + web + all three Workers concurrently
+pnpm build            # production build of every app/package
+pnpm lint             # ESLint across the workspace
+pnpm typecheck        # TypeScript project-reference typecheck across the workspace
+pnpm test             # Vitest (Node + Workers pools) across every app/package that has tests
+pnpm test:workers     # Just the @cloudflare/vitest-pool-workers suites (api/delivery/processing-worker)
+pnpm test:integration # The plain-Node backend integration test (real D1 + R2, no mocks)
+pnpm check            # lint + typecheck + test + build, in dependency order
 ```
+
+`pnpm test` and `pnpm check` do **not** include `test:integration` — that
+suite spins up its own ephemeral Miniflare D1/R2 pair (slower, and
+intentionally isolated from the workerd-based `vitest-pool-workers` suites
+that make up `pnpm test`; see context.md's "Backend integration test"
+note for why). Run it explicitly, or rely on CI, which runs it as its own
+step.
 
 Run a single app's dev server from the root (useful when you only need one
 piece running):
@@ -111,6 +128,75 @@ Or target any single app/package directly:
 pnpm --filter @imageryx/api-worker dev
 pnpm --filter @imageryx/dashboard test
 ```
+
+Drain any queued processing jobs without a live Queue consumer running
+(reads/writes the same shared local D1 + R2 state as `wrangler dev`):
+
+```bash
+pnpm processing:run-local
+```
+
+## Authentication
+
+Every `/v1/*` route on `api-worker` requires `Authorization: Bearer
+<IMAGERYX_API_KEY>` (default locally: `imgx_dev_local`, see `.env.example`).
+`/health` (all three Workers) and `delivery-worker`'s public routes are
+unauthenticated by design — delivery is meant to be fetched directly by
+browsers/CDNs, never through a Bearer-token proxy.
+
+The dashboard's browser code **never holds this key**. `/dev-flow` and any
+future authenticated dashboard page call a same-origin server route
+(`apps/dashboard/src/server/routes/api/[...path].ts`, an Analog/Nitro h3
+route) that injects the key server-side and forwards to `api-worker`. Point
+`@imageryx/sdk` at `/api` with no `apiKey` to use it — see context.md's
+"Dashboard dev-only proxy" note for the full request path.
+
+## API surface (`api-worker`, all under `/v1/*`, Bearer-auth required)
+
+```
+GET    /v1/info
+GET    /v1/stats
+
+GET    /v1/projects                       POST /v1/projects
+GET    /v1/projects/:id                   PATCH /v1/projects/:id     DELETE /v1/projects/:id
+
+GET    /v1/projects/:projectId/folders    POST /v1/projects/:projectId/folders
+GET    /v1/folders/:id                    PATCH /v1/folders/:id      DELETE /v1/folders/:id
+
+GET    /v1/projects/:projectId/tags       POST /v1/projects/:projectId/tags
+PATCH  /v1/tags/:id                       DELETE /v1/tags/:id
+
+GET    /v1/presets                        POST /v1/presets
+GET    /v1/presets/:id                    PATCH /v1/presets/:id      DELETE /v1/presets/:id
+POST   /v1/presets/:id/preview
+
+POST   /v1/assets/upload                  GET  /v1/assets
+GET    /v1/assets/:id                     PATCH /v1/assets/:id       DELETE /v1/assets/:id
+POST   /v1/assets/:id/move                PUT  /v1/assets/:id/tags
+POST   /v1/assets/:id/restore
+GET    /v1/assets/:id/activity            GET  /v1/assets/:id/variants
+GET    /v1/assets/:id/delivery            POST /v1/assets/:id/download-url
+POST   /v1/assets/:id/variants                                       # request/generate a preset variant
+
+GET    /v1/processing-jobs                GET  /v1/processing-jobs/:id
+POST   /v1/processing-jobs/:id/retry      POST /v1/processing-jobs/:id/cancel
+
+GET    /v1/diagnostics/domain             GET  /v1/diagnostics/database
+GET    /v1/diagnostics/providers          GET  /v1/diagnostics/seed
+```
+
+## Delivery surface (`delivery-worker`, all public, no auth)
+
+```
+GET /health
+GET /:projectSlug/assets/:assetPath                    # original, public assets only
+GET /:projectSlug/assets/:assetPath/p/:presetSlug       # ready variant, public assets only
+GET /download/:token                                    # signed, time-limited — private or not-yet-public assets
+```
+
+Private or soft-deleted assets always 404 on the plain path routes above
+(never a distinguishing 403/410) — see context.md's "Visibility" note.
+Issue a signed download token via `POST /v1/assets/:id/download-url`.
 
 ## Local URLs
 
@@ -167,10 +253,17 @@ surface described above, publicly.
 
 ## Local database & storage setup
 
-`api-worker` owns the local D1 database binding
-(`apps/api-worker/wrangler.jsonc`); `@imageryx/providers`' `LocalStorageProvider`
-owns local file storage (`.local/storage`, git-ignored). One command sets
-both up and seeds two projects' worth of data:
+`api-worker`, `processing-worker`, and `delivery-worker` each declare the
+same D1 (`DB`) and R2 (`ASSET_STORAGE`) bindings in their own
+`wrangler.jsonc`, and every `dev`/`db:*:local` script across all three (plus
+the seed script and `processing:run-local`) points at the **same** shared
+local persist directory — `--persist-to ../../.wrangler-state`
+(git-ignored) — so an asset uploaded through `api-worker` is immediately
+visible to `processing-worker`'s Queue consumer and `delivery-worker`'s
+reads, all running as separate local processes. No real Cloudflare account
+or credentials are needed — `wrangler dev`'s default (non-`--remote`) mode
+simulates D1, R2, and Queues locally via Miniflare. One command sets
+everything up and seeds two projects' worth of data:
 
 ```bash
 pnpm setup:local
@@ -181,9 +274,9 @@ That's `storage:prepare:local` → `db:migrate:local` → `db:seed:local` →
 individual commands:
 
 ```bash
-pnpm storage:prepare:local  # creates .local/storage
-pnpm db:migrate:local        # wrangler d1 migrations apply (local)
-pnpm db:seed:local           # seeds 2 projects, folders, tags, system presets, fixture SVG assets
+pnpm storage:prepare:local  # ensures the shared .wrangler-state root exists
+pnpm db:migrate:local        # wrangler d1 migrations apply (local, shared persist root)
+pnpm db:seed:local           # seeds 2 projects, folders, tags, system presets, fixture assets — into the same shared R2 bucket every Worker reads from
 pnpm db:status:local         # wrangler d1 migrations list (local)
 ```
 
@@ -194,19 +287,39 @@ Two commands are **explicitly destructive** and never run as part of
 `setup:local` or any other script:
 
 ```bash
-pnpm db:reset:local       # wipes apps/api-worker/.wrangler/state/v3/d1
-pnpm storage:reset:local  # wipes .local/storage
+pnpm db:reset:local       # wipes .wrangler-state/v3/d1
+pnpm storage:reset:local  # wipes .wrangler-state/v3/r2
 ```
 
-Seeded fixture assets are tiny, code-generated SVGs (not committed
-binaries) clearly labeled as local development fixtures in both their
-`name` field and their own SVG content.
+Seeded fixture assets are tiny, code-generated images (not committed
+binaries) clearly labeled as local development fixtures in their `name`
+field.
+
+To exercise the full flow by hand, run `pnpm dev:workers` (or `pnpm dev`)
+in one terminal and, in another:
+
+```bash
+curl -X POST http://localhost:8787/v1/assets/upload \
+  -H "Authorization: Bearer imgx_dev_local" \
+  -F projectId=<a project id from db:seed:local or GET /v1/projects> \
+  -F file=@/path/to/image.png
+
+# a few seconds later, once processing-worker has consumed the Queue message:
+curl http://localhost:8787/v1/assets/<assetId> \
+  -H "Authorization: Bearer imgx_dev_local"
+```
+
+Or drive the same flow interactively from the dashboard's `/dev-flow` page
+(`pnpm dev:dashboard`, then http://localhost:5173/dev-flow) — no API key
+needed in the browser, since the dashboard proxies through its own
+server (see "Authentication" above).
 
 ## Diagnostic endpoints
 
-`api-worker` exposes four read-only routes reporting real local state —
-no secrets, complete API keys, absolute filesystem paths, internal
-storage keys, or raw database errors in any response:
+`api-worker` exposes four read-only, Bearer-auth-protected routes
+reporting real local state — no secrets, complete API keys, absolute
+filesystem paths, internal storage keys, or raw database errors in any
+response:
 
 ```http
 GET /v1/diagnostics/domain      # supported formats/operations, dimension limits — no DB needed
@@ -217,7 +330,7 @@ GET /v1/diagnostics/seed        # seed project/preset/asset counts
 
 ```bash
 pnpm --filter @imageryx/api-worker dev   # in one terminal
-curl http://localhost:8787/v1/diagnostics/database
+curl http://localhost:8787/v1/diagnostics/database -H "Authorization: Bearer imgx_dev_local"
 ```
 
 ## Environment variables
@@ -234,14 +347,21 @@ DASHBOARD_URL=http://localhost:5173
 API_URL=http://localhost:8787
 DELIVERY_URL=http://localhost:8788
 IMAGERYX_API_KEY=imgx_dev_local
-STORAGE_PROVIDER=local
+STORAGE_PROVIDER=r2
 TRANSFORMATION_PROVIDER=mock
-LOCAL_STORAGE_PATH=.local/storage
+MAX_UPLOAD_SIZE_MB=25
+ASSET_RECOVERY_DAYS=30
+PROCESSING_MAX_ATTEMPTS=3
+PROCESSING_MODE=queue
+DOWNLOAD_SIGNING_SECRET=replace-with-local-development-secret
 ```
 
-`ADVANCED_TRANSFORMATION_PROVIDER` and `CLOUDINARY_*` are documented
-(commented out) in `.env.example` for the future `r2`/`cloudflare`/`cloudinary`
-configuration — not active, and no command in this phase requires them.
+`ADVANCED_TRANSFORMATION_PROVIDER` and `CLOUDINARY_*`/`CLOUDFLARE_*` are
+documented (empty) in `.env.example` for the future `cloudflare`/`cloudinary`
+transformation configuration — not active, and no command in this phase
+requires them. `LOCAL_STORAGE_PATH` still exists for `@imageryx/providers/node`'s
+`LocalStorageProvider`, but no Worker uses it anymore (see "Provider
+configuration" below).
 
 Never commit a working `.env` file or real secrets — `.env*` (except
 `*.example`) is git-ignored.
@@ -250,45 +370,51 @@ Never commit a working `.env` file or real secrets — `.env*` (except
 
 Storage and transformation backends are selected by env var, validated by
 `@imageryx/providers`' Zod schema (`parseProviderConfig`) — an invalid or
-incomplete combination (e.g. `STORAGE_PROVIDER=local` with no
-`LOCAL_STORAGE_PATH`) fails fast rather than at first use:
+incomplete combination fails fast rather than at first use:
 
-| Var                                                                      | Local default    | Notes                                                                                            |
-| ------------------------------------------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------ |
-| `STORAGE_PROVIDER`                                                       | `local`          | `local` (filesystem, Node-only) or `r2` (binding-ready, no real request yet)                     |
-| `TRANSFORMATION_PROVIDER`                                                | `mock`           | `mock` (real, deterministic), `cloudflare` or `cloudinary` (mapping-only — `transform()` throws) |
-| `ADVANCED_TRANSFORMATION_PROVIDER`                                       | unset            | Optional secondary provider (e.g. Cloudinary alongside a Cloudflare primary)                     |
-| `LOCAL_STORAGE_PATH`                                                     | `.local/storage` | Required when `STORAGE_PROVIDER=local`                                                           |
-| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | unset            | Required only when Cloudinary is configured as either provider                                   |
+| Var                                                                      | Local default    | Notes                                                                                                             |
+| ------------------------------------------------------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `STORAGE_PROVIDER`                                                       | `r2`              | `r2` is the only value any Worker uses locally — a real Miniflare-simulated R2 bucket, zero credentials required. `local` (filesystem) still exists for Node-only tooling/tests, not reachable from a Worker.  |
+| `TRANSFORMATION_PROVIDER`                                                | `mock`            | `mock` (real, deterministic, persists real simulated-image bytes), `cloudflare` or `cloudinary` (mapping-only — `transform()` always throws, reachable but inert unless explicitly configured with credentials) |
+| `ADVANCED_TRANSFORMATION_PROVIDER`                                       | unset             | Optional secondary provider (e.g. Cloudinary alongside a Cloudflare primary)                                       |
+| `PROCESSING_MODE`                                                        | `queue`           | `queue` (real Cloudflare Queue, locally simulated) or `inline-local` (runs the same job function inside `waitUntil`, no Queue message) — see context.md                                                          |
+| `DOWNLOAD_SIGNING_SECRET`                                                | dev-only default  | HMAC key for signed private-download tokens — must be a real secret in any non-local environment                                                                                                                 |
+| `LOCAL_STORAGE_PATH`                                                     | `.local/storage`  | Only read by Node-only tooling/tests now, never by a Worker                                                                                                                                                       |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | unset             | Required only when Cloudinary is configured as either transformation provider                                                                                                                                    |
 
 ## Current limitations
 
-- No upload API, no delivery flow, no real Queue-driven processing — the
-  domain, database, and provider layers exist and are tested, but nothing
-  wires them into a public write path yet (Phase 3).
-- No real network calls to Cloudflare Images, Cloudinary, or R2 —
-  `CloudflareImagesProvider`/`CloudinaryProvider`'s `transform()` and
-  `R2StorageProvider` compile against the real types but always throw or
-  are simply unused; only `MockTransformationProvider` and
-  `LocalStorageProvider` do real work.
-- `@imageryx/image-core` has no decode/resize/crop/encode pixel pipeline —
-  it validates, normalizes, hashes, and selects providers, but does not
-  transform pixels itself.
-- Dashboard routes other than **Overview** are static "Upcoming — Phase 4"
-  placeholders with no interactive controls.
+- No polished asset-library or project-management UI — the dashboard's
+  only interactive addition this phase is the dev-only `/dev-flow` page;
+  every other route beyond Overview is still a static "Upcoming" placeholder.
+- No real network calls to Cloudflare Images, Cloudinary, or a real
+  (non-Miniflare) R2 bucket — `CloudflareImagesProvider`/`CloudinaryProvider`'s
+  `transform()` always throws; only `MockTransformationProvider` performs
+  real (simulated) transformation work, producing real SVG image bytes,
+  never fake JSON pretending to be an image.
+- `@imageryx/image-core` still has no decode/resize/crop/encode pixel
+  pipeline for *real* transformation — variant generation is a real,
+  visibly-labeled simulation, not a real resize.
+- AVIF dimension inspection is unimplemented (reports `null`/`null` with a
+  warning, never a fabricated dimension) — every other supported format
+  (PNG/JPEG/GIF/WebP/SVG) parses real header bytes.
+- No production authentication/authorization, teams, or billing — a single
+  shared static Bearer API key protects `/v1/*`, which is the phase's
+  explicit scope; see [SECURITY.md](SECURITY.md).
 - CI deploys every app to Cloudflare on push to `main` (see "Deployment"
-  above), but nothing deployed is auth-protected — it's the same
-  diagnostic-only surface, now public.
-- No authentication on any route, including the new diagnostic routes —
-  Phase 1 never implemented the `IMAGERYX_API_KEY` placeholder as a real
-  middleware, so there is nothing yet to hook diagnostics auth into.
+  above); the deployed api-worker/delivery-worker still expect the same
+  local-style single static API key — no per-user credentials exist yet.
+
+See context.md's "Phase 3 decisions and limitations" section for the
+complete, detailed list (idempotency mechanism, delivery route ambiguity,
+visibility model, caching policy, and more).
 
 ## Roadmap summary
 
-Phase 1 repository foundation → **Phase 2 domain, persistence & provider
-foundations (this repo)** → Phase 3 uploads, transformation pipeline &
-delivery → Phase 4 complete dashboard → Phase 5 production hardening &
-release. Full detail in [ROADMAP.md](ROADMAP.md).
+Phase 1 repository foundation → Phase 2 domain, persistence & provider
+foundations → **Phase 3 functional backend & delivery flow (this repo)** →
+Phase 4 complete dashboard → Phase 5 production hardening & release. Full
+detail in [ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 

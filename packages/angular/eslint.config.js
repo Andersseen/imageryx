@@ -1,3 +1,3 @@
-import base from '@imageryx/eslint-config/base';
+import { withAngular } from '@imageryx/eslint-config/angular';
 
-export default base;
+export default withAngular('imgyx');

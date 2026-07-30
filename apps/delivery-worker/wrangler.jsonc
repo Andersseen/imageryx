@@ -5,8 +5,23 @@
   "compatibility_date": "2026-07-29",
   "vars": {
     "APP_ENV": "development",
-    "DASHBOARD_URL": "http://localhost:5173"
+    "DASHBOARD_URL": "http://localhost:5173",
+    "DOWNLOAD_SIGNING_SECRET": "replace-with-local-development-secret"
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "imageryx-db",
+      "database_id": "3c3a3b44-768f-4162-8e18-59f862ddbc49",
+      "migrations_dir": "../../packages/database/migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ASSET_STORAGE",
+      "bucket_name": "imageryx-storage"
+    }
+  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
@@ -15,8 +30,23 @@
     "production": {
       "vars": {
         "APP_ENV": "production",
-        "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev"
-      }
+        "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev",
+        "DOWNLOAD_SIGNING_SECRET": "replace-with-local-development-secret"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "imageryx-db",
+          "database_id": "3c3a3b44-768f-4162-8e18-59f862ddbc49",
+          "migrations_dir": "../../packages/database/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ASSET_STORAGE",
+          "bucket_name": "imageryx-storage"
+        }
+      ]
     }
   }
 }

@@ -18,6 +18,7 @@ import {
 } from "@voltui/components";
 import { MoveEnterDirective } from "angular-movement";
 import {
+  LmnBeakerIcon,
   LmnCodeBracketIcon,
   LmnCog6ToothIcon,
   LmnCpuChipIcon,
@@ -44,6 +45,7 @@ import { Topbar } from "./shell/topbar.component";
     VoltSidebarGroup,
     VoltSidebarHeader,
     VoltSidebarItem,
+    LmnBeakerIcon,
     LmnCodeBracketIcon,
     LmnCog6ToothIcon,
     LmnCpuChipIcon,
@@ -99,6 +101,12 @@ import { Topbar } from "./shell/topbar.component";
             </volt-sidebar-item>
             <volt-sidebar-item routerLink="/settings" label="Settings">
               <lmn-settings slot="icon" [size]="16" tone="muted" />
+            </volt-sidebar-item>
+          </volt-sidebar-group>
+
+          <volt-sidebar-group label="Development">
+            <volt-sidebar-item routerLink="/dev-flow" label="Dev Flow">
+              <lmn-beaker slot="icon" [size]="16" tone="muted" />
             </volt-sidebar-item>
           </volt-sidebar-group>
         </volt-sidebar-content>

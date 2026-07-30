@@ -45,6 +45,7 @@ export const generateVariantInputSchema = z.object({
   assetId: assetIdSchema,
   presetId: presetIdSchema,
   presetHash: z.string().min(1),
+  persist: z.boolean().default(true),
 });
 
 export const extractPlaceholderInputSchema = z.object({

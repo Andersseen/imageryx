@@ -1,11 +1,15 @@
 /**
  * @imageryx/angular
  *
- * Placeholder entry point. This package does not depend on @angular/core
- * yet and exports no components/directives/pipes: the `ix-image` directive
- * and preset pipes described in ARCHITECTURE.md are implemented in a later
- * phase, once `@imageryx/sdk` has a real client to wrap. Phase 1 only needs
- * this package to exist and resolve correctly across the workspace.
+ * Standalone Angular bindings for Imageryx delivery URLs: the
+ * `<imgyx-image>` component (see `lib/imgyx-image.component.ts`). Depends
+ * only on `@angular/core` and `@imageryx/image-core`'s pure delivery-path
+ * builder — never `@imageryx/sdk` (which is API-key-aware) and never
+ * calls `api-worker` directly. Packaged as plain TypeScript source
+ * (resolved directly by the dashboard's own Vite/Analog build), the same
+ * pattern every other package in this workspace uses — `ng-packagr`
+ * packaging for external npm publishing is a later-phase concern (see
+ * ROADMAP.md).
  */
-
-export const ANGULAR_PACKAGE_PHASE = 1 as const;
+export { ImgyxImage, type ImageFetchPriority, type ImageLoadingStrategy } from "./lib/imgyx-image.component";
+export { type ResponsivePresetInput } from "./lib/image-url";

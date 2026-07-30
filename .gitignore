@@ -23,6 +23,7 @@ build
 
 # Wrangler / Cloudflare
 .wrangler
+.wrangler-state
 .dev.vars
 worker-configuration.d.ts
 
