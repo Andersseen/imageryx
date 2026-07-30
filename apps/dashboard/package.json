@@ -42,7 +42,7 @@
     "@imageryx/typescript-config": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.2",
+    "typescript": "^5.9.3",
     "vite": "^7.3.6",
     "vitest": "^4.1.10",
     "wrangler": "^4.115.0"
