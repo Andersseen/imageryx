@@ -11,7 +11,8 @@
     "preview": "vite preview --port 5173",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy": "wrangler pages deploy dist/client --project-name imageryx-dashboard --branch main"
   },
   "dependencies": {
     "@analogjs/router": "^2.6.4",
@@ -43,6 +44,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.2",
     "vite": "^7.3.6",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.115.0"
   }
 }

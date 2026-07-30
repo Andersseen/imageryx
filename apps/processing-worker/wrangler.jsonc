@@ -20,5 +20,23 @@
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
+  },
+  "env": {
+    "production": {
+      "vars": {
+        "APP_ENV": "production",
+        "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev"
+      },
+      "queues": {
+        "producers": [{ "binding": "PROCESSING_QUEUE", "queue": "imageryx-processing-queue" }],
+        "consumers": [
+          {
+            "queue": "imageryx-processing-queue",
+            "max_batch_size": 10,
+            "max_batch_timeout": 5
+          }
+        ]
+      }
+    }
   }
 }

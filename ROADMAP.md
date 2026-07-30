@@ -71,8 +71,9 @@ the exact Phase 3 starting point.
 
 ## Phase 5 — Production Hardening & Release
 
-- Authentication/authorization on business routes.
-- Deployment configuration (currently intentionally absent) and CI/CD.
+- Authentication/authorization on business routes (CI/CD and basic
+  Cloudflare deployment already exist as of Phase 2 — see context.md,
+  "Deployment" — but nothing deployed is auth-protected yet).
 - First tagged release; package publishing workflows for `@imageryx/sdk`
   and `@imageryx/angular`.
 

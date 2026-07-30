@@ -121,6 +121,50 @@ pnpm --filter @imageryx/dashboard test
 | Delivery Worker                       | http://localhost:8788 |
 | Processing Worker (HTTP dev endpoint) | http://localhost:8789 |
 
+## Deployment
+
+Every app deploys to Cloudflare — `dashboard` and `web` as Pages projects,
+the three Workers as Cloudflare Workers:
+
+| App                | Deploys to                | Production URL                      |
+| ------------------ | -------------------------- | ------------------------------------ |
+| dashboard           | Cloudflare Pages           | https://imageryx-dashboard.pages.dev |
+| web                 | Cloudflare Pages           | https://imageryx-web.pages.dev       |
+| api-worker          | Cloudflare Workers         | `imageryx-api-worker` (Workers subdomain) |
+| delivery-worker     | Cloudflare Workers         | `imageryx-delivery-worker` (Workers subdomain) |
+| processing-worker   | Cloudflare Workers         | `imageryx-processing-worker` (Workers subdomain) |
+
+`.github/workflows/ci.yml` runs a single `check` job (verify structure,
+lint, typecheck, test, build) on every push and pull request. On a push to
+`main`, once `check` passes, all five apps deploy as independent parallel
+jobs — a failure in one doesn't block the others. Deploys need the
+repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+(Workers/Pages/D1/Queues write scope).
+
+Each app also has its own `deploy` script for deploying manually from a
+machine authenticated with `wrangler login`:
+
+```bash
+pnpm --filter @imageryx/dashboard run deploy
+pnpm --filter @imageryx/web run deploy
+pnpm --filter @imageryx/api-worker run deploy
+pnpm --filter @imageryx/delivery-worker run deploy
+pnpm --filter @imageryx/processing-worker run deploy
+```
+
+`api-worker` reads/writes the real `imageryx-db` D1 database in
+production (separate from the `--local` database used by `wrangler dev`).
+Apply new migrations before deploying code that depends on them:
+
+```bash
+pnpm --filter @imageryx/api-worker run db:migrate:production
+pnpm --filter @imageryx/api-worker run db:status:production
+```
+
+Nothing deployed is auth-protected yet (see "Current limitations") — this
+stage only wires up the pipeline and exposes the same diagnostic-only
+surface described above, publicly.
+
 ## Local database & storage setup
 
 `api-worker` owns the local D1 database binding
@@ -232,7 +276,9 @@ incomplete combination (e.g. `STORAGE_PROVIDER=local` with no
   transform pixels itself.
 - Dashboard routes other than **Overview** are static "Upcoming — Phase 4"
   placeholders with no interactive controls.
-- No deployment configuration for any app; CI only lints/typechecks/tests/builds.
+- CI deploys every app to Cloudflare on push to `main` (see "Deployment"
+  above), but nothing deployed is auth-protected — it's the same
+  diagnostic-only surface, now public.
 - No authentication on any route, including the new diagnostic routes —
   Phase 1 never implemented the `IMAGERYX_API_KEY` placeholder as a real
   middleware, so there is nothing yet to hook diagnostics auth into.
