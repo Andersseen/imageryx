@@ -1,6 +1,6 @@
-import { env } from 'cloudflare:test';
-import { describe, expect, it, vi } from 'vitest';
-import { handleQueueBatch } from '../src/queue/consumer';
+import { env } from "cloudflare:test";
+import { describe, expect, it, vi } from "vitest";
+import { handleQueueBatch } from "../src/queue/consumer";
 
 function fakeMessage(body: unknown) {
   return {
@@ -13,14 +13,17 @@ function fakeMessage(body: unknown) {
   } as unknown as Message<unknown>;
 }
 
-describe('handleQueueBatch', () => {
-  it('acknowledges a well-formed placeholder job', async () => {
+describe("handleQueueBatch", () => {
+  it("acknowledges a well-formed placeholder job", async () => {
     const message = fakeMessage({
-      kind: 'placeholder',
-      jobId: 'job_1',
+      kind: "placeholder",
+      jobId: "job_1",
       enqueuedAt: new Date().toISOString(),
     });
-    const batch = { messages: [message], queue: 'imageryx-processing-queue' } as unknown as MessageBatch<unknown>;
+    const batch = {
+      messages: [message],
+      queue: "imageryx-processing-queue",
+    } as unknown as MessageBatch<unknown>;
 
     await handleQueueBatch(batch, env, {} as ExecutionContext);
 
@@ -28,9 +31,12 @@ describe('handleQueueBatch', () => {
     expect(message.retry).not.toHaveBeenCalled();
   });
 
-  it('retries an unrecognized job shape instead of dropping it', async () => {
-    const message = fakeMessage({ kind: 'unknown-future-job' });
-    const batch = { messages: [message], queue: 'imageryx-processing-queue' } as unknown as MessageBatch<unknown>;
+  it("retries an unrecognized job shape instead of dropping it", async () => {
+    const message = fakeMessage({ kind: "unknown-future-job" });
+    const batch = {
+      messages: [message],
+      queue: "imageryx-processing-queue",
+    } as unknown as MessageBatch<unknown>;
 
     await handleQueueBatch(batch, env, {} as ExecutionContext);
 

@@ -5,9 +5,9 @@ transformation jobs.
 
 ## Phase 1 surface
 
-| Surface | Description |
-| --- | --- |
-| `GET /health` | Liveness check — service, status, environment, version, timestamp |
+| Surface                                      | Description                                                            |
+| -------------------------------------------- | ---------------------------------------------------------------------- |
+| `GET /health`                                | Liveness check — service, status, environment, version, timestamp      |
 | Queue consumer (`imageryx-processing-queue`) | Acknowledges a typed `PlaceholderProcessingJob`; retries anything else |
 
 No image decoding, resizing, or encoding happens yet — see

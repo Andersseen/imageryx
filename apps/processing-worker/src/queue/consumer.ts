@@ -1,4 +1,4 @@
-import { isPlaceholderProcessingJob } from '../jobs/placeholder-job';
+import { isPlaceholderProcessingJob } from "../jobs/placeholder-job";
 
 /**
  * Acknowledges known-safe placeholder jobs and structured-logs the
@@ -15,7 +15,7 @@ export async function handleQueueBatch(
     if (!isPlaceholderProcessingJob(message.body)) {
       console.error(
         JSON.stringify({
-          event: 'processing.job.invalid',
+          event: "processing.job.invalid",
           messageId: message.id,
           timestamp: new Date().toISOString(),
         }),
@@ -26,7 +26,7 @@ export async function handleQueueBatch(
 
     console.log(
       JSON.stringify({
-        event: 'processing.job.acknowledged',
+        event: "processing.job.acknowledged",
         jobId: message.body.jobId,
         kind: message.body.kind,
         timestamp: new Date().toISOString(),

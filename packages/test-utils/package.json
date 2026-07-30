@@ -3,24 +3,32 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
-  "description": "Shared testing helpers for Imageryx apps and packages.",
+  "description": "Shared testing helpers for Imageryx apps and packages: health-check assertion, domain fixture builders, and (via the /node subpath) a D1 test database and temporary storage directory helper.",
   "type": "module",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./node": {
+      "types": "./src/node/index.ts",
+      "default": "./src/node/index.ts"
     }
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@imageryx/contracts": "workspace:*"
+    "@imageryx/contracts": "workspace:*",
+    "@imageryx/database": "workspace:*",
+    "@imageryx/image-core": "workspace:*"
   },
   "devDependencies": {
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.10"
   }
 }

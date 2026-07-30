@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
-  "description": "Shared TypeScript contracts (request/response, event, and health-check shapes) between Imageryx apps.",
+  "description": "Shared Zod schemas and TypeScript contracts (domain, request/response, and health-check shapes) between Imageryx apps.",
   "type": "module",
   "exports": {
     ".": {
@@ -13,11 +13,16 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.10"
   }
 }

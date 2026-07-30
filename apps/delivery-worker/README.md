@@ -5,10 +5,10 @@ delivery edge.
 
 ## Phase 1 routes
 
-| Route | Description |
-| --- | --- |
-| `GET /health` | Liveness check — service, status, environment, version, timestamp |
-| `GET /preview-placeholder?w=&h=` | A small SVG generated in code (no stored assets, no R2) |
+| Route                            | Description                                                       |
+| -------------------------------- | ----------------------------------------------------------------- |
+| `GET /health`                    | Liveness check — service, status, environment, version, timestamp |
+| `GET /preview-placeholder?w=&h=` | A small SVG generated in code (no stored assets, no R2)           |
 
 Real asset delivery (fetching from storage, on-the-fly transformation, caching) is implemented in a later phase — see [ROADMAP.md](../../ROADMAP.md).
 

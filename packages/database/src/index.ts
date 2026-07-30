@@ -1,10 +1,27 @@
 /**
  * @imageryx/database
  *
- * Placeholder entry point. Schema, migrations, and repository
- * implementations (D1-backed) arrive in a later phase, once there is a
- * concrete domain (assets, projects, presets) to persist. Phase 1 only
- * needs this package to exist and resolve correctly across the workspace.
+ * D1 schema (see `migrations/`), repository classes, and cross-table
+ * persistence services. Depends only on `@imageryx/contracts` and
+ * `@imageryx/image-core` — never on Hono, Angular, or a specific Worker.
+ *
+ * Test-only D1 setup (Miniflare-backed, migrations applied) lives behind
+ * the `@imageryx/database/testing` subpath, not here, so importing this
+ * barrel never pulls in Node built-ins or Miniflare.
  */
 
-export const DATABASE_PACKAGE_PHASE = 1 as const;
+export * from "./client";
+export * from "./ids";
+
+export * from "./repositories/asset-activity.repository";
+export * from "./repositories/asset.repository";
+export * from "./repositories/folder.repository";
+export * from "./repositories/preset.repository";
+export * from "./repositories/processing-job.repository";
+export * from "./repositories/project.repository";
+export * from "./repositories/tag.repository";
+export * from "./repositories/variant.repository";
+
+export * from "./services/asset-persistence.service";
+export * from "./services/preset-persistence.service";
+export * from "./services/variant-persistence.service";

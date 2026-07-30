@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
-  "description": "Provider-independent image transformation core (resize, format, crop, encode), introduced in a later phase.",
+  "description": "Provider-independent image domain services: filename/path normalization, MIME validation, checksums, preset normalization and hashing, transformation validation, and provider selection.",
   "type": "module",
   "exports": {
     ".": {
@@ -13,11 +13,16 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@imageryx/contracts": "workspace:*"
   },
   "devDependencies": {
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.10"
   }
 }

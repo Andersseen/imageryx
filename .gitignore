@@ -26,6 +26,9 @@ build
 .dev.vars
 worker-configuration.d.ts
 
+# Local provider storage (LocalStorageProvider's root — see packages/providers)
+.local/
+
 # Testing
 coverage
 playwright-report

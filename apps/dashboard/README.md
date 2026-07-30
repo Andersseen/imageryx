@@ -16,12 +16,12 @@ The Overview page polls each Worker's `/health` endpoint (and api-worker's
 
 ## UI libraries
 
-| Library | Role |
-| --- | --- |
-| [Volt UI](https://volt-ui.andersseen.dev) (`@voltui/components`) | Sidebar layout, buttons, badges, avatar, separator, tooltip, theming |
-| [Quartz Headless](https://quartz-headless.pages.dev) (`quartz-headless`) | `ViewportService` — collapses the sidebar at tablet widths |
+| Library                                                                                 | Role                                                                                |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [Volt UI](https://volt-ui.andersseen.dev) (`@voltui/components`)                        | Sidebar layout, buttons, badges, avatar, separator, tooltip, theming                |
+| [Quartz Headless](https://quartz-headless.pages.dev) (`quartz-headless`)                | `ViewportService` — collapses the sidebar at tablet widths                          |
 | [Angular Movement](https://github.com/Andersseen/angular-movement) (`angular-movement`) | `moveEnter` fade-in on the app shell (respects `prefers-reduced-motion` internally) |
-| [Lumen Icons](https://lumen-icons.dev) (`lumen-icons`) | All icons in the sidebar and topbar |
+| [Lumen Icons](https://lumen-icons.dev) (`lumen-icons`)                                  | All icons in the sidebar and topbar                                                 |
 
 See [context.md](../../context.md) for compatibility notes on each package.
 
