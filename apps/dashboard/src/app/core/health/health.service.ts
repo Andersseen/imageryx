@@ -1,8 +1,8 @@
-import { Injectable, inject, signal, type WritableSignal } from '@angular/core';
-import type { HealthCheckResponse } from '@imageryx/contracts';
-import { DASHBOARD_ENV } from '../env/dashboard-env.token';
-import type { ApiInfo, ApiInfoState } from './api-info.types';
-import type { ServiceHealthState } from './health.types';
+import { Injectable, inject, signal, type WritableSignal } from "@angular/core";
+import type { HealthCheckResponse } from "@imageryx/contracts";
+import { DASHBOARD_ENV } from "../env/dashboard-env.token";
+import type { ApiInfo, ApiInfoState } from "./api-info.types";
+import type { ServiceHealthState } from "./health.types";
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -13,7 +13,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 }
 
 function toErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown error';
+  return error instanceof Error ? error.message : "Unknown error";
 }
 
 /**
@@ -21,14 +21,14 @@ function toErrorMessage(error: unknown): string {
  * api-worker) and exposes the results as signals. Every fetch is real —
  * there are no hardcoded "healthy" states.
  */
-@Injectable({ providedIn: 'root' })
+@Injectable({ providedIn: "root" })
 export class HealthService {
   private readonly env = inject(DASHBOARD_ENV);
 
-  readonly apiWorker = signal<ServiceHealthState>({ status: 'loading' });
-  readonly deliveryWorker = signal<ServiceHealthState>({ status: 'loading' });
-  readonly processingWorker = signal<ServiceHealthState>({ status: 'loading' });
-  readonly apiInfo = signal<ApiInfoState>({ status: 'loading' });
+  readonly apiWorker = signal<ServiceHealthState>({ status: "loading" });
+  readonly deliveryWorker = signal<ServiceHealthState>({ status: "loading" });
+  readonly processingWorker = signal<ServiceHealthState>({ status: "loading" });
+  readonly apiInfo = signal<ApiInfoState>({ status: "loading" });
 
   constructor() {
     this.refresh();
@@ -41,23 +41,26 @@ export class HealthService {
     void this.loadInfo();
   }
 
-  private async loadHealth(baseUrl: string, target: WritableSignal<ServiceHealthState>): Promise<void> {
-    target.set({ status: 'loading' });
+  private async loadHealth(
+    baseUrl: string,
+    target: WritableSignal<ServiceHealthState>,
+  ): Promise<void> {
+    target.set({ status: "loading" });
     try {
       const data = await fetchJson<HealthCheckResponse>(`${baseUrl}/health`);
-      target.set({ status: 'success', data });
+      target.set({ status: "success", data });
     } catch (error) {
-      target.set({ status: 'error', message: toErrorMessage(error) });
+      target.set({ status: "error", message: toErrorMessage(error) });
     }
   }
 
   private async loadInfo(): Promise<void> {
-    this.apiInfo.set({ status: 'loading' });
+    this.apiInfo.set({ status: "loading" });
     try {
       const data = await fetchJson<ApiInfo>(`${this.env.apiUrl}/v1/info`);
-      this.apiInfo.set({ status: 'success', data });
+      this.apiInfo.set({ status: "success", data });
     } catch (error) {
-      this.apiInfo.set({ status: 'error', message: toErrorMessage(error) });
+      this.apiInfo.set({ status: "error", message: toErrorMessage(error) });
     }
   }
 }

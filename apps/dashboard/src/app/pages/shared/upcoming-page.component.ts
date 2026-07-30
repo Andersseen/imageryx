@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { VoltBadge } from '@voltui/components';
+import { ChangeDetectionStrategy, Component, input } from "@angular/core";
+import { VoltBadge } from "@voltui/components";
 
 /**
  * Static placeholder for routes whose real functionality lands in Phase 4.
@@ -7,7 +7,7 @@ import { VoltBadge } from '@voltui/components';
  * functional without being functional.
  */
 @Component({
-  selector: 'ix-upcoming-page',
+  selector: "ix-upcoming-page",
   standalone: true,
   imports: [VoltBadge],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -17,8 +17,9 @@ import { VoltBadge } from '@voltui/components';
       <h1 class="text-2xl font-semibold text-foreground">{{ title() }}</h1>
       <p class="text-muted-foreground">{{ description() }}</p>
       <p class="text-sm text-muted-foreground">
-        This route exists so the navigation and URL structure are stable, but the screen itself is
-        intentionally empty in Phase 1 — no controls here are wired up yet.
+        This route exists so the navigation and URL structure are stable, but
+        the screen itself is intentionally empty in Phase 1 — no controls here
+        are wired up yet.
       </p>
     </div>
   `,

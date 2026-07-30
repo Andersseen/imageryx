@@ -11,10 +11,14 @@
     "lint": "eslint .",
     "typecheck": "wrangler types && tsc --noEmit",
     "test": "vitest run",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply imageryx-db --local",
+    "db:status:local": "wrangler d1 migrations list imageryx-db --local"
   },
   "dependencies": {
     "@imageryx/contracts": "workspace:*",
+    "@imageryx/database": "workspace:*",
+    "@imageryx/image-core": "workspace:*",
     "@imageryx/providers": "workspace:*",
     "hono": "^4.12.32"
   },

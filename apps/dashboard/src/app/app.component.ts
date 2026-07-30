@@ -1,5 +1,10 @@
-import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+} from "@angular/core";
+import { RouterLink, RouterOutlet } from "@angular/router";
 import {
   VoltAvatar,
   VoltAvatarFallback,
@@ -10,8 +15,8 @@ import {
   VoltSidebarHeader,
   VoltSidebarItem,
   VoltSidebarService,
-} from '@voltui/components';
-import { MoveEnterDirective } from 'angular-movement';
+} from "@voltui/components";
+import { MoveEnterDirective } from "angular-movement";
 import {
   LmnCodeBracketIcon,
   LmnCog6ToothIcon,
@@ -20,13 +25,13 @@ import {
   LmnGridIcon,
   LmnPhotoIcon,
   LmnSettingsIcon,
-} from 'lumen-icons';
-import { ViewportService } from 'quartz-headless';
-import { ThemeService } from './core/theme/theme.service';
-import { Topbar } from './shell/topbar.component';
+} from "lumen-icons";
+import { ViewportService } from "quartz-headless";
+import { ThemeService } from "./core/theme/theme.service";
+import { Topbar } from "./shell/topbar.component";
 
 @Component({
-  selector: 'ix-root',
+  selector: "ix-root",
   standalone: true,
   imports: [
     RouterLink,
@@ -51,11 +56,19 @@ import { Topbar } from './shell/topbar.component';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="flex h-dvh overflow-hidden bg-background text-foreground" moveEnter="fade-up">
+    <div
+      class="flex h-dvh overflow-hidden bg-background text-foreground"
+      moveEnter="fade-up"
+    >
       <volt-sidebar>
         <volt-sidebar-header>
-          <a routerLink="/" class="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
-            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-sm text-primary-foreground">
+          <a
+            routerLink="/"
+            class="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground"
+          >
+            <span
+              class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-sm text-primary-foreground"
+            >
               Ix
             </span>
             @if (!sidebar.isCollapsed()) {
@@ -97,8 +110,12 @@ import { Topbar } from './shell/topbar.component';
             </volt-avatar>
             @if (!sidebar.isCollapsed()) {
               <div class="flex min-w-0 flex-col">
-                <span class="truncate text-sm font-medium text-foreground">Andrii</span>
-                <span class="truncate text-xs text-muted-foreground">Workspace owner</span>
+                <span class="truncate text-sm font-medium text-foreground"
+                  >Andrii</span
+                >
+                <span class="truncate text-xs text-muted-foreground"
+                  >Workspace owner</span
+                >
               </div>
             }
           </div>

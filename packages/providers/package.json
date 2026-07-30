@@ -3,21 +3,33 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
-  "description": "Storage and transformation provider identifiers shared across Imageryx apps. Provider implementations arrive in a later phase.",
+  "description": "Storage and transformation provider interfaces and implementations (local filesystem, R2, mock transform, Cloudflare Images mapping, Cloudinary mapping) for Imageryx.",
   "type": "module",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./node": {
+      "types": "./src/node/index.ts",
+      "default": "./src/node/index.ts"
     }
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@imageryx/contracts": "workspace:*",
+    "@imageryx/image-core": "workspace:*",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260722.1",
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.10"
   }
 }

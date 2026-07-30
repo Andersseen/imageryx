@@ -3,21 +3,36 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
-  "description": "Database schema and repository interfaces for Imageryx, introduced in a later phase.",
+  "description": "D1 schema, migrations, and repository classes for Imageryx (projects, folders, assets, tags, presets, variants, processing jobs, API keys, asset activity).",
   "type": "module",
   "exports": {
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./testing": {
+      "types": "./src/testing/index.ts",
+      "default": "./src/testing/index.ts"
     }
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "seed:local": "tsx scripts/seed.ts"
+  },
+  "dependencies": {
+    "@imageryx/contracts": "workspace:*",
+    "@imageryx/image-core": "workspace:*",
+    "@imageryx/providers": "workspace:*",
+    "miniflare": "^4.20260722.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260722.1",
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
-    "typescript": "^5.9.2"
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.10"
   }
 }

@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 /**
  * Deliberately separate from vite.config.ts: Phase 1 dashboard tests only
@@ -7,7 +7,7 @@ import { defineConfig } from 'vitest/config';
  */
 export default defineConfig({
   test: {
-    environment: 'node',
-    include: ['src/**/*.spec.ts'],
+    environment: "node",
+    include: ["src/**/*.spec.ts"],
   },
 });

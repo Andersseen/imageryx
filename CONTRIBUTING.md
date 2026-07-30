@@ -42,8 +42,8 @@ pnpm --filter @imageryx/dashboard lint
 
 ## Commit and PR conventions
 
-- Keep commits focused; write commit messages that explain *why*, not just
-  *what*.
+- Keep commits focused; write commit messages that explain _why_, not just
+  _what_.
 - Reference the related issue in your PR description.
 - Fill out the PR template's test plan honestly — "ran `pnpm check`" is a
   valid and expected answer for most changes.

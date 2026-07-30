@@ -1,5 +1,8 @@
-import type { HealthCheckResponse } from '@imageryx/contracts';
-import type { StorageProviderId, TransformationProviderId } from '@imageryx/providers';
+import type { HealthCheckResponse } from "@imageryx/contracts";
+import type {
+  StorageProviderId,
+  TransformationProviderId,
+} from "@imageryx/providers";
 
 export interface ApiInfo extends HealthCheckResponse {
   product: string;
@@ -8,6 +11,6 @@ export interface ApiInfo extends HealthCheckResponse {
 }
 
 export type ApiInfoState =
-  | { status: 'loading' }
-  | { status: 'success'; data: ApiInfo }
-  | { status: 'error'; message: string };
+  | { status: "loading" }
+  | { status: "success"; data: ApiInfo }
+  | { status: "error"; message: string };

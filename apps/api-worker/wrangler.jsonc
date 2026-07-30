@@ -7,8 +7,21 @@
     "APP_ENV": "development",
     "STORAGE_PROVIDER": "local",
     "TRANSFORMATION_PROVIDER": "mock",
-    "DASHBOARD_URL": "http://localhost:5173"
+    "DASHBOARD_URL": "http://localhost:5173",
+    "LOCAL_STORAGE_PATH": "../../.local/storage"
   },
+  // "database_id" is a fixed local-only placeholder, not a real Cloudflare resource — D1's
+  // `--local` mode only uses it as a key for the on-disk SQLite file under .wrangler/state.
+  // Replace it with a real ID from `wrangler d1 create` before any actual deployment (out of
+  // scope for this phase — see context.md, "No deployment configuration for any app").
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "imageryx-db",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "../../packages/database/migrations"
+    }
+  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1

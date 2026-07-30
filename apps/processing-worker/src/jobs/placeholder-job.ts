@@ -5,23 +5,25 @@
  * `@imageryx/image-core`.
  */
 export interface PlaceholderProcessingJob {
-  kind: 'placeholder';
+  kind: "placeholder";
   jobId: string;
   enqueuedAt: string;
 }
 
-export function isPlaceholderProcessingJob(value: unknown): value is PlaceholderProcessingJob {
-  if (typeof value !== 'object' || value === null) {
+export function isPlaceholderProcessingJob(
+  value: unknown,
+): value is PlaceholderProcessingJob {
+  if (typeof value !== "object" || value === null) {
     return false;
   }
 
   const job = value as Record<string, unknown>;
 
   return (
-    job['kind'] === 'placeholder' &&
-    typeof job['jobId'] === 'string' &&
-    job['jobId'].length > 0 &&
-    typeof job['enqueuedAt'] === 'string' &&
-    !Number.isNaN(Date.parse(job['enqueuedAt']))
+    job["kind"] === "placeholder" &&
+    typeof job["jobId"] === "string" &&
+    job["jobId"].length > 0 &&
+    typeof job["enqueuedAt"] === "string" &&
+    !Number.isNaN(Date.parse(job["enqueuedAt"]))
   );
 }

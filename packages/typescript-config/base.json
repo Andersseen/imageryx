@@ -21,5 +21,12 @@
     "declaration": false,
     "sourceMap": true
   },
-  "exclude": ["node_modules", "dist", ".output", ".analog", ".angular", ".wrangler"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".output",
+    ".analog",
+    ".angular",
+    ".wrangler"
+  ]
 }

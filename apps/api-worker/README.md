@@ -5,9 +5,9 @@ running on Cloudflare Workers.
 
 ## Phase 1 routes
 
-| Route | Description |
-| --- | --- |
-| `GET /health` | Liveness check — service, status, environment, version, timestamp |
+| Route          | Description                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------- |
+| `GET /health`  | Liveness check — service, status, environment, version, timestamp                           |
 | `GET /v1/info` | Adds product name and the currently configured placeholder storage/transformation providers |
 
 No upload, transformation, or asset routes exist yet — see [ROADMAP.md](../../ROADMAP.md).

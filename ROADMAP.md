@@ -3,7 +3,7 @@
 This roadmap tracks phases, not dates. Each phase is only started once the
 previous one is complete and its definition of done is met.
 
-## Phase 1 — Repository Foundation ✅ (current)
+## Phase 1 — Repository Foundation ✅
 
 - Monorepo structure (pnpm + Turborepo), shared TypeScript/ESLint configs.
 - `dashboard`, `api-worker`, `delivery-worker`, `processing-worker` all
@@ -17,25 +17,48 @@ previous one is complete and its definition of done is met.
 
 No uploads, storage, transformation, or database logic exists yet.
 
-## Phase 2 — Storage & Uploads
+## Phase 2 — Domain, Persistence and Provider Foundations ✅ (current)
 
-- `@imageryx/database` gets a real D1 schema and repositories (assets,
-  projects).
-- `api-worker` gains upload routes backed by a local storage provider,
-  then an R2 provider.
-- `@imageryx/providers` gains real `StorageProvider` implementations
-  behind the identifiers introduced in Phase 1.
+- `@imageryx/contracts` gets full domain schemas (projects, folders,
+  assets, presets, variants, processing jobs) as Zod schemas + inferred
+  types, organized by domain.
+- `@imageryx/image-core` implements provider-independent domain logic:
+  filename/logical-path normalization, MIME/signature validation,
+  checksums, preset normalization + hashing, transformation-chain
+  validation, and pure provider selection — no decode/resize/encode yet.
+- `@imageryx/database` gets a real D1 schema, migrations, and repository
+  classes (projects, folders, assets, tags, presets, variants, processing
+  jobs, asset activity), tested against a real D1-compatible SQLite
+  database, not mocks.
+- `@imageryx/providers` gets a real `LocalStorageProvider` (filesystem),
+  an `R2StorageProvider` structurally ready but making no real request,
+  a deterministic `MockTransformationProvider`, and parameter-mapping-only
+  `CloudflareImagesProvider` / `CloudinaryProvider` adapters.
+- `api-worker` gains a D1 binding and `/v1/diagnostics/*` routes reporting
+  real local domain/database/provider/seed state.
+- `pnpm setup:local` prepares local storage, migrates, and seeds two
+  projects, their folders/tags/system-presets, and a handful of generated
+  SVG fixture assets — no committed binaries, no Cloudflare/Cloudinary
+  account required for any command in this phase.
 
-## Phase 3 — Transformation Pipeline
+Still no upload API, delivery flow, real transformation pipeline, SDK, or
+functional dashboard beyond Phase 1's Overview page — see context.md for
+the exact Phase 3 starting point.
 
+## Phase 3 — Uploads, Transformation Pipeline and Delivery
+
+- `api-worker` gains real multipart upload routes backed by the storage
+  providers introduced in Phase 2.
 - `@imageryx/image-core` implements the provider-independent
-  decode/resize/crop/encode pipeline.
+  decode/resize/crop/encode pipeline (or delegates to a real transformation
+  provider's API).
 - `processing-worker`'s Queue consumer runs real transformation jobs
-  instead of acknowledging placeholders.
+  instead of acknowledging placeholders, using `@imageryx/database`'s
+  processing-job repository and the provider registry from Phase 2.
 - `delivery-worker` serves real transformed assets, cache-first, replacing
   `/preview-placeholder`.
-- A first real `TransformationProvider` (in-house, then Cloudinary as an
-  alternate) lands in `@imageryx/providers`.
+- The Cloudflare Images and Cloudinary adapters prepared in Phase 2 make
+  their first real network calls.
 
 ## Phase 4 — Complete Dashboard
 

@@ -14,9 +14,18 @@ function clampDimension(value: number | null, fallback: number): number {
  * dimensions). Stands in for real asset delivery, which is implemented in
  * a later phase.
  */
-export function renderPlaceholderSvg(rawWidth: string | null, rawHeight: string | null): string {
-  const width = clampDimension(rawWidth === null ? null : Number(rawWidth), DEFAULT_WIDTH);
-  const height = clampDimension(rawHeight === null ? null : Number(rawHeight), DEFAULT_HEIGHT);
+export function renderPlaceholderSvg(
+  rawWidth: string | null,
+  rawHeight: string | null,
+): string {
+  const width = clampDimension(
+    rawWidth === null ? null : Number(rawWidth),
+    DEFAULT_WIDTH,
+  );
+  const height = clampDimension(
+    rawHeight === null ? null : Number(rawHeight),
+    DEFAULT_HEIGHT,
+  );
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Imageryx placeholder preview, ${width} by ${height} pixels">
   <defs>

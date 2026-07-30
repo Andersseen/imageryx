@@ -13,7 +13,14 @@
     "format": "prettier --write \"**/*.{ts,tsx,html,json,md,yml,yaml}\" --ignore-unknown",
     "format:check": "prettier --check \"**/*.{ts,tsx,html,json,md,yml,yaml}\" --ignore-unknown",
     "clean": "turbo run clean && rm -rf node_modules",
-    "verify:structure": "node tooling/scripts/verify-workspace-structure.mjs"
+    "verify:structure": "node tooling/scripts/verify-workspace-structure.mjs",
+    "setup:local": "node tooling/scripts/setup-local.mjs",
+    "db:migrate:local": "pnpm --filter @imageryx/api-worker run db:migrate:local",
+    "db:seed:local": "pnpm --filter @imageryx/database run seed:local",
+    "db:reset:local": "node tooling/scripts/db-reset-local.mjs",
+    "db:status:local": "pnpm --filter @imageryx/api-worker run db:status:local",
+    "storage:prepare:local": "node tooling/scripts/storage-prepare-local.mjs",
+    "storage:reset:local": "node tooling/scripts/storage-reset-local.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.9.4",

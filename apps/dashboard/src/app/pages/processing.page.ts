@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { UpcomingPage } from './shared/upcoming-page.component';
+import { ChangeDetectionStrategy, Component } from "@angular/core";
+import { UpcomingPage } from "./shared/upcoming-page.component";
 
 @Component({
-  selector: 'ix-processing-page',
+  selector: "ix-processing-page",
   standalone: true,
   imports: [UpcomingPage],
   changeDetection: ChangeDetectionStrategy.OnPush,
