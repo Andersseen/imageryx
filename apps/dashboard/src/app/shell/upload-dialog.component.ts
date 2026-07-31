@@ -25,6 +25,7 @@ import {
 } from "lumen-icons";
 import { NotificationService } from "../core/notifications/notification.service";
 import { formatBytes } from "../core/format/format";
+import { parseTags } from "../core/format/tags";
 import { ProjectContextService } from "../core/projects/project-context.service";
 import { UploadService } from "../core/uploads/upload.service";
 import { ModalController } from "../ui/modal";
@@ -374,11 +375,4 @@ export class UploadDialog {
   }
 }
 
-/** Splits, trims and de-duplicates a comma-separated tag string; blank entries are dropped rather than sent. */
-export function parseTags(input: string): string[] {
-  const tags = input
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0);
-  return [...new Set(tags)];
-}
+export { parseTags };

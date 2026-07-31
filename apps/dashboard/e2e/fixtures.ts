@@ -58,7 +58,7 @@ export async function deleteProjectBySlug(
   page: Page,
   slug: string,
 ): Promise<void> {
-  const response = await page.request.get("/api/v1/projects", {
+  const response = await page.request.get("/proxy/v1/projects", {
     params: { pageSize: 100 },
   });
   if (!response.ok()) return;
@@ -67,7 +67,7 @@ export async function deleteProjectBySlug(
   };
   const project = body.items.find((item) => item.slug === slug);
   if (!project) return;
-  await page.request.delete(`/api/v1/projects/${project.id}`, {
+  await page.request.delete(`/proxy/v1/projects/${project.id}`, {
     params: { cascade: true },
   });
 }

@@ -12,7 +12,7 @@ transformation platform: upload once, transform on request, and serve from
 the edge — without locking storage or transformation logic to a single
 vendor.
 
-## Status: Phase 3 — Functional Backend and Delivery Flow
+## Status: Phase 4B — Asset Workspace, Presets, Processing, API & Settings
 
 Phase 1 shipped the monorepo structure and local dev experience. Phase 2
 added the provider-independent image domain, a real D1 schema, and real
@@ -23,25 +23,36 @@ Queue-driven `processing-worker`, request a preset variant (idempotent,
 mock-transformed), and fetch it back through `delivery-worker` at a stable
 public URL — plus a signed-download path for private assets, a
 Bearer-auth-protected `/v1/*` API, a working `@imageryx/sdk` and a real
-`<imgyx-image>` Angular component.
+`<imgyx-image>` Angular component. Phase 4A put the first real UI on top of
+it: `/library` browses, searches, filters, sorts and pages through your
+assets with soft delete/restore; `/projects` manages projects, folders and
+tags; the topbar's project switcher, asset search and multi-file upload
+dialog all work end to end.
 
-**Phase 4A** (current) puts a real UI on top of it. `/library` browses,
-searches, filters, sorts and pages through your assets, with soft delete and
-restore; `/projects` manages projects, folders and tags; the topbar's
-project switcher, asset search and multi-file upload dialog all work, and
-an upload is followed from multipart request through processing to ready.
-**All of it runs locally with zero Cloudflare or Cloudinary credentials** —
-local storage is a Miniflare-simulated R2 bucket, local Queues are real
-Cloudflare Queues simulated the same way, and transformation is a
-deterministic mock that returns real (if simulated) image bytes.
+**Phase 4B** (current) fills in the rest of the dashboard. `/library/:assetId`
+is a full asset workspace — preview, real metadata, variant generation with
+scoped polling, before/after comparison (honestly labeled simulated),
+delivery snippets (HTML/responsive HTML/Angular/SDK), signed downloads
+created on click, a human-readable activity timeline, and settings with
+dirty-state tracking. `/presets` lists system and custom presets and
+`/presets/new` / `/presets/:presetId` share one real editor — resize, crop,
+output format, effects, a live provider-compatibility panel backed by the
+same `.supports()` capability check production uses, and a real
+preset-preview call. `/processing` lists every real processing job with
+per-row scoped polling and retry/cancel wired to the actual state-transition
+rules, and `/processing/:jobId` gives each job its own live detail page.
+`/api` is a live developer reference — real service health, a masked (never
+full) API key, and copyable cURL/SDK/Angular/HTML examples generated
+against whichever project is selected. `/settings` mirrors the same real,
+live configuration, entirely read-only (there is no settings-mutation
+endpoint yet). **All of it still runs locally with zero Cloudflare or
+Cloudinary credentials.**
 
-There is still **no per-asset workspace (preview, variants, delivery
-snippets, signed downloads), no preset editor, no processing monitor, no
-production auth/teams/billing, and no real network calls to Cloudflare
-Images, Cloudinary, or an R2 bucket that isn't Miniflare-simulated** — see
-[ROADMAP.md](ROADMAP.md) for what's next and [context.md](context.md) for
-the full working context, including the specific decisions and known
-limitations from this phase.
+There is still **no production auth/teams/billing, and no real network
+calls to Cloudflare Images, Cloudinary, or an R2 bucket that isn't
+Miniflare-simulated** — see [ROADMAP.md](ROADMAP.md) for what's next and
+[context.md](context.md) for the full working context, including the
+specific decisions and known limitations from this phase.
 
 ## Stack
 
@@ -167,13 +178,16 @@ unauthenticated by design — delivery is meant to be fetched directly by
 browsers/CDNs, never through a Bearer-token proxy.
 
 The dashboard's browser code **never holds this key**. Every authenticated
-dashboard page — `/library`, `/projects`, `/dev-flow` — calls a same-origin
-server route (`apps/dashboard/src/server/routes/api/[...path].ts`, an
-Analog/Nitro h3 route) that injects the key server-side and forwards to
-`api-worker`. Point `@imageryx/sdk` at `/api` with no `apiKey` to use it;
-the SDK resolves a relative `baseUrl` against the current origin
-specifically to support this. See context.md's "Dashboard dev-only proxy"
-note for the full request path.
+dashboard page calls a same-origin server route
+(`apps/dashboard/src/server/routes/proxy/[...path].ts`, an Analog/Nitro h3
+route) that injects the key server-side and forwards to `api-worker`. Point
+`@imageryx/sdk` at `/proxy` with no `apiKey` to use it; the SDK resolves a
+relative `baseUrl` against the current origin specifically to support this.
+Deliberately not `/api` — that's the dashboard's own API-reference _page_
+route, and Analog's dev middleware mounts the whole Nitro proxy under one
+configurable `apiPrefix` (`vite.config.ts`), so a same-named prefix would
+shadow the page on a direct load or refresh. See context.md's "Dashboard
+dev-only proxy" note for the full request path.
 
 ## API surface (`api-worker`, all under `/v1/*`, Bearer-auth required)
 
@@ -342,11 +356,12 @@ curl http://localhost:8787/v1/assets/<assetId> \
 
 Or do it in the UI: `pnpm dev`, then http://localhost:5173/library — pick a
 project in the topbar, hit **Upload**, and watch the asset go from
-uploading to processing to ready. No API key is needed in the browser,
-since the dashboard proxies through its own server (see "Authentication"
-above). The dev-only `/dev-flow` page still exercises the lower-level
-pipeline (variant generation, delivery URLs, snippets) that the dashboard
-does not surface until Phase 4B.
+uploading to processing to ready. Open the asset to reach its full
+workspace (variants, delivery, download, activity). No API key is needed in
+the browser, since the dashboard proxies through its own server (see
+"Authentication" above). The dev-only `/dev-flow` page still exercises the
+same lower-level pipeline directly against the SDK, useful when iterating
+on the SDK itself rather than the dashboard UI.
 
 ## Diagnostic endpoints
 
@@ -418,23 +433,24 @@ incomplete combination fails fast rather than at first use:
 
 ## Current limitations
 
-- No per-asset workspace. `/library` browses and manages assets in bulk,
-  but `/library/:assetId` — preview, metadata, variants, delivery snippets,
-  signed downloads, activity — is Phase 4B, so asset cards deliberately do
-  not link anywhere. `/presets`, `/processing`, `/api` and `/settings`
-  remain static placeholders that name what they will do and expose no
-  controls.
 - No real network calls to Cloudflare Images, Cloudinary, or a real
   (non-Miniflare) R2 bucket — `CloudflareImagesProvider`/`CloudinaryProvider`'s
   `transform()` always throws; only `MockTransformationProvider` performs
   real (simulated) transformation work, producing real SVG image bytes,
-  never fake JSON pretending to be an image.
+  never fake JSON pretending to be an image. Every "simulated" label in the
+  dashboard (variant badges, before/after comparison, preset preview)
+  reflects this real provider state, not a guess.
 - `@imageryx/image-core` still has no decode/resize/crop/encode pixel
   pipeline for _real_ transformation — variant generation is a real,
   visibly-labeled simulation, not a real resize.
 - AVIF dimension inspection is unimplemented (reports `null`/`null` with a
   warning, never a fabricated dimension) — every other supported format
   (PNG/JPEG/GIF/WebP/SVG) parses real header bytes.
+- Only `inspect-metadata` and `generate-variant` processing-job types have a
+  real handler; the other five types are reachable-but-inert (see
+  context.md's "Unimplemented processing-job types").
+- There is no settings-mutation endpoint — `/settings` is entirely
+  read-only, reporting the same live configuration `/api` does.
 - No production authentication/authorization, teams, or billing — a single
   shared static Bearer API key protects `/v1/*`, which is the phase's
   explicit scope; see [SECURITY.md](SECURITY.md).
@@ -442,17 +458,18 @@ incomplete combination fails fast rather than at first use:
   above); the deployed api-worker/delivery-worker still expect the same
   local-style single static API key — no per-user credentials exist yet.
 
-See context.md's "Phase 3 decisions and limitations" and "Phase 4A
-decisions and limitations" sections for the complete, detailed list
-(idempotency mechanism, delivery route ambiguity, visibility model, caching
-policy, the URL-as-state library model, thumbnail strategy, and more).
+See context.md's "Phase 3 decisions and limitations", "Phase 4A decisions
+and limitations", and "Phase 4B decisions and limitations" sections for the
+complete, detailed list (idempotency mechanism, delivery route ambiguity,
+visibility model, caching policy, the URL-as-state library model, thumbnail
+strategy, the file-router static/dynamic sibling-route pitfall, and more).
 
 ## Roadmap summary
 
 Phase 1 repository foundation → Phase 2 domain, persistence & provider
-foundations → Phase 3 functional backend & delivery flow → **Phase 4A
-dashboard foundation (this repo)** → Phase 4B asset workspace & remaining
-routes → Phase 5 production hardening & release. Full detail in
+foundations → Phase 3 functional backend & delivery flow → Phase 4A
+dashboard foundation → **Phase 4B asset workspace & remaining routes (this
+repo)** → Phase 5 production hardening & release. Full detail in
 [ROADMAP.md](ROADMAP.md).
 
 ## Contributing

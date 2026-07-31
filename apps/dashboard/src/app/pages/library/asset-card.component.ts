@@ -6,6 +6,7 @@ import {
   input,
   output,
 } from "@angular/core";
+import { RouterLink } from "@angular/router";
 import type { AssetListItem } from "@imageryx/sdk";
 import { VoltBadge, VoltButton } from "@voltui/components";
 import {
@@ -23,15 +24,15 @@ import { StatusBadge } from "../../ui/status-badge.component";
 /**
  * One asset in the library grid.
  *
- * The card is an `<article>` with a real heading rather than a link: the full asset workspace
- * (`/library/:assetId`) is Phase 4B, and a card that navigates nowhere would be exactly the
- * "unfinished functional-looking control" this project avoids. Every control shown here does
- * something real today.
+ * The thumbnail and title link to the full asset workspace (`/library/:assetId`) — every other
+ * control here (delete, restore, copy) stays a plain button so it never also triggers that
+ * navigation.
  */
 @Component({
   selector: "ix-asset-card",
   standalone: true,
   imports: [
+    RouterLink,
     VoltBadge,
     VoltButton,
     AssetThumbnail,
@@ -48,24 +49,26 @@ import { StatusBadge } from "../../ui/status-badge.component";
       class="flex flex-col gap-3 rounded-lg border border-border bg-card p-3"
       data-testid="asset-card"
     >
-      <div class="aspect-[4/3] w-full">
-        <ix-asset-thumbnail [asset]="asset()" [projectSlug]="projectSlug()" />
-      </div>
+      <a [routerLink]="['/library', asset().id]" class="flex flex-col gap-3">
+        <div class="aspect-[4/3] w-full">
+          <ix-asset-thumbnail [asset]="asset()" [projectSlug]="projectSlug()" />
+        </div>
 
-      <div class="flex min-w-0 flex-col gap-1">
-        <h3
-          class="truncate text-sm font-medium text-foreground"
-          [title]="asset().name"
-        >
-          {{ asset().name }}
-        </h3>
-        <p
-          class="truncate font-mono text-xs text-muted-foreground"
-          [title]="asset().path"
-        >
-          {{ asset().path }}
-        </p>
-      </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <h3
+            class="truncate text-sm font-medium text-foreground"
+            [title]="asset().name"
+          >
+            {{ asset().name }}
+          </h3>
+          <p
+            class="truncate font-mono text-xs text-muted-foreground"
+            [title]="asset().path"
+          >
+            {{ asset().path }}
+          </p>
+        </div>
+      </a>
 
       <div class="flex flex-wrap items-center gap-1.5">
         <ix-status-badge [status]="asset().processingStatus" />

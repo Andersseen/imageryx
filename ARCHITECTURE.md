@@ -1,12 +1,13 @@
 # Architecture
 
 This document describes how Imageryx's apps and packages fit together:
-what exists today (through Phase 4A) and what each is designed to do once
+what exists today (through Phase 4B) and what each is designed to do once
 later phases land. See [ROADMAP.md](ROADMAP.md) for the phase breakdown
 and [context.md](context.md) for product/technology decisions and the
 detailed rationale behind the choices summarized here — in particular its
-"Phase 3 decisions and limitations" and "Phase 4A decisions and
-limitations" sections, which this document only summarizes.
+"Phase 3 decisions and limitations", "Phase 4A decisions and limitations",
+and "Phase 4B decisions and limitations" sections, which this document only
+summarizes.
 
 ## Applications
 
@@ -29,11 +30,11 @@ rest of the system is healthy.
   are static "upcoming" placeholders.
 - **Phase 3:** adds one dev-only route, `/dev-flow`, that drives the real
   backend end to end through `@imageryx/sdk`, itself routed through a
-  same-origin server-side proxy (`server/routes/api/[...path].ts`, an
+  same-origin server-side proxy (`server/routes/proxy/[...path].ts`, an
   Analog/Nitro h3 route) that injects the API key server-side — the browser
   never holds it.
-- **Phase 4A (current):** `/library` and `/projects` are real. The library
-  offers grid and table views, search, folder/tag/status/visibility/deleted
+- **Phase 4A:** `/library` and `/projects` are real. The library offers
+  grid and table views, search, folder/tag/status/visibility/deleted
   filters, sorting, paging, soft delete and restore, with the entire view
   derived from the URL; `/projects` covers project CRUD plus folder and tag
   management. The topbar's project switcher, asset search and upload
@@ -41,11 +42,23 @@ rest of the system is healthy.
   (`src/app/core`): normalized API errors, an async store that separates
   first load from refresh and drops superseded responses, a root project
   context, an upload service with per-asset scoped polling, and
-  notifications. `/library/:assetId`, `/presets`, `/processing`, `/api`
-  and `/settings` are still inert placeholders.
-- **Later phases (4B):** the asset workspace, preset editor, processing
-  monitor, in-app API reference and settings — all on the same
-  `@imageryx/sdk` and `@imageryx/angular`, plus API key management.
+  notifications.
+- **Phase 4B (current):** every remaining route is real. `/library/:assetId`
+  is a full asset workspace (preview, info, variants + scoped polling +
+  before/after comparison, delivery snippets, download links created on
+  click, activity timeline, settings with dirty-state tracking).
+  `/presets`, `/presets/new` and `/presets/:presetId` share one editor
+  backed by the real `@imageryx/providers` capability check. `/processing`
+  and `/processing/:jobId` poll per-row/per-page, never the whole list.
+  `/api` is a live developer reference (health, masked API key, generated
+  code examples); `/settings` mirrors the same live configuration,
+  read-only. The dashboard's own file-based `/library` + `/library/:assetId`
+  route pair required moving the list page to `library/index.page.ts` —
+  see context.md's "Phase 4B decisions and limitations" for why a sibling
+  `library.page.ts` + `library/[assetId].page.ts` silently never renders
+  the child.
+- **Later phases:** API key management, teams, and everything else Phase 5
+  scopes in.
 
 ### api-worker
 
@@ -113,7 +126,7 @@ needs from D1/storage by ID.
   Cloudflare Images/Cloudinary network call) replacing the mock provider's
   simulated output.
 
-## Dashboard structure (Phase 4A)
+## Dashboard structure (Phase 4B)
 
 ```
 apps/dashboard/src/app/
@@ -124,11 +137,20 @@ apps/dashboard/src/app/
     projects/      ProjectContextService (root) + pure selection rules
     uploads/       UploadService: sequential uploads, per-asset scoped polling
     notifications/ NotificationService: the toast queue
+    assets/        AssetWorkspaceService (component-scoped) + pure view/format helpers
+                   (preview zoom, variant view, comparison, download options, activity view)
+    presets/       Form <-> ImageOperation[] mapping, real provider-compatibility check
+    processing/    ProcessingQuery (URL state), the shared per-job poller, human-readable
+                   job-type/input/result descriptions
+    delivery/      Extra snippet builders (responsive HTML, raw SDK call, cURL upload)
     env/ health/ sdk/ theme/   (Phase 1/3, unchanged)
   ui/            Presentational, route-agnostic: page header, empty/error/loading
                  states, copy button, status badge, thumbnail, pager, modal, toasts
   shell/         Topbar, project switcher, global search, upload dialog
-  pages/         Route components (Analog file-based routing)
+  pages/         Route components (Analog file-based routing) — a list route and its
+                 dynamic detail route live as `<name>/index.page.ts` +
+                 `<name>/[param].page.ts` siblings, never `<name>.page.ts` next to a
+                 same-named folder (see "Later phases" note above)
   testing/       Component-test helpers: the fetch-boundary API stub, settle()
 ```
 
@@ -438,13 +460,13 @@ delivery-route `/p/` marker ambiguity, caching policy, etc.).
 
 ## Shared packages
 
-| Package                              | Role as of Phase 4A                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `contracts`                          | Full domain Zod schemas + inferred types (projects, folders, assets, presets, variants, processing jobs, stats, providers), organized by domain, plus the Phase 1 `HealthCheckResponse` shape                                                                                                                                                                                                                             |
-| `image-core`                         | Provider-independent domain logic: filename/path normalization, MIME/signature validation, checksums, preset normalization + hashing, transformation validation, provider selection, job/variant state machines, **plus (Phase 3)** real per-format dimension inspection, HMAC signed tokens, constant-time comparison, the shared delivery-path/URL builder, simulated-variant SVG rendering, and placeholder generation |
-| `database`                           | D1 schema + migrations, repository classes (Phase 3 additions: bulk counts, folder subtree moves, tag CRUD, activity feeds; Phase 4A: ready-preset-slug lookup per asset), 3 cross-table persistence services; `/testing` subpath exposes a real Miniflare-backed D1 test harness                                                                                                                                         |
-| `providers`                          | `StorageProvider`/`TransformationProvider` interfaces and implementations (local filesystem — Node-only, R2 — real, used by every Worker, mock transform — real, Cloudflare/Cloudinary parameter mapping) plus a validated-config provider registry; `/node` subpath adds the Node-only local storage provider                                                                                                            |
-| `sdk`                                | Real, tested, framework-independent Fetch client (`createImageryxClient`) — typed resource namespaces, typed errors, FormData upload, delivery-URL/snippet helpers, and (Phase 4A) support for a **relative** `baseUrl` resolved against the document origin, which the dashboard's same-origin proxy depends on                                                                                                          |
-| `angular`                            | Real, tested standalone `<imgyx-image>` component — signal inputs/outputs, responsive preset support, no SDK or API-key dependency                                                                                                                                                                                                                                                                                        |
-| `test-utils`                         | `isValidHealthCheckResponse` plus domain fixture builders and, via `/node`, a D1 test database + temporary storage directory helper, plus (Phase 3) real decodable-image fixtures (PNG/JPEG/GIF/WebP/SVG/AVIF) for metadata-inspection tests                                                                                                                                                                              |
-| `typescript-config`, `eslint-config` | Shared strict TS/lint configuration                                                                                                                                                                                                                                                                                                                                                                                       |
+| Package                              | Role as of Phase 4B                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `contracts`                          | Full domain Zod schemas + inferred types (projects, folders, assets, presets, variants, processing jobs, stats, providers), organized by domain, plus the Phase 1 `HealthCheckResponse` shape                                                                                                                                                                                                                                                                                                |
+| `image-core`                         | Provider-independent domain logic: filename/path normalization, MIME/signature validation, checksums, preset normalization + hashing, transformation validation, provider selection, job/variant state machines, **plus (Phase 3)** real per-format dimension inspection, HMAC signed tokens, constant-time comparison, the shared delivery-path/URL builder, simulated-variant SVG rendering, and placeholder generation                                                                    |
+| `database`                           | D1 schema + migrations, repository classes (Phase 3 additions: bulk counts, folder subtree moves, tag CRUD, activity feeds; Phase 4A: ready-preset-slug lookup per asset), 3 cross-table persistence services; `/testing` subpath exposes a real Miniflare-backed D1 test harness                                                                                                                                                                                                            |
+| `providers`                          | `StorageProvider`/`TransformationProvider` interfaces and implementations (local filesystem — Node-only, R2 — real, used by every Worker, mock transform — real, Cloudflare/Cloudinary parameter mapping) plus a validated-config provider registry; `/node` subpath adds the Node-only local storage provider                                                                                                                                                                               |
+| `sdk`                                | Real, tested, framework-independent Fetch client (`createImageryxClient`) — typed resource namespaces, typed errors, FormData upload, delivery-URL/snippet helpers, and (Phase 4A) support for a **relative** `baseUrl` resolved against the document origin, which the dashboard's same-origin proxy depends on; (Phase 4B) `ServiceInfoResponse`/`PreviewPresetResponse` types and corrected `variants()`/`activity()`/`AssetDetails.processingJobs` return types (previously `unknown[]`) |
+| `angular`                            | Real, tested standalone `<imgyx-image>` component — signal inputs/outputs, responsive preset support, no SDK or API-key dependency                                                                                                                                                                                                                                                                                                                                                           |
+| `test-utils`                         | `isValidHealthCheckResponse` plus domain fixture builders and, via `/node`, a D1 test database + temporary storage directory helper, plus (Phase 3) real decodable-image fixtures (PNG/JPEG/GIF/WebP/SVG/AVIF) for metadata-inspection tests                                                                                                                                                                                                                                                 |
+| `typescript-config`, `eslint-config` | Shared strict TS/lint configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                          |

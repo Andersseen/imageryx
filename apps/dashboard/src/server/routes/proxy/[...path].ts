@@ -17,12 +17,17 @@ import {
  * needs to hold the API key: this file runs in Nitro's Node server
  * context (via Vite's dev middleware), never bundled into client JS, so
  * `process.env.IMAGERYX_API_KEY` is never shipped to a browser the way a
- * `VITE_`-prefixed variable would be.
+ * `VITE_`-prefixed variable would be. `IMAGERYX_CLIENT` (`baseUrl: "/proxy"`)
+ * routes every page's SDK calls through here, not just `/dev-flow`.
  *
- * Dev-only in practice: `/dev-flow` (the only page that calls this) is
- * itself dev-only (see its own file), and this dashboard currently
- * deploys as a static SPA (`ssr: false`, `wrangler pages deploy dist/client`)
- * — this route is not verified to run in that production deployment.
+ * Mounted at `/proxy` rather than `/api` deliberately — `/api` is the
+ * dashboard's own API-reference *page* route, and Nitro's catch-all file
+ * router claims any path under a same-named directory before the SPA ever
+ * gets a chance to render that page for a direct load or a refresh.
+ *
+ * Dev-only in practice: this dashboard currently deploys as a static SPA
+ * (`ssr: false`, `wrangler pages deploy dist/client`) — this route is not
+ * verified to run in that production deployment.
  */
 const HOP_BY_HOP_RESPONSE_HEADERS = new Set([
   "content-encoding",

@@ -2,16 +2,16 @@ import { provideZonelessChangeDetection } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter, Router } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ProjectContextService } from "../core/projects/project-context.service";
-import { IMAGERYX_CLIENT } from "../core/sdk/imageryx-client.token";
+import { ProjectContextService } from "../../core/projects/project-context.service";
+import { IMAGERYX_CLIENT } from "../../core/sdk/imageryx-client.token";
 import {
   apiErrorResponse,
   assetFixture,
   createStubApi,
   projectFixture,
   type StubApi,
-} from "../testing/stub-client";
-import LibraryPage from "./library.page";
+} from "../../testing/stub-client";
+import LibraryPage from "./index.page";
 
 describe("LibraryPage", () => {
   let api: StubApi;

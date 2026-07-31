@@ -127,3 +127,12 @@ export function isConflict(error: unknown): boolean {
 export function conflictCode(error: unknown): string | null {
   return isConflict(error) ? (error as ImageryxApiError).code : null;
 }
+
+/** The API's structured conflict payload (e.g. `{ presetId, slug }` for `equivalent_preset_exists`) — never parsed out of the message string, which is prose, not data. */
+export function conflictDetails(
+  error: unknown,
+): Record<string, unknown> | null {
+  return isConflict(error)
+    ? ((error as ImageryxApiError).details ?? null)
+    : null;
+}

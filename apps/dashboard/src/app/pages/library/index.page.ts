@@ -19,14 +19,14 @@ import {
   LmnListBulletIcon,
   LmnSquares2x2Icon,
 } from "lumen-icons";
-import { NotificationService } from "../core/notifications/notification.service";
-import { describeApiError } from "../core/api/api-error";
-import { AsyncStore } from "../core/api/async-store";
+import { NotificationService } from "../../core/notifications/notification.service";
+import { describeApiError } from "../../core/api/api-error";
+import { AsyncStore } from "../../core/api/async-store";
 import {
   formatBytes,
   formatDimensions,
   formatRelativeTime,
-} from "../core/format/format";
+} from "../../core/format/format";
 import {
   applyQueryChange,
   clearFilters,
@@ -35,18 +35,18 @@ import {
   toListParams,
   toUrlParams,
   type AssetQuery,
-} from "../core/library/asset-query";
-import { ProjectContextService } from "../core/projects/project-context.service";
-import { IMAGERYX_CLIENT } from "../core/sdk/imageryx-client.token";
-import { UploadService } from "../core/uploads/upload.service";
-import { EmptyState } from "../ui/empty-state.component";
-import { ErrorState } from "../ui/error-state.component";
-import { LoadingGrid } from "../ui/loading-grid.component";
-import { PageHeader } from "../ui/page-header.component";
-import { Pager } from "../ui/pager.component";
-import { StatusBadge } from "../ui/status-badge.component";
-import { AssetCard } from "./library/asset-card.component";
-import { LibraryFilters } from "./library/library-filters.component";
+} from "../../core/library/asset-query";
+import { ProjectContextService } from "../../core/projects/project-context.service";
+import { IMAGERYX_CLIENT } from "../../core/sdk/imageryx-client.token";
+import { UploadService } from "../../core/uploads/upload.service";
+import { EmptyState } from "../../ui/empty-state.component";
+import { ErrorState } from "../../ui/error-state.component";
+import { LoadingGrid } from "../../ui/loading-grid.component";
+import { PageHeader } from "../../ui/page-header.component";
+import { Pager } from "../../ui/pager.component";
+import { StatusBadge } from "../../ui/status-badge.component";
+import { AssetCard } from "./asset-card.component";
+import { LibraryFilters } from "./library-filters.component";
 
 type AssetPage = PaginatedResponse<AssetListItem>;
 
@@ -58,8 +58,7 @@ type AssetPage = PaginatedResponse<AssetListItem>;
  * survives reload, and works with the Back button, without a second copy of the state to keep in
  * sync.
  *
- * Opening an individual asset (`/library/:assetId`) is Phase 4B; nothing here links to it, so no
- * control on this page leads somewhere that does not exist yet.
+ * Each asset's name links to its full workspace (`/library/:assetId`).
  */
 @Component({
   selector: "ix-library-page",
@@ -228,14 +227,17 @@ type AssetPage = PaginatedResponse<AssetListItem>;
                         data-testid="asset-row"
                       >
                         <td class="px-3 py-2">
-                          <span class="flex flex-col">
+                          <a
+                            [routerLink]="['/library', asset.id]"
+                            class="flex flex-col"
+                          >
                             <span class="font-medium">{{ asset.name }}</span>
                             <span
                               class="font-mono text-xs text-muted-foreground"
                             >
                               {{ asset.path }}
                             </span>
-                          </span>
+                          </a>
                         </td>
                         <td class="px-3 py-2">
                           <ix-status-badge [status]="asset.processingStatus" />

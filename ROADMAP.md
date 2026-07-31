@@ -89,7 +89,7 @@ Phase 4 is split in two. 4A builds the dashboard foundation every other
 screen sits on; 4B builds the asset workspace and the remaining routes on
 top of it.
 
-## Phase 4A — Dashboard Foundation ✅ (current)
+## Phase 4A — Dashboard Foundation ✅
 
 - **`/library` is real**: asset grid and table views, search, folder / tag
   / status / visibility / deleted filters, sorting, pagination, soft
@@ -120,24 +120,42 @@ top of it.
 inert placeholders that name what they will do, rather than shipping
 controls that do not work.
 
-## Phase 4B — Asset Workspace and Remaining Routes
+## Phase 4B — Asset Workspace and Remaining Routes ✅
 
-- `/library/:assetId`: preview workspace, metadata, variants, variant
-  generation with scoped polling, delivery URLs and snippets, signed
-  downloads, activity timeline, and asset settings.
-- `/presets`, `/presets/new`, `/presets/:presetId`: preset list and a
-  visual editor with provider-capability checks and real previews.
-- `/processing`, `/processing/:jobId`: job monitoring, retry and cancel.
-- `/api`: in-application developer reference with real health data.
-- `/settings`: environment, storage, transformation and upload policy.
-- API key management. Phase 3's auth is a single shared static
-  `IMAGERYX_API_KEY` with no scoping/rotation — a real key-management UI
-  needs the `api_keys` table's per-key model wired up for the first time
-  (the table exists as of Phase 2 but nothing writes to it yet).
-- Revisit project/folder/preset-scoped activity (log-only as of Phase 3)
-  if the dashboard wants a real project-level activity feed.
+- **`/library/:assetId` is real**: preview workspace, metadata, variant
+  generation with scoped per-variant polling, an honestly-labeled
+  before/after comparison, delivery URLs and snippets (HTML, responsive
+  HTML, Angular, SDK), signed downloads created only on click, a
+  human-readable activity timeline, and asset settings with dirty-state
+  tracking. Library asset cards now link into it (closing the "cards are
+  not links" limitation Phase 4A deliberately left open).
+- **`/presets`, `/presets/new`, `/presets/:presetId` are real**: system vs.
+  custom preset list, and one shared editor (resize/crop/output/effects)
+  with a provider-compatibility panel backed by the real
+  `@imageryx/providers` capability check and a real preset-preview call.
+- **`/processing`, `/processing/:jobId` are real**: a filtered job list
+  and per-job detail, both polling only the specific rows/job actually
+  visible — never the whole list on a timer — with retry/cancel wired to
+  the real state-transition rules.
+- **`/api` is real**: live service health, a masked (never complete) API
+  key, and copyable cURL/SDK/Angular/HTML examples generated from the real
+  SDK against the selected project.
+- **`/settings` is real**: the same live configuration `/api` reports,
+  entirely read-only — there is no settings-mutation endpoint yet.
+- Two real routing bugs fixed on the way: a same-named list-page-file +
+  detail-folder pair silently nests the detail route as an unrenderable
+  Angular Router child (affected every list+detail pair this phase added),
+  and the new `/api` page collided with the dev-only proxy's own `/api`
+  prefix. See context.md's "Phase 4B decisions and limitations" for the
+  full mechanism and fix — required reading before adding another dynamic
+  route.
 
-## Phase 5 — Production Hardening & Release
+Still deferred to Phase 5: API key management (Phase 3's auth is a single
+shared static `IMAGERYX_API_KEY`; the `api_keys` table exists since Phase 2
+but nothing writes to it yet), and project/folder/preset-scoped activity as
+real rows instead of structured logs.
+
+## Phase 5 — Production Hardening & Release (current)
 
 - Real authentication/authorization on business routes — replacing Phase
   3's single shared static API key with per-user/per-team credentials

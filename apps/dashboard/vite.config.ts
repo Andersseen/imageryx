@@ -37,6 +37,12 @@ export default defineConfig({
     workspacePackageTsPlugin,
     analog({
       ssr: false,
+      // Analog's dev-server middleware forwards this whole prefix to the Nitro server (see
+      // `src/server/routes/proxy/[...path].ts`). Deliberately not the "api" default: that
+      // would collide with `/api`, this dashboard's own API-reference *page* route — a direct
+      // load or refresh of `/api` would be swallowed by Nitro's dev middleware before the SPA
+      // ever got to render it.
+      apiPrefix: "proxy",
       prerender: {
         routes: [],
       },

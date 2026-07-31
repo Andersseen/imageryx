@@ -1,4 +1,5 @@
 import type { ComponentFixture } from "@angular/core/testing";
+import type { RouterTestingHarness } from "@angular/router/testing";
 
 /**
  * Drains pending promises, then runs change detection, repeatedly.
@@ -22,6 +23,24 @@ export async function settle(
     await fixture.whenStable();
   }
   fixture.detectChanges();
+}
+
+/**
+ * The `RouterTestingHarness` equivalent of `settle()` — for a component whose route has a path
+ * param (e.g. `:assetId`), which only ever resolves when the component is actually instantiated
+ * through the router's own `RouterOutlet`. `TestBed.createComponent` bypasses that entirely and
+ * hands the component the *root* `ActivatedRoute`, whose path params are always empty — so any
+ * page reading `route.paramMap` for a path segment must be rendered via the harness, not created
+ * directly.
+ */
+export async function settleHarness(
+  harness: RouterTestingHarness,
+  passes = 4,
+): Promise<void> {
+  for (let i = 0; i < passes; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    harness.detectChanges();
+  }
 }
 
 /** Sets a `<volt-input>`'s inner native input and dispatches the event Angular binds to. */

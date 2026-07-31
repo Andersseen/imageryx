@@ -10,22 +10,7 @@ import {
   projectFixture,
   type StubApi,
 } from "../testing/stub-client";
-import { parseTags, UploadDialog } from "./upload-dialog.component";
-
-describe("parseTags", () => {
-  it("splits, trims and drops blanks", () => {
-    expect(parseTags(" hero , marketing ,, ")).toEqual(["hero", "marketing"]);
-  });
-
-  it("de-duplicates", () => {
-    expect(parseTags("hero, hero, Hero")).toEqual(["hero", "Hero"]);
-  });
-
-  it("returns nothing for an empty string", () => {
-    expect(parseTags("")).toEqual([]);
-    expect(parseTags("   ")).toEqual([]);
-  });
-});
+import { UploadDialog } from "./upload-dialog.component";
 
 describe("UploadDialog", () => {
   let api: StubApi;

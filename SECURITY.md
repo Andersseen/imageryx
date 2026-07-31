@@ -33,7 +33,7 @@ authentication, real multipart upload handling, real signed download
 tokens — and reports about it are welcome:
 
 - **Authentication:** every `/v1/*` route requires `Authorization: Bearer
-  <IMAGERYX_API_KEY>`, compared with a constant-time algorithm
+<IMAGERYX_API_KEY>`, compared with a constant-time algorithm
   (`@imageryx/image-core`'s `constantTimeEqual`). This is a **single
   shared static API key**, not per-user credentials — there is no
   authorization model, no key rotation, and no scoping yet. Treat any
@@ -60,6 +60,11 @@ tokens — and reports about it are welcome:
   against traversal, repeated separators, and encoded tricks
   (`@imageryx/image-core`); physical storage keys are always
   system-generated, never derived from user-supplied filenames or paths.
+- **No secrets in dashboard UI:** the dashboard's `/api` reference page and
+  `GET /v1/info` show only the configured key's first 8 characters plus a
+  fixed mask (`apiKeyPrefix`) — enough to confirm which key is active,
+  never enough to reconstruct it. Physical storage keys are never shown
+  anywhere in the dashboard either (only the logical asset path).
 - **Known, narrow limitation (not a vulnerability, but worth knowing):**
   `delivery-worker`'s route parser treats a literal `p` as the
   second-to-last path segment as a preset marker. An asset whose own
@@ -75,5 +80,5 @@ tokens — and reports about it are welcome:
   a browser form).
 
 Reports about the local health-check endpoints, the dashboard's
-server-side proxy (`server/routes/api/[...path].ts`), or the Delivery
+server-side proxy (`server/routes/proxy/[...path].ts`), or the Delivery
 Worker's public routes are welcome the same way.

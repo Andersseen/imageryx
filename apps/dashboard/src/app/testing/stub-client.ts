@@ -1,7 +1,9 @@
-import type { Folder, ImagePreset } from "@imageryx/contracts";
+import type { Folder, ImagePreset, ProcessingJob } from "@imageryx/contracts";
 import type {
+  AssetDetails,
   AssetListItem,
   ImageryxClient,
+  ImageVariant,
   ProjectSummary,
 } from "@imageryx/sdk";
 import { createImageryxClient } from "@imageryx/sdk";
@@ -27,6 +29,9 @@ export interface StubApiState {
   assets?: AssetListItem[];
   /** Total reported by the list endpoint; defaults to `assets.length`. Set explicitly to exercise pagination. */
   assetTotal?: number;
+  /** Full workspace detail per asset id — falls back to synthesizing one from `assets` if absent. */
+  assetDetails?: Record<string, AssetDetails>;
+  processingJobs?: ProcessingJob[];
 }
 
 export interface StubApiRequest {
@@ -82,6 +87,8 @@ export function createStubApi(initial: StubApiState = {}): StubApi {
     presets: initial.presets ?? [],
     assets: initial.assets ?? [],
     assetTotal: initial.assetTotal ?? (initial.assets ?? []).length,
+    assetDetails: initial.assetDetails ?? {},
+    processingJobs: initial.processingJobs ?? [],
   };
 
   const requests: StubApiRequest[] = [];
@@ -132,6 +139,25 @@ export function createStubApi(initial: StubApiState = {}): StubApi {
   };
 }
 
+function detailsFor(
+  state: Required<StubApiState>,
+  assetId: string,
+): AssetDetails | null {
+  const explicit = state.assetDetails[assetId];
+  if (explicit) return explicit;
+  const listItem = state.assets.find((a) => a.id === assetId);
+  return listItem ? assetDetailsFixture(listItem) : null;
+}
+
+function putDetails(
+  state: Required<StubApiState>,
+  details: AssetDetails,
+): void {
+  state.assetDetails = { ...state.assetDetails, [details.id]: details };
+}
+
+// A single dispatch table for a test fake, rather than one function per route — splitting it
+// would scatter the very thing worth reviewing in one place: exactly which routes are faked.
 function route(
   method: string,
   path: string,
@@ -185,7 +211,79 @@ function route(
   }
 
   if (method === "GET" && path === "/api/v1/presets") {
-    return json({ items: state.presets });
+    let items = state.presets;
+    const projectId = query.get("projectId");
+    if (projectId) items = items.filter((p) => p.projectId === projectId);
+    const system = query.get("system");
+    if (system === "true") items = items.filter((p) => p.isSystem);
+    if (system === "false") items = items.filter((p) => !p.isSystem);
+    return json({ items });
+  }
+  if (method === "POST" && path === "/api/v1/presets") {
+    const input = body as Partial<ImagePreset> & {
+      name: string;
+      projectId: string;
+    };
+    const created = presetFixture(
+      `preset-${state.presets.length + 1}`,
+      input.name,
+      {
+        projectId: input.projectId,
+        slug: input.slug ?? input.name.toLowerCase().replace(/\s+/g, "-"),
+        operations: input.operations ?? [],
+        outputFormat: input.outputFormat ?? "auto",
+        quality: input.quality ?? null,
+      },
+    );
+    state.presets = [...state.presets, created];
+    return json(created, 201);
+  }
+
+  const presetById = /^\/api\/v1\/presets\/([^/]+)$/;
+  const presetMatch = presetById.exec(path);
+  if (method === "GET" && presetMatch) {
+    const preset = state.presets.find((p) => p.id === presetMatch[1]);
+    if (!preset) return apiErrorResponse(404, "not_found", "Preset not found.");
+    return json(preset);
+  }
+  if (method === "PATCH" && presetMatch) {
+    const index = state.presets.findIndex((p) => p.id === presetMatch[1]);
+    if (index === -1)
+      return apiErrorResponse(404, "not_found", "Preset not found.");
+    const updated = {
+      ...state.presets[index],
+      ...(body as Partial<ImagePreset>),
+    } as ImagePreset;
+    state.presets = state.presets.map((p, i) => (i === index ? updated : p));
+    return json(updated);
+  }
+  if (method === "DELETE" && presetMatch) {
+    const preset = state.presets.find((p) => p.id === presetMatch[1]);
+    if (!preset) return apiErrorResponse(404, "not_found", "Preset not found.");
+    if (preset.isSystem) {
+      return apiErrorResponse(
+        409,
+        "system_preset_immutable",
+        "System presets cannot be deleted.",
+      );
+    }
+    state.presets = state.presets.filter((p) => p.id !== presetMatch[1]);
+    return new Response(null, { status: 204 });
+  }
+
+  const presetPreview = /^\/api\/v1\/presets\/([^/]+)\/preview$/;
+  const previewMatch = presetPreview.exec(path);
+  if (method === "POST" && previewMatch) {
+    const preset = state.presets.find((p) => p.id === previewMatch[1]);
+    if (!preset) return apiErrorResponse(404, "not_found", "Preset not found.");
+    return json({
+      width: 800,
+      height: 450,
+      sizeBytes: 2048,
+      outputFormat: preset.outputFormat,
+      simulated: true,
+      previewUrl: "data:image/svg+xml;base64,PHN2Zy8+",
+    });
   }
 
   if (method === "GET" && path === "/api/v1/assets") {
@@ -209,14 +307,239 @@ function route(
     );
   }
 
+  const assetDelivery = /^\/api\/v1\/assets\/([^/]+)\/delivery$/;
+  const deliveryMatch = assetDelivery.exec(path);
+  if (method === "GET" && deliveryMatch) {
+    const details = detailsFor(state, deliveryMatch[1] as string);
+    if (!details) return apiErrorResponse(404, "not_found", "Asset not found.");
+    return json({
+      visibility: details.visibility,
+      originalUrl: `${TEST_DELIVERY_URL}/${details.project?.slug}/assets/${details.path}`,
+      presets: details.presets.map((p) => ({
+        ...p,
+        ready: details.variants.some(
+          (v) => v.presetId === p.id && v.status === "ready",
+        ),
+        url: `${TEST_DELIVERY_URL}/${details.project?.slug}/assets/${details.path}/p/${p.slug}`,
+      })),
+    });
+  }
+
+  const assetVariants = /^\/api\/v1\/assets\/([^/]+)\/variants$/;
+  const variantsMatch = assetVariants.exec(path);
+  if (method === "GET" && variantsMatch) {
+    const details = detailsFor(state, variantsMatch[1] as string);
+    if (!details) return apiErrorResponse(404, "not_found", "Asset not found.");
+    return json({ items: details.variants });
+  }
+
+  const assetActivity = /^\/api\/v1\/assets\/([^/]+)\/activity$/;
+  const activityMatch = assetActivity.exec(path);
+  if (method === "GET" && activityMatch) {
+    const details = detailsFor(state, activityMatch[1] as string);
+    if (!details) return apiErrorResponse(404, "not_found", "Asset not found.");
+    return json({ items: details.activity });
+  }
+
+  const assetDownloadUrl = /^\/api\/v1\/assets\/([^/]+)\/download-url$/;
+  const downloadUrlMatch = assetDownloadUrl.exec(path);
+  if (method === "POST" && downloadUrlMatch) {
+    const details = detailsFor(state, downloadUrlMatch[1] as string);
+    if (!details) return apiErrorResponse(404, "not_found", "Asset not found.");
+    const input = body as { variant?: string; expiresIn?: number };
+    const variantParam = input.variant ?? "original";
+    if (variantParam === "original" && !details.downloadOriginalEnabled) {
+      return apiErrorResponse(
+        409,
+        "downloads_disabled",
+        "Original downloads are disabled.",
+      );
+    }
+    const expiresIn = input.expiresIn ?? 900;
+    return json({
+      url: `${TEST_DELIVERY_URL}/download/signed-token-${variantParam}`,
+      expiresAt: new Date(
+        Date.parse("2026-07-01T00:00:00.000Z") + expiresIn * 1000,
+      ).toISOString(),
+      variant: variantParam,
+    });
+  }
+
+  const assetVariantsGenerate = /^\/api\/v1\/assets\/([^/]+)\/variants$/;
+  const generateMatch = assetVariantsGenerate.exec(path);
+  if (method === "POST" && generateMatch) {
+    const details = detailsFor(state, generateMatch[1] as string);
+    if (!details) return apiErrorResponse(404, "not_found", "Asset not found.");
+    const input = body as { presetId: string; persist?: boolean };
+    const existing = details.variants.find(
+      (v) => v.presetId === input.presetId,
+    );
+    if (existing?.status === "ready") {
+      return json(
+        { variant: existing, processingJobId: null, status: "ready" },
+        200,
+      );
+    }
+    const variant = variantFixture(
+      `variant-${details.variants.length + 1}`,
+      details.id,
+      input.presetId,
+      {
+        status: "pending",
+      },
+    );
+    putDetails(state, { ...details, variants: [...details.variants, variant] });
+    const jobId = `job-${variant.id}`;
+    state.processingJobs = [
+      ...state.processingJobs,
+      processingJobFixture(jobId, details.projectId, {
+        assetId: details.id,
+        type: "generate-variant",
+        status: "queued",
+      }),
+    ];
+    return json({ variant, processingJobId: jobId, status: "created" }, 202);
+  }
+
+  if (method === "GET" && path === "/api/v1/processing-jobs") {
+    const projectId = query.get("projectId");
+    let items = state.processingJobs;
+    if (projectId) items = items.filter((j) => j.projectId === projectId);
+    const assetId = query.get("assetId");
+    if (assetId) items = items.filter((j) => j.assetId === assetId);
+    const status = query.get("status");
+    if (status) items = items.filter((j) => j.status === status);
+    const type = query.get("type");
+    if (type) items = items.filter((j) => j.type === type);
+    return json(paginated(items, items.length));
+  }
+
+  const jobById = /^\/api\/v1\/processing-jobs\/([^/]+)$/;
+  const jobMatch = jobById.exec(path);
+  if (method === "GET" && jobMatch) {
+    const job = state.processingJobs.find((j) => j.id === jobMatch[1]);
+    if (!job)
+      return apiErrorResponse(404, "not_found", "Processing job not found.");
+    return json(job);
+  }
+
+  const jobRetry = /^\/api\/v1\/processing-jobs\/([^/]+)\/retry$/;
+  const retryMatch = jobRetry.exec(path);
+  if (method === "POST" && retryMatch) {
+    const job = state.processingJobs.find((j) => j.id === retryMatch[1]);
+    if (!job)
+      return apiErrorResponse(404, "not_found", "Processing job not found.");
+    if (job.status !== "failed") {
+      return apiErrorResponse(
+        409,
+        "job_not_retryable",
+        `Only failed jobs can be retried.`,
+      );
+    }
+    const updated = {
+      ...job,
+      status: "queued" as const,
+      errorCode: null,
+      errorMessage: null,
+    };
+    state.processingJobs = state.processingJobs.map((j) =>
+      j.id === job.id ? updated : j,
+    );
+    return json(updated);
+  }
+
+  const jobCancel = /^\/api\/v1\/processing-jobs\/([^/]+)\/cancel$/;
+  const cancelMatch = jobCancel.exec(path);
+  if (method === "POST" && cancelMatch) {
+    const job = state.processingJobs.find((j) => j.id === cancelMatch[1]);
+    if (!job)
+      return apiErrorResponse(404, "not_found", "Processing job not found.");
+    if (job.status !== "queued") {
+      return apiErrorResponse(
+        409,
+        "job_not_cancellable",
+        `Only queued jobs can be cancelled.`,
+      );
+    }
+    const updated = { ...job, status: "cancelled" as const };
+    state.processingJobs = state.processingJobs.map((j) =>
+      j.id === job.id ? updated : j,
+    );
+    return json(updated);
+  }
+
+  const assetMove = /^\/api\/v1\/assets\/([^/]+)\/move$/;
+  const moveMatch = assetMove.exec(path);
+  if (method === "POST" && moveMatch) {
+    const details = detailsFor(state, moveMatch[1] as string);
+    if (!details) return apiErrorResponse(404, "not_found", "Asset not found.");
+    const input = body as { folderId: string | null };
+    const folder = input.folderId
+      ? state.folders.find((f) => f.id === input.folderId)
+      : null;
+    const updated: AssetDetails = {
+      ...details,
+      folderId: input.folderId,
+      folder: folder
+        ? { id: folder.id, name: folder.name, path: folder.path }
+        : null,
+    };
+    putDetails(state, updated);
+    return json(updated);
+  }
+
+  const assetTags = /^\/api\/v1\/assets\/([^/]+)\/tags$/;
+  const tagsMatch = assetTags.exec(path);
+  if (method === "PUT" && tagsMatch) {
+    const details = detailsFor(state, tagsMatch[1] as string);
+    if (!details) return apiErrorResponse(404, "not_found", "Asset not found.");
+    const input = body as { tags: string[] };
+    putDetails(state, { ...details, tags: input.tags });
+    return json({ tags: input.tags });
+  }
+
+  const assetRestore = /^\/api\/v1\/assets\/([^/]+)\/restore$/;
+  const restoreMatch = assetRestore.exec(path);
+  if (method === "POST" && restoreMatch) {
+    const details = detailsFor(state, restoreMatch[1] as string);
+    if (!details) return apiErrorResponse(404, "not_found", "Asset not found.");
+    if (!details.deletedAt) {
+      return apiErrorResponse(
+        409,
+        "asset_not_deleted",
+        "This asset is not deleted.",
+      );
+    }
+    const updated = { ...details, deletedAt: null };
+    putDetails(state, updated);
+    return json(updated);
+  }
+
   const assetById = /^\/api\/v1\/assets\/([^/]+)$/;
   const assetMatch = assetById.exec(path);
   if (method === "GET" && assetMatch) {
-    const asset = state.assets.find((a) => a.id === assetMatch[1]);
-    if (!asset) return apiErrorResponse(404, "not_found", "Asset not found.");
-    return json(asset);
+    const details = detailsFor(state, assetMatch[1] as string);
+    if (!details) return apiErrorResponse(404, "not_found", "Asset not found.");
+    return json(details);
+  }
+  if (method === "PATCH" && assetMatch) {
+    const details = detailsFor(state, assetMatch[1] as string);
+    if (!details) return apiErrorResponse(404, "not_found", "Asset not found.");
+    if (details.deletedAt) {
+      return apiErrorResponse(
+        409,
+        "asset_deleted",
+        "This asset has been deleted.",
+      );
+    }
+    const updated = { ...details, ...(body as Partial<AssetDetails>) };
+    putDetails(state, updated);
+    return json(updated);
   }
   if (method === "DELETE" && assetMatch) {
+    const details = detailsFor(state, assetMatch[1] as string);
+    if (details)
+      putDetails(state, { ...details, deletedAt: "2026-07-01T00:00:00.000Z" });
     state.assets = state.assets.filter((a) => a.id !== assetMatch[1]);
     return new Response(null, { status: 204 });
   }
@@ -305,6 +628,115 @@ export function assetFixture(
     readyVariantCount: 0,
     readyPresetSlugs: [],
     folder: null,
+    ...overrides,
+  };
+}
+
+export function presetFixture(
+  id: string,
+  name: string,
+  overrides: Partial<ImagePreset> = {},
+): ImagePreset {
+  return {
+    id,
+    projectId: "project-1",
+    name,
+    slug: name.toLowerCase().replace(/\s+/g, "-"),
+    description: null,
+    operations: [
+      {
+        type: "resize",
+        width: 320,
+        height: 320,
+        fit: "cover",
+        withoutEnlargement: true,
+      },
+    ],
+    outputFormat: "auto",
+    quality: 75,
+    isSystem: false,
+    createdAt: "2026-07-01T00:00:00.000Z",
+    updatedAt: "2026-07-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+export function variantFixture(
+  id: string,
+  assetId: string,
+  presetId: string,
+  overrides: Partial<ImageVariant> = {},
+): ImageVariant {
+  return {
+    id,
+    assetId,
+    presetId,
+    presetHash: `hash-${id}`,
+    provider: "mock",
+    storageKey: `derived/project-1/${assetId}/${id}.svg`,
+    deliveryUrl: null,
+    mimeType: "image/svg+xml",
+    width: 320,
+    height: 320,
+    sizeBytes: 2048,
+    checksum: "b".repeat(64),
+    status: "ready",
+    createdAt: "2026-07-01T00:00:00.000Z",
+    updatedAt: "2026-07-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+export function processingJobFixture(
+  id: string,
+  projectId: string,
+  overrides: Partial<ProcessingJob> = {},
+): ProcessingJob {
+  return {
+    id,
+    projectId,
+    assetId: "asset-1",
+    type: "generate-variant",
+    provider: "mock",
+    status: "queued",
+    input: {
+      type: "generate-variant",
+      assetId: "asset-1",
+      presetId: "preset-1",
+      presetHash: "h",
+      persist: true,
+    },
+    result: null,
+    errorCode: null,
+    errorMessage: null,
+    attempts: 0,
+    createdAt: "2026-07-01T00:00:00.000Z",
+    startedAt: null,
+    completedAt: null,
+    failedAt: null,
+    ...overrides,
+  };
+}
+
+export function assetDetailsFixture(
+  base: AssetListItem,
+  overrides: Partial<AssetDetails> = {},
+): AssetDetails {
+  return {
+    ...base,
+    project: { id: base.projectId, name: "Angular Lab", slug: "angular-lab" },
+    presets: [],
+    variants: [],
+    processingJobs: [],
+    activity: [],
+    delivery:
+      base.visibility === "public"
+        ? {
+            originalUrl: `${TEST_DELIVERY_URL}/angular-lab/assets/${base.path}`,
+            originalPath: `/angular-lab/assets/${base.path}`,
+          }
+        : null,
+    duplicateCandidates: [],
     ...overrides,
   };
 }

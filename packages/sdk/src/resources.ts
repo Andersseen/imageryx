@@ -6,6 +6,7 @@ import type {
   Folder,
   ImageAsset,
   ImagePreset,
+  ImageVariant,
   PaginatedResponse,
   PreviewPresetResponse,
   ProcessingJob,
@@ -20,6 +21,7 @@ import { ImageryxValidationError } from "./errors";
 import type { HttpClient } from "./http-client";
 import { seg } from "./path";
 import type {
+  AssetActivityEntry,
   AssetDeliveryInfo,
   AssetDetails,
   AssetListItem,
@@ -52,26 +54,39 @@ export class ProjectsResource {
     return this.http.get(`/v1/projects/${seg(id)}`);
   }
 
-  update(id: string, input: Omit<UpdateProjectInput, "id">): Promise<ProjectSummary> {
+  update(
+    id: string,
+    input: Omit<UpdateProjectInput, "id">,
+  ): Promise<ProjectSummary> {
     return this.http.patch(`/v1/projects/${seg(id)}`, { json: input });
   }
 
   delete(id: string, options?: { cascade?: boolean }): Promise<void> {
-    return this.http.delete(`/v1/projects/${seg(id)}`, { query: { cascade: options?.cascade } });
+    return this.http.delete(`/v1/projects/${seg(id)}`, {
+      query: { cascade: options?.cascade },
+    });
   }
 }
 
 export class FoldersResource {
   constructor(private readonly http: HttpClient) {}
 
-  list(projectId: string, options?: { tree?: boolean }): Promise<FolderListResponse> {
+  list(
+    projectId: string,
+    options?: { tree?: boolean },
+  ): Promise<FolderListResponse> {
     return this.http.get(`/v1/projects/${seg(projectId)}/folders`, {
       query: { tree: options?.tree },
     });
   }
 
-  create(projectId: string, input: Omit<CreateFolderInput, "projectId">): Promise<Folder> {
-    return this.http.post(`/v1/projects/${seg(projectId)}/folders`, { json: input });
+  create(
+    projectId: string,
+    input: Omit<CreateFolderInput, "projectId">,
+  ): Promise<Folder> {
+    return this.http.post(`/v1/projects/${seg(projectId)}/folders`, {
+      json: input,
+    });
   }
 
   get(folderId: string): Promise<Folder> {
@@ -80,7 +95,9 @@ export class FoldersResource {
 
   update(
     folderId: string,
-    input: Partial<Pick<UpdateFolderInput, "name">> & { parentId?: string | null },
+    input: Partial<Pick<UpdateFolderInput, "name">> & {
+      parentId?: string | null;
+    },
   ): Promise<Folder> {
     return this.http.patch(`/v1/folders/${seg(folderId)}`, { json: input });
   }
@@ -98,7 +115,9 @@ export class TagsResource {
   }
 
   create(projectId: string, name: string): Promise<ProjectTag> {
-    return this.http.post(`/v1/projects/${seg(projectId)}/tags`, { json: { name } });
+    return this.http.post(`/v1/projects/${seg(projectId)}/tags`, {
+      json: { name },
+    });
   }
 
   update(tagId: string, name: string): Promise<ProjectTag> {
@@ -118,7 +137,12 @@ export class PresetsResource {
     query?: { system?: boolean; outputFormat?: string; search?: string },
   ): Promise<{ items: ImagePreset[] }> {
     return this.http.get("/v1/presets", {
-      query: { projectId, system: query?.system, outputFormat: query?.outputFormat, search: query?.search },
+      query: {
+        projectId,
+        system: query?.system,
+        outputFormat: query?.outputFormat,
+        search: query?.search,
+      },
     });
   }
 
@@ -130,7 +154,10 @@ export class PresetsResource {
     return this.http.get(`/v1/presets/${seg(presetId)}`);
   }
 
-  update(presetId: string, input: Omit<UpdatePresetInput, "id">): Promise<ImagePreset> {
+  update(
+    presetId: string,
+    input: Omit<UpdatePresetInput, "id">,
+  ): Promise<ImagePreset> {
     return this.http.patch(`/v1/presets/${seg(presetId)}`, { json: input });
   }
 
@@ -142,7 +169,9 @@ export class PresetsResource {
     presetId: string,
     input?: { sourceWidth?: number; sourceHeight?: number },
   ): Promise<PreviewPresetResponse> {
-    return this.http.post(`/v1/presets/${seg(presetId)}/preview`, { json: input ?? {} });
+    return this.http.post(`/v1/presets/${seg(presetId)}/preview`, {
+      json: input ?? {},
+    });
   }
 }
 
@@ -153,7 +182,9 @@ export class VariantsResource {
     assetId: string,
     input: { presetId: string; persist?: boolean; preferredProvider?: string },
   ): Promise<RequestVariantResponse> {
-    return this.http.post(`/v1/assets/${seg(assetId)}/variants`, { json: input });
+    return this.http.post(`/v1/assets/${seg(assetId)}/variants`, {
+      json: input,
+    });
   }
 }
 
@@ -162,9 +193,17 @@ export class ProcessingResource {
 
   list(
     projectId: string,
-    query?: { assetId?: string; type?: ProcessingJobType; status?: ProcessingJobStatus; page?: number; pageSize?: number },
+    query?: {
+      assetId?: string;
+      type?: ProcessingJobType;
+      status?: ProcessingJobStatus;
+      page?: number;
+      pageSize?: number;
+    },
   ): Promise<PaginatedResponse<ProcessingJob>> {
-    return this.http.get("/v1/processing-jobs", { query: { projectId, ...query } });
+    return this.http.get("/v1/processing-jobs", {
+      query: { projectId, ...query },
+    });
   }
 
   get(jobId: string): Promise<ProcessingJob> {
@@ -188,20 +227,26 @@ export class AssetsResource {
   constructor(private readonly http: HttpClient) {}
 
   async upload(options: UploadAssetOptions): Promise<UploadAssetResponse> {
-    if (!options.projectId) throw new ImageryxValidationError("projectId is required.");
+    if (!options.projectId)
+      throw new ImageryxValidationError("projectId is required.");
     if (!options.file) throw new ImageryxValidationError("file is required.");
 
     const formData = new FormData();
     const fileName =
-      options.fileName ?? (options.file instanceof File ? options.file.name : "upload");
+      options.fileName ??
+      (options.file instanceof File ? options.file.name : "upload");
     formData.set("file", options.file, fileName);
     formData.set("projectId", options.projectId);
     if (options.folderId) formData.set("folderId", options.folderId);
     if (options.name) formData.set("name", options.name);
-    if (options.tags) for (const tag of options.tags) formData.append("tags", tag);
+    if (options.tags)
+      for (const tag of options.tags) formData.append("tags", tag);
     if (options.visibility) formData.set("visibility", options.visibility);
     if (options.downloadOriginalEnabled !== undefined) {
-      formData.set("downloadOriginalEnabled", toFormValue(options.downloadOriginalEnabled));
+      formData.set(
+        "downloadOriginalEnabled",
+        toFormValue(options.downloadOriginalEnabled),
+      );
     }
 
     return this.http.post("/v1/assets/upload", { formData });
@@ -231,7 +276,9 @@ export class AssetsResource {
   }
 
   move(assetId: string, folderId: string | null): Promise<ImageAsset> {
-    return this.http.post(`/v1/assets/${seg(assetId)}/move`, { json: { folderId } });
+    return this.http.post(`/v1/assets/${seg(assetId)}/move`, {
+      json: { folderId },
+    });
   }
 
   setTags(assetId: string, tags: string[]): Promise<{ tags: string[] }> {
@@ -246,12 +293,12 @@ export class AssetsResource {
     return this.http.post(`/v1/assets/${seg(assetId)}/restore`);
   }
 
-  variants(assetId: string) {
-    return this.http.get<{ items: unknown[] }>(`/v1/assets/${seg(assetId)}/variants`);
+  variants(assetId: string): Promise<{ items: ImageVariant[] }> {
+    return this.http.get(`/v1/assets/${seg(assetId)}/variants`);
   }
 
-  activity(assetId: string) {
-    return this.http.get<{ items: unknown[] }>(`/v1/assets/${seg(assetId)}/activity`);
+  activity(assetId: string): Promise<{ items: AssetActivityEntry[] }> {
+    return this.http.get(`/v1/assets/${seg(assetId)}/activity`);
   }
 
   delivery(assetId: string): Promise<AssetDeliveryInfo> {
@@ -262,7 +309,9 @@ export class AssetsResource {
     assetId: string,
     input?: { variant?: string; expiresIn?: number },
   ): Promise<CreateDownloadUrlResponse> {
-    return this.http.post(`/v1/assets/${seg(assetId)}/download-url`, { json: input ?? {} });
+    return this.http.post(`/v1/assets/${seg(assetId)}/download-url`, {
+      json: input ?? {},
+    });
   }
 }
 

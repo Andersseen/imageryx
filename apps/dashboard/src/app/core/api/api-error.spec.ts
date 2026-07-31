@@ -6,6 +6,7 @@ import {
 import { describe, expect, it } from "vitest";
 import {
   conflictCode,
+  conflictDetails,
   describeApiError,
   isConflict,
   isNotFound,
@@ -15,8 +16,14 @@ function apiError(
   status: number,
   code = "some_code",
   message = "Boom.",
+  details?: Record<string, unknown>,
 ): ImageryxApiError {
-  return new ImageryxApiError(message, { status, code, requestId: "req-1" });
+  return new ImageryxApiError(message, {
+    status,
+    code,
+    requestId: "req-1",
+    details,
+  });
 }
 
 describe("describeApiError", () => {
@@ -101,5 +108,16 @@ describe("error predicates", () => {
       "restore_path_conflict",
     );
     expect(conflictCode(apiError(404, "not_found"))).toBeNull();
+  });
+
+  it("extracts the structured conflict payload rather than parsing the message", () => {
+    const details = { presetId: "preset-1", slug: "hero" };
+    expect(
+      conflictDetails(
+        apiError(409, "equivalent_preset_exists", "msg", details),
+      ),
+    ).toEqual(details);
+    expect(conflictDetails(apiError(404, "not_found"))).toBeNull();
+    expect(conflictDetails(apiError(409, "no_details"))).toBeNull();
   });
 });

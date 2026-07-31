@@ -4,6 +4,7 @@ import type {
   ImagePreset,
   ImageVariant,
   PaginatedResponse,
+  PreviewPresetResponse,
   ProcessingJob,
   Project,
 } from "@imageryx/contracts";
@@ -58,7 +59,7 @@ export interface AssetDetails extends ImageAsset {
   folder: { id: string; name: string; path: string } | null;
   presets: { id: string; name: string; slug: string }[];
   variants: ImageVariant[];
-  processingJobs: unknown[];
+  processingJobs: ProcessingJob[];
   activity: AssetActivityEntry[];
   delivery: { originalUrl: string; originalPath: string } | null;
   duplicateCandidates: { assetId: string; path: string }[];
@@ -105,6 +106,7 @@ export type {
   PaginatedResponse,
   ImagePreset,
   ImageVariant,
+  PreviewPresetResponse,
   ProcessingJob,
   Project,
   Folder,

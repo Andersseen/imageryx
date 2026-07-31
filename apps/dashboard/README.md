@@ -4,15 +4,20 @@ The Imageryx dashboard: an [Analog](https://analogjs.org) + Angular 21
 application (standalone components, signals, zoneless change detection,
 `OnPush`).
 
-## Phase 1 status
+## Phase 4B status
 
-Only the application shell and the **Overview** page have real content. The
-other six routes (`/library`, `/projects`, `/presets`, `/processing`,
-`/api`, `/settings`) render a static "Upcoming — Phase 4" placeholder with
-no interactive controls — see [ROADMAP.md](../../ROADMAP.md).
-
-The Overview page polls each Worker's `/health` endpoint (and api-worker's
-`/v1/info`) for real; there are no hardcoded "healthy" states.
+Every route is real. **Overview** polls each Worker's `/health` endpoint
+(and api-worker's `/v1/info`) live — no hardcoded "healthy" states.
+**`/library`** and **`/projects`** browse/manage assets and projects in
+bulk; **`/library/:assetId`** is the full per-asset workspace (preview,
+variants with scoped polling, delivery snippets, signed downloads, activity,
+settings). **`/presets`** (+ `/new`, `/:presetId`) is a real system/custom
+preset list and editor with a live provider-compatibility check.
+**`/processing`** (+ `/:jobId`) lists and polls real processing jobs, retry
+and cancel included. **`/api`** is a live developer reference (health,
+masked API key, generated code examples). **`/settings`** mirrors the same
+live configuration, read-only. See [ROADMAP.md](../../ROADMAP.md) and
+context.md's "Phase 4B decisions and limitations" for what's still open.
 
 ## UI libraries
 
