@@ -1,0 +1,7 @@
+# Local-only secrets for `wrangler dev` (Miniflare). Copy this file to
+# `.dev.vars` (git-ignored) — never commit real values here or in
+# wrangler.jsonc. Production values are set with `wrangler secret put`
+# (see README's "Deployment" section).
+
+IMAGERYX_API_KEY=imgx_dev_local
+DOWNLOAD_SIGNING_SECRET=replace-with-local-development-secret

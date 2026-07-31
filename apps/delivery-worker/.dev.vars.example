@@ -1,0 +1,9 @@
+# Local-only secrets for `wrangler dev` (Miniflare). Copy this file to
+# `.dev.vars` (git-ignored) — never commit real values here or in
+# wrangler.jsonc. Production values are set with `wrangler secret put`
+# (see README's "Deployment" section).
+#
+# Must match api-worker's DOWNLOAD_SIGNING_SECRET exactly, or signed
+# download tokens issued by api-worker will fail verification here.
+
+DOWNLOAD_SIGNING_SECRET=replace-with-local-development-secret

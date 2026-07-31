@@ -109,6 +109,8 @@ cd imageryx
 pnpm install
 cp .env.example .env
 cp apps/dashboard/.env.example apps/dashboard/.env.local
+cp apps/api-worker/.dev.vars.example apps/api-worker/.dev.vars
+cp apps/delivery-worker/.dev.vars.example apps/delivery-worker/.dev.vars
 ```
 
 ## Commands
@@ -271,6 +273,28 @@ Each matrix leg publishes to its own GitHub Environment
 **Environments** tab and in the sidebar. Add required reviewers or branch
 protection rules per environment in **Settings → Environments** to gate any
 individual app without touching the workflow.
+
+Before the first deploy of `api-worker` or `delivery-worker`, set their
+real secrets — `IMAGERYX_API_KEY` and `DOWNLOAD_SIGNING_SECRET` are **not**
+committed as production `vars` (see `apps/api-worker/wrangler.jsonc` and
+`apps/delivery-worker/wrangler.jsonc`); a Worker deployed without them set
+will have `undefined` auth/signing secrets. `wrangler secret put` values
+persist in Cloudflare across deploys, so this is a one-time step per
+environment, from a machine authenticated with `wrangler login`:
+
+```bash
+# Generate strong random values, e.g.:
+openssl rand -hex 32
+
+# api-worker needs both:
+pnpm --filter @imageryx/api-worker exec wrangler secret put IMAGERYX_API_KEY --env production
+pnpm --filter @imageryx/api-worker exec wrangler secret put DOWNLOAD_SIGNING_SECRET --env production
+
+# delivery-worker only verifies download tokens, so it only needs the signing secret —
+# it MUST be the exact same value as api-worker's, or tokens issued by one
+# will fail verification on the other:
+pnpm --filter @imageryx/delivery-worker exec wrangler secret put DOWNLOAD_SIGNING_SECRET --env production
+```
 
 Each app also has its own `deploy` script for deploying manually from a
 machine authenticated with `wrangler login`:
