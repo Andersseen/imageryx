@@ -17,7 +17,7 @@ previous one is complete and its definition of done is met.
 
 No uploads, storage, transformation, or database logic exists yet.
 
-## Phase 2 — Domain, Persistence and Provider Foundations ✅ (current)
+## Phase 2 — Domain, Persistence and Provider Foundations ✅
 
 - `@imageryx/contracts` gets full domain schemas (projects, folders,
   assets, presets, variants, processing jobs) as Zod schemas + inferred
@@ -45,7 +45,7 @@ Still no upload API, delivery flow, real transformation pipeline, SDK, or
 functional dashboard beyond Phase 1's Overview page — see context.md for
 the exact Phase 3 starting point.
 
-## Phase 3 — Functional Backend and Delivery Flow ✅ (current)
+## Phase 3 — Functional Backend and Delivery Flow ✅
 
 - `api-worker` gains real multipart upload routes (22-step validation and
   consistency flow), full CRUD for projects/folders/tags/presets/assets,
@@ -85,18 +85,55 @@ to descendant asset paths, project/folder/preset activity as logs rather
 than rows, in-memory job-list pagination) and the exact Phase 4 starting
 point.
 
-## Phase 4 — Complete Dashboard
+Phase 4 is split in two. 4A builds the dashboard foundation every other
+screen sits on; 4B builds the asset workspace and the remaining routes on
+top of it.
 
-- `/library`, `/projects`, `/presets`, `/processing`, `/api`, and
-  `/settings` become functional, backed by the real `@imageryx/sdk` and
-  `@imageryx/angular` shipped in Phase 3 — no new backend surface should
-  be needed for basic CRUD/browsing.
-- Project switcher, global search, and upload button (currently disabled
-  placeholders) become real.
-- API key management UI. Phase 3's auth is a single shared static
+## Phase 4A — Dashboard Foundation ✅ (current)
+
+- **`/library` is real**: asset grid and table views, search, folder / tag
+  / status / visibility / deleted filters, sorting, pagination, soft
+  delete and restore — every dimension of the view encoded in the URL, so
+  a filtered library is a shareable link that survives reload and the Back
+  button.
+- **`/projects` is real**: project list with live aggregate counts,
+  create/edit/delete, plus folder and tag management for the selected
+  project. The dashboard never sends `cascade=true`; a project that still
+  holds assets is refused by the API and that refusal is surfaced, not
+  worked around.
+- **The topbar's three Phase 1 placeholders are now functional**: project
+  switcher (with a persisted selection), asset search, and a real multi-file
+  upload dialog that follows each file through upload → processing → ready.
+- A shared dashboard data layer — normalized API errors, an async store
+  that distinguishes first load from refresh and drops superseded
+  responses, formatters, and a root project context.
+- Real component tests (Angular TestBed, zoneless, jsdom) and a Playwright
+  end-to-end suite that drives a real browser against a real api-worker,
+  D1 and R2 — added from scratch; `pnpm test:e2e` did not exist before.
+- Two real bugs fixed on the way: `@imageryx/sdk` could not accept the
+  relative `baseUrl` the dashboard configures (so every dashboard API call
+  — including Phase 3's `/dev-flow` — threw), and the toast component
+  chosen for notifications rendered nothing. See context.md's "Phase 4A
+  decisions and limitations".
+
+`/presets`, `/processing`, `/api` and `/settings` remain deliberately
+inert placeholders that name what they will do, rather than shipping
+controls that do not work.
+
+## Phase 4B — Asset Workspace and Remaining Routes
+
+- `/library/:assetId`: preview workspace, metadata, variants, variant
+  generation with scoped polling, delivery URLs and snippets, signed
+  downloads, activity timeline, and asset settings.
+- `/presets`, `/presets/new`, `/presets/:presetId`: preset list and a
+  visual editor with provider-capability checks and real previews.
+- `/processing`, `/processing/:jobId`: job monitoring, retry and cancel.
+- `/api`: in-application developer reference with real health data.
+- `/settings`: environment, storage, transformation and upload policy.
+- API key management. Phase 3's auth is a single shared static
   `IMAGERYX_API_KEY` with no scoping/rotation — a real key-management UI
-  likely needs the `api_keys` table's per-key model wired up for the first
-  time (the table exists as of Phase 2 but nothing writes to it yet).
+  needs the `api_keys` table's per-key model wired up for the first time
+  (the table exists as of Phase 2 but nothing writes to it yet).
 - Revisit project/folder/preset-scoped activity (log-only as of Phase 3)
   if the dashboard wants a real project-level activity feed.
 

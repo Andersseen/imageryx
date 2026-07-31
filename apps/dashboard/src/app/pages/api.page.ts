@@ -9,8 +9,16 @@ import { UpcomingPage } from "./shared/upcoming-page.component";
   template: `
     <ix-upcoming-page
       title="API"
-      description="Manage API keys and inspect request logs for the Imageryx API Worker."
+      description="An in-application developer reference for the Imageryx API, SDK and Angular component."
+      [upcoming]="planned"
     />
   `,
 })
-export default class ApiPage {}
+export default class ApiPage {
+  protected readonly planned = [
+    "Live API, delivery, database and provider health",
+    "Copyable TypeScript SDK, cURL, Angular and HTML examples using the selected project",
+    "Upload, list, variant-generation and signed-download reference",
+    "An honest statement of current limitations, including mock transformations",
+  ];
+}

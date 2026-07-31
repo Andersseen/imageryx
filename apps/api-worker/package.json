@@ -15,6 +15,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "cf-typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply imageryx-db --local --persist-to ../../.wrangler-state",
+    "db:migrate:e2e": "wrangler d1 migrations apply imageryx-db --local --persist-to ../../.wrangler-state-e2e",
     "db:status:local": "wrangler d1 migrations list imageryx-db --local --persist-to ../../.wrangler-state",
     "db:migrate:production": "wrangler d1 migrations apply imageryx-db --remote --env production",
     "db:status:production": "wrangler d1 migrations list imageryx-db --remote --env production"

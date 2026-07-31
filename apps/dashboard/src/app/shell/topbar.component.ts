@@ -1,26 +1,20 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
-import {
-  VoltBadge,
-  VoltButton,
-  VoltSidebarService,
-  VoltTooltip,
-} from "@voltui/components";
-import {
-  LmnArrowUpTrayIcon,
-  LmnChevronDownIcon,
-  LmnMenuIcon,
-  LmnMoonIcon,
-  LmnSearchIcon,
-  LmnSunIcon,
-} from "lumen-icons";
+import { VoltBadge, VoltButton, VoltSidebarService } from "@voltui/components";
+import { LmnMenuIcon, LmnMoonIcon, LmnSunIcon } from "lumen-icons";
 import { DASHBOARD_ENV } from "../core/env/dashboard-env.token";
 import { ThemeService } from "../core/theme/theme.service";
+import { GlobalSearch } from "./global-search.component";
+import { ProjectSwitcher } from "./project-switcher.component";
+import { UploadDialog } from "./upload-dialog.component";
 
 /**
- * Header row: mobile nav trigger, project switcher / search placeholders
- * (disabled — Phase 4), environment badge, theme switcher, and the upload
- * button (disabled — Phase 4). Nothing here is clickable-but-inert without
- * also being visually and semantically disabled.
+ * Header row: mobile nav trigger, project switcher, asset search, environment badge, theme
+ * switcher, and upload.
+ *
+ * All three of the project switcher, search box and upload button were disabled Phase 1
+ * placeholders; as of Phase 4A they are real. The upload button is the only control that can
+ * still be disabled, and only for an honest reason — there is no project selected to upload
+ * into.
  */
 @Component({
   selector: "ix-topbar",
@@ -28,13 +22,12 @@ import { ThemeService } from "../core/theme/theme.service";
   imports: [
     VoltBadge,
     VoltButton,
-    VoltTooltip,
-    LmnArrowUpTrayIcon,
-    LmnChevronDownIcon,
     LmnMenuIcon,
     LmnMoonIcon,
-    LmnSearchIcon,
     LmnSunIcon,
+    GlobalSearch,
+    ProjectSwitcher,
+    UploadDialog,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -51,38 +44,13 @@ import { ThemeService } from "../core/theme/theme.service";
         <lmn-menu [size]="20" tone="muted" />
       </volt-button>
 
-      <span
-        voltTooltip="Project switching arrives in Phase 4"
-        placement="bottom"
-        class="hidden sm:inline-flex"
-      >
-        <volt-button
-          variant="outline"
-          size="sm"
-          [disabled]="true"
-          aria-disabled="true"
-        >
-          All Projects
-          <lmn-chevron-down slot="trailing" [size]="14" tone="muted" />
-        </volt-button>
-      </span>
+      <div class="hidden sm:flex">
+        <ix-project-switcher />
+      </div>
 
-      <span
-        voltTooltip="Search arrives in Phase 4"
-        placement="bottom"
-        class="hidden flex-1 max-w-sm md:inline-flex"
-      >
-        <volt-button
-          variant="outline"
-          size="sm"
-          [disabled]="true"
-          aria-disabled="true"
-          class="w-full justify-start"
-        >
-          <lmn-search slot="leading" [size]="16" tone="muted" />
-          <span class="text-muted-foreground">Search assets…</span>
-        </volt-button>
-      </span>
+      <div class="hidden max-w-sm flex-1 md:flex">
+        <ix-global-search />
+      </div>
 
       <div class="flex-1"></div>
 
@@ -101,17 +69,7 @@ import { ThemeService } from "../core/theme/theme.service";
         }
       </volt-button>
 
-      <span voltTooltip="Uploads arrive in Phase 4" placement="bottom">
-        <volt-button
-          variant="solid"
-          size="sm"
-          [disabled]="true"
-          aria-disabled="true"
-        >
-          <lmn-arrow-up-tray slot="leading" [size]="16" />
-          Upload
-        </volt-button>
-      </span>
+      <ix-upload-dialog />
     </header>
   `,
 })

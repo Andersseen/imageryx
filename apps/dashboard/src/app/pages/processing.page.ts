@@ -9,8 +9,16 @@ import { UpcomingPage } from "./shared/upcoming-page.component";
   template: `
     <ix-upcoming-page
       title="Processing"
-      description="Inspect transformation jobs running on the Processing Worker's Queue consumer."
+      description="Transformation jobs running on the Processing Worker's Queue consumer."
+      [upcoming]="planned"
     />
   `,
 })
-export default class ProcessingPage {}
+export default class ProcessingPage {
+  protected readonly planned = [
+    "Job list filtered by project, asset, type, status and provider",
+    "Scoped polling that stops once every visible job reaches a terminal state",
+    "Retry for retryable failures and cancel for queued jobs",
+    "Per-job detail with a safe input, result and error summary",
+  ];
+}

@@ -96,6 +96,57 @@ describe("VariantRepository", () => {
     expect(found?.id).toBe(created.id);
   });
 
+  it("lists only ready variants' preset slugs, grouped by asset", async () => {
+    const otherAsset = await insertTestAsset(testDb.db, projectId);
+    const heroPresetId = (
+      await new PresetRepository(testDb.db).create({
+        projectId,
+        name: "Hero",
+        slug: "hero",
+        operations: [],
+        outputFormat: "auto",
+      })
+    ).id;
+
+    const ready = await repository.create({
+      assetId,
+      presetId,
+      presetHash: "hash-ready",
+      provider: "mock",
+      status: "pending",
+    });
+    await repository.update(ready.id, { status: "ready" });
+    // Deliberately left pending — a pending variant's delivery URL does not resolve.
+    await repository.create({
+      assetId,
+      presetId: heroPresetId,
+      presetHash: "hash-pending",
+      provider: "mock",
+      status: "pending",
+    });
+    const otherReady = await repository.create({
+      assetId: otherAsset.id,
+      presetId: heroPresetId,
+      presetHash: "hash-other",
+      provider: "mock",
+      status: "pending",
+    });
+    await repository.update(otherReady.id, { status: "ready" });
+
+    const slugs = await repository.listReadyPresetSlugsByAssetIds([
+      assetId,
+      otherAsset.id,
+    ]);
+    expect(slugs.get(assetId)).toEqual(["thumbnail"]);
+    expect(slugs.get(otherAsset.id)).toEqual(["hero"]);
+  });
+
+  it("returns an empty map for no asset ids", async () => {
+    await expect(
+      repository.listReadyPresetSlugsByAssetIds([]),
+    ).resolves.toEqual(new Map());
+  });
+
   it("transitions a variant to ready with output fields populated", async () => {
     const created = await repository.create({
       assetId,

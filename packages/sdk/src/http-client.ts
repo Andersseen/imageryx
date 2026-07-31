@@ -1,4 +1,5 @@
 import { ImageryxApiError, ImageryxNetworkError } from "./errors";
+import { resolveRequestUrl } from "./request-url";
 
 export type QueryValue = string | number | boolean | undefined | null;
 
@@ -24,7 +25,12 @@ function appendQuery(url: URL, query?: Record<string, QueryValue>): void {
 }
 
 interface ApiErrorEnvelope {
-  error?: { code?: string; message?: string; requestId?: string; details?: Record<string, unknown> };
+  error?: {
+    code?: string;
+    message?: string;
+    requestId?: string;
+    details?: Record<string, unknown>;
+  };
 }
 
 /**
@@ -36,12 +42,17 @@ interface ApiErrorEnvelope {
 export class HttpClient {
   constructor(private readonly config: HttpClientConfig) {}
 
-  async request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
-    const url = new URL(path.replace(/^\//, ""), `${this.config.baseUrl.replace(/\/+$/, "")}/`);
+  async request<T>(
+    method: string,
+    path: string,
+    options: RequestOptions = {},
+  ): Promise<T> {
+    const url = resolveRequestUrl(this.config.baseUrl, path);
     appendQuery(url, options.query);
 
     const headers: Record<string, string> = { ...options.headers };
-    if (this.config.apiKey) headers["Authorization"] = `Bearer ${this.config.apiKey}`;
+    if (this.config.apiKey)
+      headers["Authorization"] = `Bearer ${this.config.apiKey}`;
 
     let body: FormData | string | undefined;
     if (options.formData) {
@@ -53,7 +64,11 @@ export class HttpClient {
 
     let response: Response;
     try {
-      response = await this.config.fetch(url.toString(), { method, headers, body });
+      response = await this.config.fetch(url.toString(), {
+        method,
+        headers,
+        body,
+      });
     } catch (error) {
       throw new ImageryxNetworkError("The request could not be sent.", error);
     }
@@ -65,12 +80,15 @@ export class HttpClient {
       } catch {
         envelope = null;
       }
-      throw new ImageryxApiError(envelope?.error?.message ?? response.statusText, {
-        status: response.status,
-        code: envelope?.error?.code ?? "unknown_error",
-        requestId: envelope?.error?.requestId,
-        details: envelope?.error?.details,
-      });
+      throw new ImageryxApiError(
+        envelope?.error?.message ?? response.statusText,
+        {
+          status: response.status,
+          code: envelope?.error?.code ?? "unknown_error",
+          requestId: envelope?.error?.requestId,
+          details: envelope?.error?.details,
+        },
+      );
     }
 
     if (response.status === 204) {

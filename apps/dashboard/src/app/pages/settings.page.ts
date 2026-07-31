@@ -9,8 +9,16 @@ import { UpcomingPage } from "./shared/upcoming-page.component";
   template: `
     <ix-upcoming-page
       title="Settings"
-      description="Account, team, and provider configuration for this Imageryx workspace."
+      description="Environment, storage, transformation and upload configuration for this Imageryx installation."
+      [upcoming]="planned"
     />
   `,
 })
-export default class SettingsPage {}
+export default class SettingsPage {
+  protected readonly planned = [
+    "Active storage and transformation providers, with real configuration state",
+    "Upload policy: size limit, supported formats, recovery window, SVG handling",
+    "Processing mode, attempt limit and queue status",
+    "Dashboard, API and delivery domains, plus version and licence information",
+  ];
+}

@@ -11,9 +11,15 @@ import { DASHBOARD_ENV } from "../env/dashboard-env.token";
  * none is ever available in browser code. `deliveryUrl` is called
  * directly: delivery routes are public/unauthenticated reads by design.
  */
-export const IMAGERYX_CLIENT = new InjectionToken<ImageryxClient>("IMAGERYX_CLIENT", {
-  factory: () => {
-    const env = inject(DASHBOARD_ENV);
-    return createImageryxClient({ baseUrl: "/api", deliveryUrl: env.deliveryUrl });
+export const IMAGERYX_CLIENT = new InjectionToken<ImageryxClient>(
+  "IMAGERYX_CLIENT",
+  {
+    factory: () => {
+      const env = inject(DASHBOARD_ENV);
+      return createImageryxClient({
+        baseUrl: "/api",
+        deliveryUrl: env.deliveryUrl,
+      });
+    },
   },
-});
+);

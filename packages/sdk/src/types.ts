@@ -38,6 +38,8 @@ export interface ProjectTag {
 export interface AssetListItem extends ImageAsset {
   tags: string[];
   readyVariantCount: number;
+  /** Preset slugs with a `ready` variant — the only preset delivery URLs that resolve for this asset today. */
+  readyPresetSlugs: string[];
   folder: { id: string; name: string; path: string } | null;
 }
 
@@ -65,7 +67,13 @@ export interface AssetDetails extends ImageAsset {
 export interface AssetDeliveryInfo {
   visibility: "public" | "private";
   originalUrl: string;
-  presets: { id: string; slug: string; name: string; ready: boolean; url: string }[];
+  presets: {
+    id: string;
+    slug: string;
+    name: string;
+    ready: boolean;
+    url: string;
+  }[];
 }
 
 export interface UploadAssetResponse {

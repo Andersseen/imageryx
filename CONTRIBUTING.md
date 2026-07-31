@@ -35,16 +35,23 @@ pnpm check
 ```
 
 This runs lint, typecheck, tests, and a build across every app and package
-via Turborepo, respecting the workspace's task dependency graph. If your
-change touches `api-worker`, `delivery-worker`, or `processing-worker`,
-also run the Workers-pool suite and, if it touches the upload/processing/
-delivery pipeline end to end, the backend integration test — neither is
-part of `pnpm check` (see README's "Commands" for why):
+via Turborepo, respecting the workspace's task dependency graph. Two suites
+are **not** part of `pnpm check` (see README's "Commands" for why) and need
+running explicitly when relevant:
 
 ```bash
-pnpm test:workers
-pnpm test:integration
+pnpm test:workers      # touching api-worker, delivery-worker or processing-worker
+pnpm test:integration  # touching the upload -> processing -> delivery pipeline
+pnpm test:e2e          # touching apps/dashboard (needs `pnpm e2e:install` once)
 ```
+
+Please run `pnpm test:e2e` for any dashboard change. This project has
+repeatedly shipped dashboard code that lints, typechecks, builds and passes
+unit tests while being broken in a browser — an SDK call that threw before
+reaching the network, a toast component that rendered nothing. Those are
+the failures only a real browser catches, which is why the suite exists.
+`pnpm --filter @imageryx/dashboard test:e2e:ui` opens Playwright's UI mode
+for iterating on one spec.
 
 You can also target a single app/package while iterating:
 
