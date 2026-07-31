@@ -28,8 +28,10 @@ import {
   LmnSettingsIcon,
 } from "lumen-icons";
 import { ViewportService } from "quartz-headless";
+import { ProjectContextService } from "./core/projects/project-context.service";
 import { ThemeService } from "./core/theme/theme.service";
 import { Topbar } from "./shell/topbar.component";
+import { ToastHost } from "./ui/toast-host.component";
 
 @Component({
   selector: "ix-root",
@@ -55,6 +57,7 @@ import { Topbar } from "./shell/topbar.component";
     LmnSettingsIcon,
     MoveEnterDirective,
     Topbar,
+    ToastHost,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -132,10 +135,12 @@ import { Topbar } from "./shell/topbar.component";
 
       <div class="flex min-w-0 flex-1 flex-col">
         <ix-topbar />
-        <main class="flex-1 overflow-y-auto p-6">
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6">
           <router-outlet />
         </main>
       </div>
+
+      <ix-toast-host />
     </div>
   `,
 })
@@ -144,10 +149,15 @@ export class AppComponent {
   private readonly viewport = inject(ViewportService);
   /** Injected eagerly so the persisted/preferred theme applies before first paint. */
   private readonly theme = inject(ThemeService);
+  private readonly projects = inject(ProjectContextService);
 
   constructor() {
     effect(() => {
       this.sidebar.setCollapsed(this.viewport.isTablet());
     });
+
+    // Loaded once here rather than per route: the topbar's project switcher is always mounted,
+    // and every project-scoped page would otherwise race to fetch the same list on activation.
+    void this.projects.ensureLoaded();
   }
 }

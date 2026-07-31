@@ -3,7 +3,88 @@
 All notable changes to this project are documented in this file. Format
 loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] — Phase 2: Domain, Persistence and Provider Foundations
+## [Unreleased] — Phase 4A: Dashboard Foundation
+
+### Added
+
+- `apps/dashboard`: a real `/library` route — grid and table views, search,
+  folder/tag/processing-status/visibility/deleted filters, sorting,
+  pagination, soft delete and restore. The whole view is derived from the
+  URL, so a filtered library is a shareable, reloadable link.
+- `apps/dashboard`: a real `/projects` route — project list with live
+  aggregate counts, create/edit/delete via an accessible dialog, and
+  folder/tag management for the selected project.
+- `apps/dashboard`: the topbar's Phase 1 placeholders became functional —
+  project switcher (selection persisted across sessions), asset search
+  that navigates to `/library?q=…`, and a multi-file upload dialog that
+  tracks each file through upload → processing → ready.
+- `apps/dashboard/src/app/core`: shared data layer — `describeApiError`
+  (normalizes every SDK error into a renderable, safe shape), `AsyncStore`
+  (separates first load from refresh, drops superseded responses),
+  `ProjectContextService`, `UploadService` (sequential uploads plus
+  per-asset scoped polling), `NotificationService`, and pure formatters.
+- `apps/dashboard/src/app/ui`: reusable page header, empty/error/loading
+  states, copy button with announced confirmation, status badge (never
+  colour alone), asset thumbnail, pager, modal controller and toast host.
+- `apps/dashboard`: Angular component testing (Vitest, the Analog Angular
+  plugin and jsdom, zoneless), with an in-memory API stub at the `fetch`
+  boundary so tests exercise the real `@imageryx/sdk` rather than a mock of
+  it. 171 dashboard tests.
+- **Playwright end-to-end suite** (`apps/dashboard/e2e`, `pnpm test:e2e`) —
+  new to this repo. Boots a real api-worker (D1 + R2, Miniflare-backed) and
+  the real dashboard on isolated ports and an isolated
+  `.wrangler-state-e2e`, then drives a browser through project creation,
+  upload, metadata inspection, search, filtering, view switching, soft
+  delete and restore. Added to CI as a required job.
+- `packages/database`: `VariantRepository.listReadyPresetSlugsByAssetIds`,
+  and `GET /v1/assets` now returns `readyPresetSlugs` per asset — so the
+  library grid can render a thumbnail only where one actually resolves,
+  instead of firing a speculative 404 per tile.
+
+### Fixed
+
+- `packages/sdk`: `HttpClient` could not accept a **relative** `baseUrl`.
+  `new URL(path, "/api/")` throws — the WHATWG parser requires an absolute
+  base — so every dashboard API call threw before reaching the network,
+  including Phase 3's `/dev-flow`. `resolveRequestUrl` now resolves a
+  relative base against the document origin, and fails with a named error
+  outside a browser instead of guessing a host.
+- `apps/dashboard`: notifications rendered nothing. The third-party toast
+  service held the correct queue while the view stayed empty, and its
+  component additionally required an overlay provider it could not get
+  standalone (NG0201). Replaced with a dashboard-owned
+  `NotificationService` + `ToastHost`, which also removes a permanent
+  100 ms change-detection tick.
+
+### Not included in this phase
+
+`/library/:assetId`, `/presets`, `/processing`, `/api` and `/settings` are
+still placeholders — they name what they will do and expose no controls.
+See [ROADMAP.md](ROADMAP.md)'s Phase 4B.
+
+## Phase 3: Functional Backend and Delivery Flow
+
+Recorded here after the fact — Phase 3 shipped without a changelog entry.
+Summarized from [ROADMAP.md](ROADMAP.md) and context.md, which are its
+authoritative record.
+
+### Added
+
+- `api-worker`: real multipart upload, full CRUD for
+  projects/folders/tags/presets/assets, idempotent variant generation,
+  processing-job list/retry/cancel and `/v1/stats` — all behind Bearer auth
+  on every `/v1/*` route.
+- `processing-worker`: two real Queue-driven job handlers,
+  `inspect-metadata` (real per-format dimension/alpha parsing) and
+  `generate-variant` (a visibly-labeled simulated SVG, persisted through
+  `StorageProvider`).
+- `delivery-worker`: real originals and ready variants with correct
+  ETag/Cache-Control/nosniff headers, plus HMAC-signed time-limited
+  download tokens.
+- `@imageryx/sdk` and `@imageryx/angular` shipped as real, tested packages;
+  the dashboard gained the dev-only `/dev-flow` route.
+
+## Phase 2: Domain, Persistence and Provider Foundations
 
 ### Added
 

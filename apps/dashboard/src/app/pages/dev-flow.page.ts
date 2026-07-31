@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from "@angular/core";
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+} from "@angular/core";
 import { ImgyxImage } from "@imageryx/angular";
 import type {
   AssetDetails,
@@ -29,17 +35,20 @@ type StepState = "idle" | "busy" | "done" | "error";
         <volt-badge variant="outline">Development only</volt-badge>
         <h1 class="text-2xl font-semibold text-foreground">Backend dev flow</h1>
         <p class="max-w-2xl text-muted-foreground">
-          Exercises the real upload &rarr; processing &rarr; variant &rarr; delivery pipeline
-          against the local API through the server-side proxy (never the API key directly in this
-          page's code — see README's "Authentication" section). This is not the final asset
-          library UI (Phase 4).
+          Exercises the real upload &rarr; processing &rarr; variant &rarr;
+          delivery pipeline against the local API through the server-side proxy
+          (never the API key directly in this page's code — see README's
+          "Authentication" section). This is not the final asset library UI
+          (Phase 4).
         </p>
       </section>
 
       <volt-separator />
 
       <section class="flex flex-col gap-3">
-        <h2 class="text-lg font-semibold text-foreground">1. Project &amp; folder</h2>
+        <h2 class="text-lg font-semibold text-foreground">
+          1. Project &amp; folder
+        </h2>
         @if (projectsState() === "error") {
           <p class="text-sm text-destructive">{{ errorMessage() }}</p>
         }
@@ -53,7 +62,9 @@ type StepState = "idle" | "busy" | "done" | "error";
             >
               <option value="" disabled>Select a project&hellip;</option>
               @for (project of projects(); track project.id) {
-                <option [value]="project.id">{{ project.name }} ({{ project.slug }})</option>
+                <option [value]="project.id">
+                  {{ project.name }} ({{ project.slug }})
+                </option>
               }
             </select>
           </label>
@@ -78,7 +89,9 @@ type StepState = "idle" | "busy" | "done" | "error";
       <volt-separator />
 
       <section class="flex flex-col gap-3">
-        <h2 class="text-lg font-semibold text-foreground">2. Upload an image</h2>
+        <h2 class="text-lg font-semibold text-foreground">
+          2. Upload an image
+        </h2>
         <input
           type="file"
           accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/avif"
@@ -95,7 +108,9 @@ type StepState = "idle" | "busy" | "done" | "error";
           </volt-button>
           @switch (uploadState()) {
             @case ("busy") {
-              <span class="text-sm text-muted-foreground">Uploading&hellip;</span>
+              <span class="text-sm text-muted-foreground"
+                >Uploading&hellip;</span
+              >
             }
             @case ("error") {
               <span class="text-sm text-destructive">{{ errorMessage() }}</span>
@@ -111,7 +126,9 @@ type StepState = "idle" | "busy" | "done" | "error";
         @if (asset(); as currentAsset) {
           <div class="flex items-center gap-3 text-sm">
             <span class="text-muted-foreground">Processing status:</span>
-            <volt-badge [variant]="statusBadgeVariant(currentAsset.processingStatus)">
+            <volt-badge
+              [variant]="statusBadgeVariant(currentAsset.processingStatus)"
+            >
               {{ currentAsset.processingStatus }}
             </volt-badge>
             <volt-button variant="outline" size="sm" (click)="refreshAsset()">
@@ -124,7 +141,9 @@ type StepState = "idle" | "busy" | "done" | "error";
       <volt-separator />
 
       <section class="flex flex-col gap-3">
-        <h2 class="text-lg font-semibold text-foreground">3. Request a preset variant</h2>
+        <h2 class="text-lg font-semibold text-foreground">
+          3. Request a preset variant
+        </h2>
         <div class="flex flex-wrap items-center gap-3">
           <label class="flex flex-col gap-1 text-sm">
             <span class="text-muted-foreground">Preset</span>
@@ -135,16 +154,24 @@ type StepState = "idle" | "busy" | "done" | "error";
             >
               <option value="" disabled>Select a preset&hellip;</option>
               @for (preset of presets(); track preset.id) {
-                <option [value]="preset.id">{{ preset.name }} ({{ preset.slug }})</option>
+                <option [value]="preset.id">
+                  {{ preset.name }} ({{ preset.slug }})
+                </option>
               }
             </select>
           </label>
-          <volt-button variant="solid" [disabled]="!canGenerateVariant()" (click)="generateVariant()">
+          <volt-button
+            variant="solid"
+            [disabled]="!canGenerateVariant()"
+            (click)="generateVariant()"
+          >
             Generate variant
           </volt-button>
           @switch (variantState()) {
             @case ("busy") {
-              <span class="text-sm text-muted-foreground">Processing&hellip;</span>
+              <span class="text-sm text-muted-foreground"
+                >Processing&hellip;</span
+              >
             }
             @case ("error") {
               <span class="text-sm text-destructive">{{ errorMessage() }}</span>
@@ -153,7 +180,10 @@ type StepState = "idle" | "busy" | "done" | "error";
         </div>
         @if (variant(); as currentVariant) {
           <p class="text-sm text-muted-foreground">
-            Variant status: <volt-badge variant="secondary">{{ currentVariant.status }}</volt-badge>
+            Variant status:
+            <volt-badge variant="secondary">{{
+              currentVariant.status
+            }}</volt-badge>
             @if (jobStatus()) {
               &middot; job: <code>{{ jobStatus() }}</code>
             }
@@ -166,10 +196,14 @@ type StepState = "idle" | "busy" | "done" | "error";
       <section class="flex flex-col gap-3">
         <h2 class="text-lg font-semibold text-foreground">4. Delivery</h2>
         @if (originalUrl(); as url) {
-          <p class="break-all text-sm text-muted-foreground">Original: <code>{{ url }}</code></p>
+          <p class="break-all text-sm text-muted-foreground">
+            Original: <code>{{ url }}</code>
+          </p>
         }
         @if (presetDeliveryUrl(); as url) {
-          <p class="break-all text-sm text-muted-foreground">Preset: <code>{{ url }}</code></p>
+          <p class="break-all text-sm text-muted-foreground">
+            Preset: <code>{{ url }}</code>
+          </p>
         }
 
         @if (asset(); as currentAsset) {
@@ -195,10 +229,16 @@ type StepState = "idle" | "busy" | "done" | "error";
       <section class="flex flex-col gap-3">
         <h2 class="text-lg font-semibold text-foreground">5. Snippets</h2>
         @if (htmlSnippet(); as snippet) {
-          <pre class="overflow-x-auto rounded-md border border-border bg-card p-3 text-xs">{{ snippet }}</pre>
+          <pre
+            class="overflow-x-auto rounded-md border border-border bg-card p-3 text-xs"
+            >{{ snippet }}</pre
+          >
         }
         @if (angularSnippet(); as snippet) {
-          <pre class="overflow-x-auto rounded-md border border-border bg-card p-3 text-xs">{{ snippet }}</pre>
+          <pre
+            class="overflow-x-auto rounded-md border border-border bg-card p-3 text-xs"
+            >{{ snippet }}</pre
+          >
         }
       </section>
     </div>
@@ -227,7 +267,10 @@ export default class DevFlowPage {
   protected readonly jobStatus = signal<string | null>(null);
 
   protected readonly canUpload = computed(
-    () => !!this.selectedProjectId() && !!this.selectedFile() && this.uploadState() !== "busy",
+    () =>
+      !!this.selectedProjectId() &&
+      !!this.selectedFile() &&
+      this.uploadState() !== "busy",
   );
   protected readonly canGenerateVariant = computed(
     () =>
@@ -239,21 +282,30 @@ export default class DevFlowPage {
 
   protected readonly readyPresetSlug = computed(() => {
     const currentVariant = this.variant();
-    const preset = this.presets().find((p) => p.id === currentVariant?.presetId);
+    const preset = this.presets().find(
+      (p) => p.id === currentVariant?.presetId,
+    );
     return currentVariant?.status === "ready" ? (preset?.slug ?? null) : null;
   });
 
   protected readonly originalUrl = computed(() => {
     const currentAsset = this.asset();
     if (!currentAsset?.project) return null;
-    return this.client.delivery.originalUrl(currentAsset.project.slug, currentAsset.path);
+    return this.client.delivery.originalUrl(
+      currentAsset.project.slug,
+      currentAsset.path,
+    );
   });
 
   protected readonly presetDeliveryUrl = computed(() => {
     const currentAsset = this.asset();
     const presetSlug = this.readyPresetSlug();
     if (!currentAsset?.project || !presetSlug) return null;
-    return this.client.delivery.presetUrl(currentAsset.project.slug, currentAsset.path, presetSlug);
+    return this.client.delivery.presetUrl(
+      currentAsset.project.slug,
+      currentAsset.path,
+      presetSlug,
+    );
   });
 
   protected readonly htmlSnippet = computed(() => {
@@ -309,7 +361,9 @@ export default class DevFlowPage {
         this.client.presets.list(projectId),
       ]);
       this.folders.set(folderResponse.items);
-      this.presets.set(presetResponse.items.filter((preset) => !preset.isSystem || true));
+      this.presets.set(
+        presetResponse.items.filter((preset) => !preset.isSystem || true),
+      );
     } catch (error) {
       this.errorMessage.set(describeError(error));
     }
@@ -364,7 +418,10 @@ export default class DevFlowPage {
       try {
         const details = await this.client.assets.get(assetId);
         this.asset.set(details);
-        if (details.processingStatus === "ready" || details.processingStatus === "failed") {
+        if (
+          details.processingStatus === "ready" ||
+          details.processingStatus === "failed"
+        ) {
           return;
         }
       } catch (error) {
@@ -382,12 +439,17 @@ export default class DevFlowPage {
     this.variantState.set("busy");
     this.errorMessage.set(null);
     try {
-      const result = await this.client.variants.generate(currentAsset.id, { presetId });
+      const result = await this.client.variants.generate(currentAsset.id, {
+        presetId,
+      });
       this.variant.set(result.variant);
       this.jobStatus.set(result.status);
       this.variantState.set("done");
       if (result.processingJobId) {
-        void this.pollJobUntilSettled(result.processingJobId, result.variant.id);
+        void this.pollJobUntilSettled(
+          result.processingJobId,
+          result.variant.id,
+        );
       }
     } catch (error) {
       this.variantState.set("error");
@@ -395,7 +457,10 @@ export default class DevFlowPage {
     }
   }
 
-  private async pollJobUntilSettled(jobId: string, variantId: string): Promise<void> {
+  private async pollJobUntilSettled(
+    jobId: string,
+    variantId: string,
+  ): Promise<void> {
     const start = Date.now();
     while (Date.now() - start < POLL_TIMEOUT_MS) {
       await sleep(POLL_INTERVAL_MS);

@@ -12,6 +12,9 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "test": "vitest run",
+    "test:e2e": "pnpm --filter @imageryx/api-worker run db:migrate:e2e && playwright test",
+    "test:e2e:ui": "pnpm --filter @imageryx/api-worker run db:migrate:e2e && playwright test --ui",
+    "e2e:install": "playwright install --with-deps chromium",
     "deploy": "wrangler pages deploy dist/client --project-name imageryx-dashboard --branch main"
   },
   "dependencies": {
@@ -26,13 +29,13 @@
     "@imageryx/contracts": "workspace:*",
     "@imageryx/providers": "workspace:*",
     "@imageryx/sdk": "workspace:*",
+    "@voltui/components": "^0.7.0",
     "angular-movement": "^0.5.0",
     "h3": "^1.15.11",
     "lumen-icons": "^0.2.0",
     "quartz-headless": "^0.0.3",
     "rxjs": "^7.8.2",
-    "tslib": "^2.8.1",
-    "@voltui/components": "^0.7.0"
+    "tslib": "^2.8.1"
   },
   "devDependencies": {
     "@analogjs/platform": "^2.6.4",
@@ -42,8 +45,11 @@
     "@angular/compiler": "^21.2.0",
     "@angular/compiler-cli": "^21.2.0",
     "@imageryx/eslint-config": "workspace:*",
+    "@imageryx/test-utils": "workspace:^",
     "@imageryx/typescript-config": "workspace:*",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
+    "jsdom": "^30.0.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.2",
     "vite": "^7.3.6",

@@ -24,6 +24,9 @@ build
 # Wrangler / Cloudflare
 .wrangler
 .wrangler-state
+# Disposable E2E state — namespaced away from .wrangler-state so an E2E run can never
+# upload into or delete from the database `pnpm dev` is using.
+.wrangler-state-e2e
 .dev.vars
 worker-configuration.d.ts
 

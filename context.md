@@ -41,8 +41,29 @@ component, and a `/dev-flow` dashboard page that exercises the whole
 pipeline through a server-side proxy. The full upload → processing →
 variant → delivery flow works locally with zero Cloudflare or Cloudinary
 credentials — see "Phase 3 decisions and limitations" below for exactly
-how, and for what's still simulated or deferred. Do not start Phase 4 work
-without re-reading ROADMAP.md and the Phase 3 implementation report first.
+how, and for what's still simulated or deferred.
+
+**Phase 4A — Dashboard Foundation, complete.** `/library` and `/projects`
+are real, functional pages backed by `@imageryx/sdk`; the topbar's project
+switcher, asset search and upload button are no longer placeholders; the
+dashboard has a shared data layer, real Angular component tests, and a
+Playwright end-to-end suite (`pnpm test:e2e`) that drives a browser
+against a real api-worker, D1 and R2. Two pre-existing bugs were found and
+fixed doing it — see "Phase 4A decisions and limitations" below.
+
+**Phase 4B — Asset Workspace, Presets, Processing, API & Settings,
+complete.** Every route the dashboard promised in Phase 4A's placeholders
+is now real: the full asset workspace at `/library/:assetId`, the preset
+editor at `/presets/new` and `/presets/:presetId`, the processing dashboard
+and job detail at `/processing` and `/processing/:jobId`, the live API
+reference at `/api`, and the read-only settings report at `/settings`. A
+production-blocking bug was found and fixed doing it — the dashboard's
+own file-based router silently swallows a dynamic detail route whenever a
+list page and its detail folder share a name (`library.page.ts` next to
+`library/[assetId].page.ts`), and a second, independent bug where the
+`/api` _page_ route collided with the dev-only `/api` _proxy_ prefix. Both
+are required reading — see "Phase 4B decisions and limitations" below —
+before adding any further nested route.
 
 ## Phase 2 decisions and limitations
 
@@ -303,7 +324,7 @@ Workers can ever construct a `LocalStorageProvider`. Instead:
   `STORAGE_PROVIDER=r2` — `R2StorageProvider` (already real as of Phase 2,
   just never wired into a Worker) is the actual runtime storage layer now.
 - Locally, this R2 bucket is entirely simulated by Miniflare — `wrangler
-  dev`'s default (non-`--remote`) mode provisions it automatically, the
+dev`'s default (non-`--remote`) mode provisions it automatically, the
   same zero-credential mechanism that already backed local D1. No
   Cloudflare account is needed for any command in this phase.
 - `packages/database/scripts/seed.ts` now constructs an `R2StorageProvider`
@@ -312,7 +333,7 @@ Workers can ever construct a `LocalStorageProvider`. Instead:
   reads from, not a separate filesystem copy.
 - `LocalStorageProvider` still exists, is still real, and is still used by
   its own package tests and by `@imageryx/providers/node`'s Node-only
-  registry — it's just no longer part of the local *dev* storage path.
+  registry — it's just no longer part of the local _dev_ storage path.
 
 ### Sharing local D1 + R2 + Queue state across three separate `wrangler dev` processes
 
@@ -347,7 +368,7 @@ decides how a job gets run after being persisted:
   enqueue call, not "expensive processing"; this lets a publish failure be
   detected and reported in the same response (see "Upload consistency"
   below).
-- `inline-local`: runs `runJobUntilSettled` — the *exact* function the
+- `inline-local`: runs `runJobUntilSettled` — the _exact_ function the
   real Queue consumer calls — inside `c.executionCtx.waitUntil(...)`, so
   the actual job work (metadata inspection, mock transform) never blocks
   the HTTP response, but no real Queue message is ever sent. Exists for
@@ -363,7 +384,7 @@ explicit `ProcessingEnvBindings` interface, not the ambient `Env` global —
 each Worker's own generated `Env` (from its own `worker-configuration.d.ts`)
 is a separate ambient declaration only visible within that Worker's own
 tsconfig program, so a bare `Env` parameter type would silently resolve to
-the *caller's* ambient type instead of failing loudly across packages.
+the _caller's_ ambient type instead of failing loudly across packages.
 
 ### Central auth, error handling, request IDs
 
@@ -372,7 +393,7 @@ the *caller's* ambient type instead of failing loudly across packages.
   `env.IMAGERYX_API_KEY` via `@imageryx/image-core`'s new
   `constantTimeEqual` (byte-by-byte XOR accumulator, no early return).
   `/health` and `/v1/info` are the only unauthenticated routes in api-worker
-  (`/v1/info` is inside `/v1/*` and *is* now protected — see "Dashboard dev
+  (`/v1/info` is inside `/v1/*` and _is_ now protected — see "Dashboard dev
   proxy" below for how the Overview page still reaches it).
 - `apps/api-worker/src/middleware/error-handler.ts` is the single place
   every thrown error becomes the shared `ApiError` envelope:
@@ -394,11 +415,10 @@ dependency-injected function (`uploadAsset(deps, input)`) — not tied to
 Hono — called by both the real HTTP route and the backend integration
 test directly. Order: validate project → validate folder (same project) →
 enforce `MAX_UPLOAD_SIZE_MB` → `validateImageAsset` (claimed MIME +
-extension + magic bytes, from `@imageryx/image-core`, unchanged from Phase
-2) → `normalizeFilename` → checksum → duplicate-checksum lookup
+extension + magic bytes, from `@imageryx/image-core`, unchanged from Phase 2) → `normalizeFilename` → checksum → duplicate-checksum lookup
 (non-blocking, returned as `duplicateCandidates`) → free-path search
 (numeric suffix loop, bounded at 1000 attempts) → generate the asset ID
-*before* building its storage key → `storage.put` → `AssetPersistenceService.createAssetWithActivity`
+_before_ building its storage key → `storage.put` → `AssetPersistenceService.createAssetWithActivity`
 (now accepts a pre-generated `id` and an `event`/`metadata` override — a
 small, backward-compatible extension) → optional tag association →
 `inspect-metadata` job created. The route layer then dispatches the job
@@ -408,7 +428,7 @@ Consistency, matching the phase's explicit requirements:
 
 - **Storage succeeds, DB insert fails:** the service catches the DB error,
   attempts `storage.delete(key)`, logs a cleanup failure separately if
-  *that* also fails, then rethrows the original error (translated by the
+  _that_ also fails, then rethrows the original error (translated by the
   central error handler, never masked by the cleanup attempt).
 - **DB insert succeeds, Queue publish fails:** the asset and job rows are
   already committed; the response's `processingDispatch: { mode, dispatched }`
@@ -445,7 +465,7 @@ deterministic, neither a real sample of the image's pixels.
 `MOCK_CAPABILITIES.supportsPersistentOutput` was `false` in Phase 2
 (accurate then — the mock provider only returned a fabricated
 `/preview-placeholder` URL, never wrote anything). Phase 3's
-`generate-variant` handler *does* now persist real bytes when
+`generate-variant` handler _does_ now persist real bytes when
 `persist: true`, so the capability flag was stale and made
 `selectTransformationProvider` reject every persistent variant request
 with `unsupported_operation` — caught by testing the real upload → variant
@@ -524,7 +544,7 @@ Phase 3 treats "private" as the complete answer for anything that isn't
 plainly public: the normal path-based delivery route always returns a
 generic 404 for both private and soft-deleted assets (`resolveDelivery`
 never distinguishes "exists but private/deleted" from "never existed" in
-its response), and the *only* way to fetch a private original or a
+its response), and the _only_ way to fetch a private original or a
 not-yet-public asset is a signed `/download/:token` link. 404 (not 410) is
 used uniformly for deleted assets too, for the same non-disclosure reason.
 
@@ -537,7 +557,7 @@ and `delivery-worker` (verifies) via the same package, so the two can never
 drift on token format. Payload: `{ assetId, variant: "original" | variantId,
 exp, nonce }` — no secrets inside the token itself. Verification always
 checks the HMAC signature (via `crypto.subtle.verify`, itself
-constant-time) before trusting *any* payload field, including `exp`, and
+constant-time) before trusting _any_ payload field, including `exp`, and
 distinguishes "malformed/bad signature" (400) from "validly-signed but
 expired" (410) from "asset not found/deleted" or "downloads disabled for
 this asset" (404) — `apps/delivery-worker/src/lib/signed-download.ts`
@@ -596,7 +616,7 @@ beyond a structured error log. The development dashboard never sends
 ### Unimplemented processing-job types
 
 Only `inspect-metadata` and `generate-variant` have real handlers.
-`extract-placeholder` (as a *standalone* job — placeholder generation is
+`extract-placeholder` (as a _standalone_ job — placeholder generation is
 folded into `inspect-metadata`, see above), `strip-metadata`,
 `copy-provider-result`, `delete-object`, and `batch-operation` all throw a
 classified, non-retryable `UnsupportedJobTypeError` if ever dispatched —
@@ -626,7 +646,7 @@ elsewhere in this phase.
   this workspace) needed two non-obvious files the framework silently
   degrades without: a `tsconfig.spec.json` (its absence produced a
   logged-but-easy-to-miss "Unable to resolve tsconfig… causes compilation
-  issues" warning, and *silently* compiled decorators as inert no-ops,
+  issues" warning, and _silently_ compiled decorators as inert no-ops,
   producing the confusing runtime error `NG0303: ... input()` on a field
   that plainly used `input()`) and `tslib` as a real dependency (once
   decorator compilation actually ran). If a future package's Angular tests
@@ -641,7 +661,7 @@ build (`vite build`, via `@analogjs/platform`'s `analog()` plugin) failed with `
 is not exported by "../../packages/sdk/src/index.ts"` even though the export is plainly there.
 Root cause, confirmed by instrumenting a debug Vite plugin to print each file's post-transform
 content: `@analogjs/vite-plugin-angular`'s TypeScript/Angular compiler (`fileEmitter`) intercepts
-*every* `.ts` file reachable in the module graph, including workspace packages resolved through
+_every_ `.ts` file reachable in the module graph, including workspace packages resolved through
 pnpm's symlinks — not just `apps/dashboard/src/**`. For pure re-export barrel files with no
 Angular decorators (`@imageryx/sdk`'s and `@imageryx/angular`'s `src/index.ts` — both just
 `export { ... } from "./x"` lines), its production-build emit path returns **empty content**
@@ -674,25 +694,34 @@ Anyone adding a new workspace package dependency to `apps/dashboard` should run 
 
 ### Dashboard dev-only proxy and `/dev-flow`
 
-`apps/dashboard/src/server/routes/api/[...path].ts` is an h3/Nitro server
-route (Analog's dev-server middleware serves it under `/api/*` — confirmed
-by `vite`'s own startup log, "The server endpoints are accessible under
-the '/api' path") that forwards to `api-worker`, injecting
-`Authorization: Bearer ${process.env.IMAGERYX_API_KEY || "imgx_dev_local"}`
-server-side. This is the chosen "local development proxy" strategy from
-the phase spec's three options. The browser never holds the key: `IMAGERYX_CLIENT`
-(`apps/dashboard/src/app/core/sdk/imageryx-client.token.ts`) configures
-the SDK with `baseUrl: "/api"` and no `apiKey`. `HealthService.loadInfo()`
-was moved from calling `env.apiUrl` directly to the same relative
-`/api/v1/info` path, since `/v1/info` is inside `/v1/*` and is now
-auth-protected — verified manually: `curl localhost:5173/api/v1/info` with
-*no* Authorization header returns a real 200 from api-worker. `/health` on
-each Worker is unchanged (outside `/v1/*`, never required auth, still
-called directly). This proxy is confirmed working under `pnpm dev`
-(Vite's dev middleware); it is **not** verified to run in this dashboard's
-current production deployment (`ssr: false`, `wrangler pages deploy
-dist/client` — a static-only SPA build), since `/dev-flow` and this proxy
-are explicitly dev-only per the phase spec.
+`apps/dashboard/src/server/routes/proxy/[...path].ts` is an h3/Nitro
+server route that forwards to `api-worker`, injecting `Authorization:
+Bearer ${process.env.IMAGERYX_API_KEY || "imgx_dev_local"}` server-side.
+This is the chosen "local development proxy" strategy from the phase
+spec's three options. The browser never holds the key: `IMAGERYX_CLIENT`
+(`apps/dashboard/src/app/core/sdk/imageryx-client.token.ts`) configures the
+SDK with `baseUrl: "/proxy"` and no `apiKey`. `HealthService.loadInfo()`
+calls the same relative `/proxy/v1/info` path, since `/v1/info` is inside
+`/v1/*` and is auth-protected — verified manually: `curl
+localhost:5173/proxy/v1/info` with _no_ Authorization header returns a
+real 200 from api-worker. `/health` on each Worker is unchanged (outside
+`/v1/*`, never required auth, still called directly).
+
+**Mounted at `/proxy`, not `/api`, since Phase 4B.** Originally this lived
+at `/api` — the natural name, and what the phase-spec text above
+originally verified — until Phase 4B added an Angular _page_ route at
+`/api` (the developer reference) and the two collided: Analog's dev
+middleware gates its entire Nitro server behind one `apiPrefix` (default
+`"api"`), so a direct load of `/api` never reached the SPA at all. See
+"Phase 4B decisions and limitations" below for the full mechanism; the
+short version is `vite.config.ts`'s `analog({ apiPrefix: "proxy" })` plus
+renaming the route directory to match.
+
+This proxy is confirmed working under `pnpm dev` (Vite's dev middleware);
+it is **not** verified to run in this dashboard's current production
+deployment (`ssr: false`, `wrangler pages deploy dist/client` — a
+static-only SPA build), since `/dev-flow` and this proxy are explicitly
+dev-only per the phase spec.
 
 `/dev-flow` (`apps/dashboard/src/app/pages/dev-flow.page.ts`) drives the
 real pipeline through the real SDK: project/folder selection, file
@@ -719,10 +748,9 @@ spinning up three real network servers or configuring
 workers. This was a deliberate scope decision: the auxiliary-worker
 topology adds real config complexity for equivalent coverage of the
 actual business logic, which is what this test exists to exercise. **Must
-never live inside `apps/api-worker/test/**` matched by the default
-`vitest.config.ts`** — that pool is workerd-based and cannot run
-Node-only code (Miniflare itself); `vitest.config.ts` now explicitly
-excludes `test/integration/**`. (This exact mismatch caused a `workerd`
+never live inside `apps/api-worker/test/**`matched by the default`vitest.config.ts`** — that pool is workerd-based and cannot run
+Node-only code (Miniflare itself); `vitest.config.ts`now explicitly
+excludes`test/integration/\*\*`. (This exact mismatch caused a `workerd`
 segfault-on-exit with an exit code of 1 despite every individual test
 passing, found during verification — a reminder that a passing test count
 doesn't guarantee a passing process exit code.)
@@ -767,6 +795,400 @@ server. Phase 4 ("Complete Dashboard") should:
    `--persist-to` state, the binary visibility model, and the Delivery
    Worker route design are all load-bearing for what Phase 4 builds on top.
 
+## Phase 4A decisions and limitations
+
+Read this before writing Phase 4B code that touches `apps/dashboard` —
+several choices here are load-bearing for the asset workspace, and two
+entries record real bugs whose root causes will bite again if forgotten.
+
+### Two pre-existing bugs found by actually running the thing
+
+Both were invisible to `pnpm lint`, `pnpm typecheck`, `pnpm test` and
+`pnpm build`, and both were found only by driving a real browser.
+
+- **`@imageryx/sdk` could not accept a relative `baseUrl` — so no dashboard
+  API call had ever worked.** `HttpClient` built its URL with
+  `new URL(path, `${baseUrl}/`)`, and the dashboard configures
+  `baseUrl: "/api"` (the same-origin proxy pattern that keeps the API key
+  out of browser code). The WHATWG URL parser requires an **absolute**
+  base, so `new URL("v1/projects", "/api/")` throws `Invalid URL` in every
+  runtime. This threw before any request was sent, which means Phase 3's
+  `/dev-flow` page has been non-functional in a browser since it shipped,
+  despite context.md recording it as manually verified. Fixed by
+  `packages/sdk/src/request-url.ts`: a relative base is resolved against
+  `globalThis.location.origin`, and outside a browser it throws a named
+  `ImageryxValidationError` rather than silently defaulting to some
+  placeholder host. Every SDK test previously used an absolute base, which
+  is exactly why no test caught it — `request-url.spec.ts` now covers both.
+- **Notifications rendered nothing.** The first implementation used Quartz
+  Headless' `ToastService` with its queue rendered by a Volt-styled host.
+  Verified in a browser: after two real actions the service's `toasts()`
+  signal held two entries while the rendering component's `@for` stayed
+  empty — the queue and the view were simply not connected under this
+  app's zoneless change detection (both sides resolve the same
+  `quartz-headless` and the same `@angular/core`, so it is not module
+  duplication). Separately, `<volt-toast>` requires an `NgpToastOptions`
+  provider supplied by a surrounding ng-primitives toaster and throws
+  NG0201 without one — so even a working queue would have crashed on first
+  render. Replaced by a dashboard-owned `NotificationService` +
+  `ToastHost` built from Volt's _theme tokens_ rather than its toast
+  component. This is a deliberate, documented narrowing of the
+  "Quartz owns behaviour" rule in "UI responsibility boundaries" below;
+  Quartz's `DialogService` is still what backs every modal.
+
+The general lesson, and the reason the Playwright suite now exists: this
+dashboard's failure modes are overwhelmingly _runtime_ ones that a type
+checker and a jsdom test cannot see.
+
+### The URL is the library's state, not a copy of it
+
+`apps/dashboard/src/app/core/library/asset-query.ts` defines one
+serializable `AssetQuery` covering search, folder, tag, status,
+visibility, deleted-state, sort, paging and view mode, plus pure
+`parseAssetQuery` / `toUrlParams` / `toListParams` functions. The library
+page **reads** its query from `ActivatedRoute.queryParamMap` and **writes**
+changes by navigating — never by mutating local state and syncing the URL
+afterwards. Consequences worth preserving in 4B:
+
+- A filtered view is a shareable link, survives reload, and works with the
+  Back button, with no second copy of state to drift.
+- `toUrlParams` emits only non-default values, so a pristine `/library`
+  has a clean URL.
+- `folderId` distinguishes three states — `null` (no folder filter), `""`
+  (root-level assets only) and an id — and the empty string must survive
+  the round trip. The filter `<select>` uses a sentinel `"__any"` value
+  because an HTML option value cannot represent `null` distinctly from
+  `""`.
+- `applyQueryChange` resets to page 1 for every change _except_ a pure
+  page change, so narrowing a filter on page 5 never lands on an empty
+  page that looks like "no results".
+
+### Thumbnails: why the list endpoint gained `readyPresetSlugs`
+
+A preset delivery URL resolves only once its variant is `ready` — the
+delivery worker never generates on demand — and private or soft-deleted
+assets always 404 by design without distinguishing themselves. A grid that
+guessed would therefore fire one failed request per tile per render. So
+`GET /v1/assets` now returns `readyPresetSlugs` per asset (backed by a new
+bulk join, `VariantRepository.listReadyPresetSlugsByAssetIds`), and
+`ui/asset-thumbnail.ts` uses it to decide whether a real thumbnail exists
+at all. Until one does, the tile paints the asset's own
+checksum-derived `placeholder` data URI — zero network, and honest, since
+it is explicitly not a sample of the image. **The original is never used
+as a thumbnail fallback**: downloading a full-resolution source to paint a
+200px tile is the single worst thing an asset grid can do, and Phase 4B's
+preview workspace should keep that rule.
+
+### Uploads: sequential, with per-asset scoped polling
+
+`core/uploads/upload.service.ts` uploads files one at a time (each is a
+full multipart body; ten at once at a local Worker produces contention,
+not throughput) and then polls **that asset by id** until it leaves
+pending/processing. It does not re-list the library on a timer — that
+would generate traffic proportional to library size rather than to what
+changed. Polling stops on a terminal status, on a bounded timeout, and
+while the tab is hidden. A settled upload bumps a counter the library
+page reacts to, giving exactly one refetch per upload. Phase 4B's variant
+generation should follow the same shape.
+
+### Angular component tests, and stubbing at the `fetch` boundary
+
+`apps/dashboard/vitest.config.ts` now runs `@analogjs/vite-plugin-angular`
+with jsdom, matching `packages/angular`'s setup (whose documented pitfalls
+— `tsconfig.spec.json` and `tslib` both being required, or decorators
+silently compiling to inert no-ops with a confusing NG0303 — apply here
+too). Tests stub `fetch` and build a **real** `ImageryxClient` over it
+(`src/app/testing/stub-client.ts`) rather than replacing resource objects,
+so every component test exercises the actual SDK's URL building, query
+serialization, FormData upload and error normalization. A route the fake
+does not implement 404s loudly, so a path typo fails a test instead of
+quietly rendering an empty page.
+
+`src/app/testing/render.ts`'s `settle()` alternates a macrotask yield with
+change detection: a page load here is several _independent_ promise chains
+(projects → folders/tags → a signal effect → assets), and `whenStable()`
+alone returns before the later links have started.
+
+### Playwright: isolated ports, isolated state, inline processing
+
+`apps/dashboard/playwright.config.ts` runs on ports 5273/8887 against
+`--persist-to ../../.wrangler-state-e2e`, deliberately _not_ the dev
+ports or `.wrangler-state`: the suite uploads and deletes, and doing that
+to the database `pnpm dev` is using would destroy real local work. It boots
+api-worker with `PROCESSING_MODE=inline-local`, which runs the same job
+handler inside `waitUntil` (see "PROCESSING_MODE" above) — still real, still
+off the request path, but without depending on Queue delivery timing across
+a third process. delivery-worker is not booted because nothing in the 4A
+flow reads bytes back. `pnpm test:e2e` applies migrations first; browsers
+install via `pnpm e2e:install`.
+
+### Deliberate scope limits
+
+- **Asset cards are not links.** `/library/:assetId` is Phase 4B, and a
+  card that navigated nowhere would be exactly the
+  "unfinished-but-functional-looking control" this repo avoids. Every
+  control on a card does something real today.
+- **Tag rename/delete is not exposed**, though the API supports both:
+  either would need the UI to state what happens to the assets carrying
+  that tag, which belongs with the asset workspace.
+- **Project slug is read-only when editing.** The API has no slug-update
+  path, and a project slug appears in every public delivery URL for that
+  project.
+- **Client-side form validation is a deliberate subset** of the server's
+  rules (`pages/projects/project-form.ts`). It catches empty names and
+  malformed slugs before a round trip and leaves everything else —
+  uniqueness above all, which no client can know — to the API, whose
+  conflict message is surfaced verbatim. Duplicating the full rule set
+  would guarantee the two drift.
+- **`cascade=true` is never sent.** A project holding assets is refused
+  with a 409, and that refusal is reported rather than retried with the
+  destructive flag — see `pages/projects.page.ts`.
+
+### Exact starting point for Phase 4B
+
+The foundation Phase 4B needs is in place and tested: a selected-project
+context every route can read, normalized error rendering, an async store
+that already handles first-load/refresh/superseded-response correctly, the
+shared UI primitives (`ui/`), a working modal controller, notifications
+that actually render, and both a component-test harness and an E2E harness
+to extend. Phase 4B should:
+
+1. Build `/library/:assetId` first — it is the largest single piece and
+   everything else in 4B (presets, processing) is more useful once an
+   asset workspace exists to link into. Make the library's asset cards
+   link to it in the same change, so the "cards are not links" limitation
+   above disappears rather than lingering.
+2. Reuse `AsyncStore`, `describeApiError`, `ErrorState`, `EmptyState` and
+   `LoadingGrid` rather than re-solving loading/error rendering per panel.
+3. Model variant-generation polling on `UploadService.waitUntilSettled` —
+   scoped to one variant or job, terminal-state exit, tab-hidden pause.
+4. Decide whether `ProcessingJobRepository.list()` needs real SQL
+   pagination before the `/processing` view ships (still open from Phase
+   3 — see "Stats and processing-job listing" above).
+5. Revisit the project/folder/preset activity gap (still log-only) if the
+   asset workspace's activity timeline needs more than asset-scoped rows.
+6. Do **not** re-litigate the decisions above without reading them — the
+   URL-as-state model, the no-original-as-thumbnail rule, and the
+   fetch-boundary test stub are what the rest of the dashboard is built on.
+
+## Phase 4B decisions and limitations
+
+Read this before adding another dynamic route to the dashboard — the first
+entry below is a routing pitfall that silently breaks a page while every
+automated check stays green, and it will recur for any future
+`<name>.page.ts` + `<name>/[param].page.ts` pair.
+
+### Two bugs found by actually running the thing
+
+Both were invisible to `pnpm lint`, `pnpm typecheck`, `pnpm test` and
+`pnpm build` — including the dashboard's own component tests, which
+configure `provideRouter([...])` by hand and so never exercise Analog's
+real file-based route generation at all. Both were found only by driving a
+real browser against a real dev server, via the Playwright suite this
+phase's spec required.
+
+- **A list page and its detail folder sharing a name silently nests the
+  detail route as an unrenderable child.** `pages/library.page.ts` (the
+  list) sitting next to `pages/library/[assetId].page.ts` (the detail) is
+  the natural way to name these two routes — and it is wrong. Analog's
+  file router (`@analogjs/router`'s `createRoutes`) assigns every route
+  under a directory as a **child** of the route file that shares that
+  directory's name, when one exists. Concretely: `library.page.ts` becomes
+  `{ path: 'library', loadChildren: () => [{ path: '', component:
+LibraryPage, children: [...] }] }`, and `library/[assetId].page.ts` gets
+  pushed into that `children` array — a route with **both** `component`
+  and `children` in Angular Router, which only ever renders if that
+  component's own template contains a `<router-outlet>`. `LibraryPage`
+  doesn't have one (it's a leaf list view, not a layout), so navigating to
+  `/library/:id` updates the URL and matches the route successfully —
+  no console error, no failed request — while the DOM keeps showing
+  `LibraryPage`'s own content. The same shape hit `presets.page.ts` +
+  `presets/{new,[presetId]}.page.ts` and `processing.page.ts` +
+  `processing/[jobId].page.ts` — every list+detail pair this phase added.
+  **Fix:** delete the sibling file; move the list page itself into the
+  folder as `<name>/index.page.ts`. With no `<name>.page.ts` left, Analog
+  auto-generates a **component-less** synthetic parent for that segment
+  (`{ path: 'library', children: [...] }`, no `component`), and a
+  component-less route's children render into whichever `<router-outlet>`
+  the parent _would_ have used — the app root's — making the index route
+  and every dynamic sibling true, independently-rendering routes. (Analog
+  also strips the literal segment `index` from a route's own path, which
+  is what makes `library/index.page.ts` still resolve at exactly
+  `/library`, not `/library/index`.) Verified with a small standalone
+  reproduction script driving a real dev server before and after, for all
+  three routes, plus the full Playwright suite.
+- **The dashboard's own `/api` page collided with the `/api` dev-server
+  proxy prefix.** `apps/dashboard/src/server/routes/api/[...path].ts` (the
+  Bearer-key-injecting proxy — see "Dashboard dev-only proxy" above) and
+  the new `/api` Angular page both claimed the same path. Analog's Nitro
+  integration (`@analogjs/vite-plugin-nitro`) mounts its **entire** server
+  app under one Vite dev-middleware gate at `apiPrefix` (default `"api"`,
+  `viteServer.middlewares.use('/' + apiPrefix, nitroHandler)`) —
+  independent of the actual directory names under `src/server/routes/`.
+  A request for exactly `/api` (a direct load or a refresh, not a
+  client-side `routerLink` navigation, which never leaves the SPA) hits
+  that gate, gets forwarded into Nitro, and Nitro's own h3 router — which
+  requires a `[...path]` catch-all to have at least one path segment —
+  has nothing to match, so it renders its own dev error overlay
+  ("Cannot find any route matching /api") instead of ever reaching Vite's
+  SPA fallback. **Fix, two parts:** the proxy directory moved to
+  `src/server/routes/proxy/[...path].ts`, and `vite.config.ts`'s
+  `analog({...})` call now sets `apiPrefix: "proxy"` explicitly — the gate
+  and the file's own directory name must agree, renaming only the
+  directory (which I tried first) is not sufficient, since the gate never
+  moves off its default. `IMAGERYX_CLIENT`'s `baseUrl` and
+  `HealthService`'s direct `fetch("/proxy/v1/info")` call both follow.
+  Verified the same way: a bare `curl`/headless-browser request to `/api`
+  after the fix returns the real SPA shell, and `/proxy/v1/...` reaches
+  the real handler (confirmed via a deliberately-unreachable upstream
+  returning a real `{"message":"fetch failed"}` JSON body, not HTML).
+
+The general lesson repeats from Phase 4A: this dashboard's failure modes
+are overwhelmingly ones a type checker, a lint rule, or a jsdom test
+cannot see, because they live in the router's real, file-driven
+configuration — which nothing except an actual browser against an actual
+dev server ever exercises.
+
+### Asset cards now link to the workspace
+
+Phase 4A's "Deliberate scope limits" listed "asset cards are not links" as
+correct-at-the-time — `/library/:assetId` didn't exist yet, and a card
+that navigated nowhere would have been exactly the
+"unfinished-but-functional-looking control" this repo avoids. That
+limitation is gone: `AssetCard`'s thumbnail + title (and the table view's
+name cell) now wrap a real `[routerLink]="['/library', asset.id]"`, kept
+deliberately separate from the delete/restore/copy buttons so neither
+click handler fires the other. This was **not** caught until the E2E flow
+was written and run — every existing unit test clicked
+`getByTestId("asset-card")` (the whole `<article>`), which happened to
+still resolve to _something_ clickable even with no link present, so the
+gap was invisible until Playwright clicked the actual rendered link and
+found nowhere to go.
+
+### Activity refetch on variant settle
+
+`AssetWorkspaceService`'s scoped poll originally called a `refreshVariants`
+that fetched only `GET /v1/assets/:id/variants` once a job reached a
+terminal state — deliberately minimal, matching Phase 4A's "scoped, not a
+full reload" polling rule. The gap: `variant.requested` /
+`variant.processing` / `variant.ready` (or `processing.failed`) are
+exactly the activity-timeline entries a user generating a variant most
+wants to see, and none of them appeared until a manual refresh, since the
+Activity tab reads `AssetDetails.activity`, which that scoped refresh never
+touched. Found the same way as the two bugs above — the E2E flow's own
+activity-tab assertion, not a unit test. Fixed by renaming the method to
+`refreshVariantsAndActivity` and adding one more scoped call,
+`GET /v1/assets/:id/activity` (a real, already-existing SDK method) —
+still two small requests, not `client.assets.get()`'s full detail blob.
+
+### Preset editor: `effect()` must not read _and_ write the same signal
+
+`PresetEditor`'s constructor effect (`effect(() => { const id =
+presetId(); if (id) loadExisting(id); ... })`) originally called
+`loadExisting` un-wrapped. `loadExisting` calls `AsyncStore.load()`, whose
+synchronous prefix (everything before its own first `await`) both **reads**
+`state()` (to compute `hadData`) and **writes** `state` (to set the
+`"loading"` status) — and since JS doesn't suspend at a function call, only
+at an actual `await`, that whole prefix runs _inside_ the effect's tracked
+synchronous execution. The read makes the effect depend on `state`; the
+write immediately re-dirties that same dependency; Angular reruns the
+effect; the cycle repeats — a self-sustaining loop with no stack overflow
+(it's not recursion, each iteration is a fresh call) and no console output
+(nothing ever throws), that instead floods memory with pending fetches
+until the process runs out of heap. Vitest surfaced this as `Worker exited
+unexpectedly` with no preceding stack trace — the least informative
+possible symptom — and it took forcing `--pool=forks` to get V8's real
+`FATAL ERROR: Reached heap limit` report. Fixed the same way every other
+load-by-route-param effect in this codebase already does it (`[assetId]`
+page, `library` page, `presets` list page — all correct): wrap the call in
+`untracked(() => ...)`, so the effect only ever tracks `presetId()` itself.
+When writing a new `effect()` that loads data reactively, grep for
+`untracked` in an existing one first.
+
+### Provider compatibility panel reuses the real capability check
+
+The preset editor's compatibility panel calls
+`computeProviderCompatibility`, which constructs the actual
+`CloudflareImagesProvider` / `CloudinaryProvider` / `MockTransformationProvider`
+classes from `@imageryx/providers` and calls their real `.supports()` —
+the exact function production provider selection uses, not a
+dashboard-side reimplementation that could silently drift from it. A
+preset with an operation Cloudflare's real provider doesn't support is
+flagged as unsupported before the preset is ever saved, never silently
+allowed through.
+
+### Processing: scoped per-row polling, never a list-level timer
+
+`pollJobUntilTerminal` (`core/processing/job-poller.ts`) is the same
+job-scoped, tab-hidden-pausing, timeout-bounded primitive
+`AssetWorkspaceService` already used for variant generation, factored out
+so both the processing list (one instance per currently-visible
+non-terminal row, reconciled against whatever page/filter is loaded) and
+the job detail page (one instance for the one job shown) share it instead
+of two divergent copies. The list page never refetches `GET
+/v1/processing-jobs` on an interval — only the individual `GET
+/v1/processing-jobs/:id` calls for rows actually on screen, stopped the
+moment a row scrolls out via pagination/filtering or the job goes
+terminal. There is no `provider` filter on the processing list despite an
+earlier placeholder page mentioning one — `GET /v1/processing-jobs` has
+never accepted that query param, and adding UI for a filter the API
+silently ignores would violate this phase's own "no unsupported-operation
+UI" rule.
+
+### API reference page: masked key, live health, real generated examples
+
+`/api` reuses `HealthService` (root-provided, already backing the Overview
+page's health cards — a second, independent `fetch` boundary from the
+SDK's own, since it calls `/health` and `/proxy/v1/info` directly rather
+than through `ImageryxClient`) for live service status and
+`ServiceInfoResponse` (extended this phase with `deliveryUrl`,
+`uploadPolicy`, `processing`, and `apiKeyPrefix` — the first 8 characters
+of the real configured key plus a fixed mask, never the complete key). The
+cURL/SDK/Angular/HTML code examples are generated from the real SDK
+(`client.snippets.html/angular`, `buildSdkSnippet`,
+`buildCurlUploadSnippet`) against whichever project is currently selected
+plus that project's first real preset, if one exists — an illustrative
+asset path (`photos/hero.jpg`, called out in the UI as a placeholder to
+replace) is the one deliberately-fabricated value on the page, since no
+asset path is universal enough to hardcode and standard API-reference
+convention is to show one.
+
+### Settings is read-only — there is no mutation endpoint
+
+`/settings` reports the same live `ServiceInfoResponse` `/api` does
+(environment, storage/transformation provider, upload policy, processing
+config, all four domains) plus a static, accurate list of image formats
+`image-core`'s MIME sniff actually recognizes. Every section is a `<dl>`,
+never a form: there is no settings-mutation route anywhere in this API, so
+a form here would be exactly the "control that doesn't do anything" this
+phase's quality bar forbids. If Phase 5 adds real per-installation
+configuration, this is the page that gains save buttons — not before.
+
+### Exact starting point for Phase 5
+
+The dashboard is now feature-complete for a single-tenant, locally-run
+Imageryx installation — every route the original spec named is real,
+backed by the real SDK, with no placeholder screens left. Phase 5 is
+production hardening: real auth/teams/billing, a real transformation
+pipeline (or a real Cloudflare Images/Cloudinary network call) behind the
+mock, and everything in "Current limitations" (README.md) and "Deferred
+work" (below) that is still open. Concretely:
+
+1. **Before writing any new dynamic route**, re-read "Two bugs found by
+   actually running the thing" above. The `<name>/index.page.ts` +
+   `<name>/[param].page.ts` convention is now the only correct shape for a
+   list+detail pair in this app — never a same-named sibling file.
+2. Settings becomes a real settings page only once a mutation endpoint
+   exists to back it; don't add form controls speculatively.
+3. The processing list's missing `provider` filter, the five inert
+   processing-job types ("Unimplemented processing-job types" above), and
+   `ProcessingJobRepository.list()`'s in-memory pagination are all still
+   open from earlier phases and now have real UI depending on them.
+4. Every "simulated"/"masked"/"not yet implemented" label introduced this
+   phase is load-bearing honesty, not a placeholder to quietly remove —
+   removing one without the underlying capability becoming real would
+   reintroduce exactly the fake-success-state problem Phase 3 eliminated.
+
 ## Technology decisions
 
 - **Package manager / build:** pnpm workspaces + Turborepo. Node 22+.
@@ -795,10 +1217,14 @@ exists to be imported for other things later:
   (buttons, badges, avatar, separator, sidebar layout, theming). Owns
   what things _look like_.
 - **Quartz Headless** (`quartz-headless`) — unstyled behavioral
-  primitives. Phase 1 uses `ViewportService` only (collapsing the sidebar
-  at tablet widths). Its overlay/dialog/toast/tree/drag-drop primitives
-  are unused until a later phase needs them — don't wire them up
-  speculatively.
+  primitives. `ViewportService` (collapsing the sidebar at tablet widths)
+  and, as of Phase 4A, `DialogService` (backdrop, Escape and focus
+  containment for the upload and project dialogs — wrapped by
+  `ui/modal.ts`, which adds focus restoration and single-instance
+  guarding). Its `ToastService` was tried and **rejected** for concrete,
+  documented reasons — see "Phase 4A decisions and limitations"; toasts
+  are dashboard-owned. Its tree/drag-drop primitives remain unused; don't
+  wire them up speculatively.
 - **Angular Movement** (`angular-movement`) — animation directives.
   Phase 1 uses `moveEnter="fade"` on the app shell only, via
   `provideMovement()`. It already handles `prefers-reduced-motion`
@@ -837,11 +1263,14 @@ Tracked in each placeholder package's own README, but summarized here:
   providers into a real upload/delivery path yet.
 - `sdk` — no HTTP client.
 - `angular` — no `@angular/core` dependency, no directives/pipes yet.
-- Dashboard routes other than Overview — no functional controls, just a
-  static "Upcoming — Phase 4" notice.
-- `api-worker` — only diagnostic `GET` routes were added in Phase 2; still
-  no upload routes, no auth beyond the Phase 1 placeholder, no write paths
-  other than the local seed script.
+- Dashboard — every route named in the original spec is real as of Phase
+  4B (see "Phase 4B decisions and limitations" above); what's left is
+  Phase 5 scope (production auth, teams, billing, a real transformation
+  pipeline) plus the smaller open items that section's "Exact starting
+  point for Phase 5" lists.
+- `api-worker` — full `/v1/*` CRUD plus Bearer auth shipped in Phase 3;
+  what's deferred now is production-grade auth (a single shared static key
+  is Phase 3/4's explicit scope, not per-user credentials).
 - CI (`.github/workflows/ci.yml`) now deploys all five apps to Cloudflare
   on every push to `main`, gated behind the lint/typecheck/test/build
   job — see "Deployment" below. There is still no auth on any business
@@ -862,7 +1291,7 @@ Tracked in each placeholder package's own README, but summarized here:
 - All five apps deploy as independent, parallel GitHub Actions jobs (each
   `needs: check`), authenticating with the repo's `CLOUDFLARE_API_TOKEN` /
   `CLOUDFLARE_ACCOUNT_ID` secrets. Every app also has a `pnpm --filter
-  <name> run deploy` script for deploying manually from a local machine
+<name> run deploy` script for deploying manually from a local machine
   authenticated with `wrangler login`.
 
 ## Package compatibility notes

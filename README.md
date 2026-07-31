@@ -12,30 +12,47 @@ transformation platform: upload once, transform on request, and serve from
 the edge — without locking storage or transformation logic to a single
 vendor.
 
-## Status: Phase 3 — Functional Backend and Delivery Flow
+## Status: Phase 4B — Asset Workspace, Presets, Processing, API & Settings
 
 Phase 1 shipped the monorepo structure and local dev experience. Phase 2
 added the provider-independent image domain, a real D1 schema, and real
-local storage / mock transformation providers. **Phase 3** (current) wires
-all of that into a real, working vertical slice: create a project, upload
-an image through a real multipart route, watch it get inspected by a real
-Cloudflare Queue-driven `processing-worker`, request a preset variant
-(idempotent, mock-transformed), and fetch it back through `delivery-worker`
-at a stable public URL — plus a signed-download path for private assets, a
-Bearer-auth-protected `/v1/*` API, a working `@imageryx/sdk`, a real
-`<imgyx-image>` Angular component, and a minimal `/dev-flow` dashboard page
-that exercises the whole pipeline. **All of it runs locally with zero
-Cloudflare or Cloudinary credentials** — local storage is a
-Miniflare-simulated R2 bucket, local Queues are real Cloudflare Queues
-simulated the same way, and transformation is a deterministic mock that
-returns real (if simulated) image bytes.
+local storage / mock transformation providers. Phase 3 wired all of that
+into a real, working vertical slice: create a project, upload an image
+through a real multipart route, watch it get inspected by a real Cloudflare
+Queue-driven `processing-worker`, request a preset variant (idempotent,
+mock-transformed), and fetch it back through `delivery-worker` at a stable
+public URL — plus a signed-download path for private assets, a
+Bearer-auth-protected `/v1/*` API, a working `@imageryx/sdk` and a real
+`<imgyx-image>` Angular component. Phase 4A put the first real UI on top of
+it: `/library` browses, searches, filters, sorts and pages through your
+assets with soft delete/restore; `/projects` manages projects, folders and
+tags; the topbar's project switcher, asset search and multi-file upload
+dialog all work end to end.
 
-There is still **no polished library/asset-browsing UI, no
-production auth/teams/billing, and no real network calls to Cloudflare
-Images, Cloudinary, or an R2 bucket that isn't Miniflare-simulated** — see
-[ROADMAP.md](ROADMAP.md) for what's next and [context.md](context.md) for
-the full working context, including the specific decisions and known
-limitations from this phase.
+**Phase 4B** (current) fills in the rest of the dashboard. `/library/:assetId`
+is a full asset workspace — preview, real metadata, variant generation with
+scoped polling, before/after comparison (honestly labeled simulated),
+delivery snippets (HTML/responsive HTML/Angular/SDK), signed downloads
+created on click, a human-readable activity timeline, and settings with
+dirty-state tracking. `/presets` lists system and custom presets and
+`/presets/new` / `/presets/:presetId` share one real editor — resize, crop,
+output format, effects, a live provider-compatibility panel backed by the
+same `.supports()` capability check production uses, and a real
+preset-preview call. `/processing` lists every real processing job with
+per-row scoped polling and retry/cancel wired to the actual state-transition
+rules, and `/processing/:jobId` gives each job its own live detail page.
+`/api` is a live developer reference — real service health, a masked (never
+full) API key, and copyable cURL/SDK/Angular/HTML examples generated
+against whichever project is selected. `/settings` mirrors the same real,
+live configuration, entirely read-only (there is no settings-mutation
+endpoint yet). **All of it still runs locally with zero Cloudflare or
+Cloudinary credentials.**
+
+There is still **no production auth/teams/billing, and no real network
+calls to Cloudflare Images, Cloudinary, or an R2 bucket that isn't
+Miniflare-simulated** — see [ROADMAP.md](ROADMAP.md) for what's next and
+[context.md](context.md) for the full working context, including the
+specific decisions and known limitations from this phase.
 
 ## Stack
 
@@ -107,15 +124,24 @@ pnpm typecheck        # TypeScript project-reference typecheck across the worksp
 pnpm test             # Vitest (Node + Workers pools) across every app/package that has tests
 pnpm test:workers     # Just the @cloudflare/vitest-pool-workers suites (api/delivery/processing-worker)
 pnpm test:integration # The plain-Node backend integration test (real D1 + R2, no mocks)
+pnpm test:e2e         # Playwright: a real browser against a real api-worker, D1 and R2
+pnpm e2e:install      # One-time: download the Chromium build Playwright uses
 pnpm check            # lint + typecheck + test + build, in dependency order
 ```
 
-`pnpm test` and `pnpm check` do **not** include `test:integration` — that
-suite spins up its own ephemeral Miniflare D1/R2 pair (slower, and
-intentionally isolated from the workerd-based `vitest-pool-workers` suites
-that make up `pnpm test`; see context.md's "Backend integration test"
-note for why). Run it explicitly, or rely on CI, which runs it as its own
-step.
+`pnpm test` and `pnpm check` do **not** include `test:integration` or
+`test:e2e`. `test:integration` spins up its own ephemeral Miniflare D1/R2
+pair (slower, and intentionally isolated from the workerd-based
+`vitest-pool-workers` suites that make up `pnpm test`; see context.md's
+"Backend integration test" note for why). `test:e2e` boots real servers and
+a real browser. Run them explicitly, or rely on CI, which runs each as its
+own job.
+
+`pnpm test:e2e` needs no Cloudflare credentials. It applies migrations,
+then starts api-worker on port 8887 and the dashboard on 5273 against
+`.wrangler-state-e2e` — deliberately separate from the dev ports and from
+the `.wrangler-state` your `pnpm dev` session uses, so an E2E run can never
+upload into or delete from the database you are working in.
 
 Run a single app's dev server from the root (useful when you only need one
 piece running):
@@ -151,12 +177,17 @@ Every `/v1/*` route on `api-worker` requires `Authorization: Bearer
 unauthenticated by design — delivery is meant to be fetched directly by
 browsers/CDNs, never through a Bearer-token proxy.
 
-The dashboard's browser code **never holds this key**. `/dev-flow` and any
-future authenticated dashboard page call a same-origin server route
-(`apps/dashboard/src/server/routes/api/[...path].ts`, an Analog/Nitro h3
+The dashboard's browser code **never holds this key**. Every authenticated
+dashboard page calls a same-origin server route
+(`apps/dashboard/src/server/routes/proxy/[...path].ts`, an Analog/Nitro h3
 route) that injects the key server-side and forwards to `api-worker`. Point
-`@imageryx/sdk` at `/api` with no `apiKey` to use it — see context.md's
-"Dashboard dev-only proxy" note for the full request path.
+`@imageryx/sdk` at `/proxy` with no `apiKey` to use it; the SDK resolves a
+relative `baseUrl` against the current origin specifically to support this.
+Deliberately not `/api` — that's the dashboard's own API-reference _page_
+route, and Analog's dev middleware mounts the whole Nitro proxy under one
+configurable `apiPrefix` (`vite.config.ts`), so a same-named prefix would
+shadow the page on a direct load or refresh. See context.md's "Dashboard
+dev-only proxy" note for the full request path.
 
 ## API surface (`api-worker`, all under `/v1/*`, Bearer-auth required)
 
@@ -219,13 +250,13 @@ Issue a signed download token via `POST /v1/assets/:id/download-url`.
 Every app deploys to Cloudflare — `dashboard` and `web` as Pages projects,
 the three Workers as Cloudflare Workers:
 
-| App                | Deploys to                | Production URL                      |
-| ------------------ | -------------------------- | ------------------------------------ |
-| dashboard           | Cloudflare Pages           | https://imageryx-dashboard.pages.dev |
-| web                 | Cloudflare Pages           | https://imageryx-web.pages.dev       |
-| api-worker          | Cloudflare Workers         | `imageryx-api-worker` (Workers subdomain) |
-| delivery-worker     | Cloudflare Workers         | `imageryx-delivery-worker` (Workers subdomain) |
-| processing-worker   | Cloudflare Workers         | `imageryx-processing-worker` (Workers subdomain) |
+| App               | Deploys to         | Production URL                                   |
+| ----------------- | ------------------ | ------------------------------------------------ |
+| dashboard         | Cloudflare Pages   | https://imageryx-dashboard.pages.dev             |
+| web               | Cloudflare Pages   | https://imageryx-web.pages.dev                   |
+| api-worker        | Cloudflare Workers | `imageryx-api-worker` (Workers subdomain)        |
+| delivery-worker   | Cloudflare Workers | `imageryx-delivery-worker` (Workers subdomain)   |
+| processing-worker | Cloudflare Workers | `imageryx-processing-worker` (Workers subdomain) |
 
 `.github/workflows/ci.yml` runs a single `check` job (verify structure,
 lint, typecheck, test, build) on every push and pull request. On a push to
@@ -323,10 +354,14 @@ curl http://localhost:8787/v1/assets/<assetId> \
   -H "Authorization: Bearer imgx_dev_local"
 ```
 
-Or drive the same flow interactively from the dashboard's `/dev-flow` page
-(`pnpm dev:dashboard`, then http://localhost:5173/dev-flow) — no API key
-needed in the browser, since the dashboard proxies through its own
-server (see "Authentication" above).
+Or do it in the UI: `pnpm dev`, then http://localhost:5173/library — pick a
+project in the topbar, hit **Upload**, and watch the asset go from
+uploading to processing to ready. Open the asset to reach its full
+workspace (variants, delivery, download, activity). No API key is needed in
+the browser, since the dashboard proxies through its own server (see
+"Authentication" above). The dev-only `/dev-flow` page still exercises the
+same lower-level pipeline directly against the SDK, useful when iterating
+on the SDK itself rather than the dashboard UI.
 
 ## Diagnostic endpoints
 
@@ -386,32 +421,36 @@ Storage and transformation backends are selected by env var, validated by
 `@imageryx/providers`' Zod schema (`parseProviderConfig`) — an invalid or
 incomplete combination fails fast rather than at first use:
 
-| Var                                                                      | Local default    | Notes                                                                                                             |
-| ------------------------------------------------------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `STORAGE_PROVIDER`                                                       | `r2`              | `r2` is the only value any Worker uses locally — a real Miniflare-simulated R2 bucket, zero credentials required. `local` (filesystem) still exists for Node-only tooling/tests, not reachable from a Worker.  |
-| `TRANSFORMATION_PROVIDER`                                                | `mock`            | `mock` (real, deterministic, persists real simulated-image bytes), `cloudflare` or `cloudinary` (mapping-only — `transform()` always throws, reachable but inert unless explicitly configured with credentials) |
-| `ADVANCED_TRANSFORMATION_PROVIDER`                                       | unset             | Optional secondary provider (e.g. Cloudinary alongside a Cloudflare primary)                                       |
-| `PROCESSING_MODE`                                                        | `queue`           | `queue` (real Cloudflare Queue, locally simulated) or `inline-local` (runs the same job function inside `waitUntil`, no Queue message) — see context.md                                                          |
-| `DOWNLOAD_SIGNING_SECRET`                                                | dev-only default  | HMAC key for signed private-download tokens — must be a real secret in any non-local environment                                                                                                                 |
-| `LOCAL_STORAGE_PATH`                                                     | `.local/storage`  | Only read by Node-only tooling/tests now, never by a Worker                                                                                                                                                       |
-| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | unset             | Required only when Cloudinary is configured as either transformation provider                                                                                                                                    |
+| Var                                                                      | Local default    | Notes                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `STORAGE_PROVIDER`                                                       | `r2`             | `r2` is the only value any Worker uses locally — a real Miniflare-simulated R2 bucket, zero credentials required. `local` (filesystem) still exists for Node-only tooling/tests, not reachable from a Worker.   |
+| `TRANSFORMATION_PROVIDER`                                                | `mock`           | `mock` (real, deterministic, persists real simulated-image bytes), `cloudflare` or `cloudinary` (mapping-only — `transform()` always throws, reachable but inert unless explicitly configured with credentials) |
+| `ADVANCED_TRANSFORMATION_PROVIDER`                                       | unset            | Optional secondary provider (e.g. Cloudinary alongside a Cloudflare primary)                                                                                                                                    |
+| `PROCESSING_MODE`                                                        | `queue`          | `queue` (real Cloudflare Queue, locally simulated) or `inline-local` (runs the same job function inside `waitUntil`, no Queue message) — see context.md                                                         |
+| `DOWNLOAD_SIGNING_SECRET`                                                | dev-only default | HMAC key for signed private-download tokens — must be a real secret in any non-local environment                                                                                                                |
+| `LOCAL_STORAGE_PATH`                                                     | `.local/storage` | Only read by Node-only tooling/tests now, never by a Worker                                                                                                                                                     |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | unset            | Required only when Cloudinary is configured as either transformation provider                                                                                                                                   |
 
 ## Current limitations
 
-- No polished asset-library or project-management UI — the dashboard's
-  only interactive addition this phase is the dev-only `/dev-flow` page;
-  every other route beyond Overview is still a static "Upcoming" placeholder.
 - No real network calls to Cloudflare Images, Cloudinary, or a real
   (non-Miniflare) R2 bucket — `CloudflareImagesProvider`/`CloudinaryProvider`'s
   `transform()` always throws; only `MockTransformationProvider` performs
   real (simulated) transformation work, producing real SVG image bytes,
-  never fake JSON pretending to be an image.
+  never fake JSON pretending to be an image. Every "simulated" label in the
+  dashboard (variant badges, before/after comparison, preset preview)
+  reflects this real provider state, not a guess.
 - `@imageryx/image-core` still has no decode/resize/crop/encode pixel
-  pipeline for *real* transformation — variant generation is a real,
+  pipeline for _real_ transformation — variant generation is a real,
   visibly-labeled simulation, not a real resize.
 - AVIF dimension inspection is unimplemented (reports `null`/`null` with a
   warning, never a fabricated dimension) — every other supported format
   (PNG/JPEG/GIF/WebP/SVG) parses real header bytes.
+- Only `inspect-metadata` and `generate-variant` processing-job types have a
+  real handler; the other five types are reachable-but-inert (see
+  context.md's "Unimplemented processing-job types").
+- There is no settings-mutation endpoint — `/settings` is entirely
+  read-only, reporting the same live configuration `/api` does.
 - No production authentication/authorization, teams, or billing — a single
   shared static Bearer API key protects `/v1/*`, which is the phase's
   explicit scope; see [SECURITY.md](SECURITY.md).
@@ -419,16 +458,19 @@ incomplete combination fails fast rather than at first use:
   above); the deployed api-worker/delivery-worker still expect the same
   local-style single static API key — no per-user credentials exist yet.
 
-See context.md's "Phase 3 decisions and limitations" section for the
+See context.md's "Phase 3 decisions and limitations", "Phase 4A decisions
+and limitations", and "Phase 4B decisions and limitations" sections for the
 complete, detailed list (idempotency mechanism, delivery route ambiguity,
-visibility model, caching policy, and more).
+visibility model, caching policy, the URL-as-state library model, thumbnail
+strategy, the file-router static/dynamic sibling-route pitfall, and more).
 
 ## Roadmap summary
 
 Phase 1 repository foundation → Phase 2 domain, persistence & provider
-foundations → **Phase 3 functional backend & delivery flow (this repo)** →
-Phase 4 complete dashboard → Phase 5 production hardening & release. Full
-detail in [ROADMAP.md](ROADMAP.md).
+foundations → Phase 3 functional backend & delivery flow → Phase 4A
+dashboard foundation → **Phase 4B asset workspace & remaining routes (this
+repo)** → Phase 5 production hardening & release. Full detail in
+[ROADMAP.md](ROADMAP.md).
 
 ## Contributing
 

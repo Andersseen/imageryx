@@ -110,6 +110,36 @@ export class VariantRepository {
     return map;
   }
 
+  /**
+   * The preset slugs each asset already has a `ready` variant for, in one
+   * bulk join. Callers use this to decide which delivery URLs are safe to
+   * request: a preset URL only resolves once its variant is ready (the
+   * delivery worker never generates on demand), so requesting one without
+   * checking first would mean a speculative 404 per asset per grid render.
+   */
+  async listReadyPresetSlugsByAssetIds(
+    assetIds: readonly string[],
+  ): Promise<Map<string, string[]>> {
+    const map = new Map<string, string[]>();
+    if (assetIds.length === 0) return map;
+    const placeholders = assetIds.map(() => "?").join(", ");
+    const result = await this.db
+      .prepare(
+        `SELECT v.asset_id, p.slug FROM variants v
+         JOIN presets p ON p.id = v.preset_id
+         WHERE v.asset_id IN (${placeholders}) AND v.status = 'ready'
+         ORDER BY p.slug ASC`,
+      )
+      .bind(...assetIds)
+      .all<{ asset_id: string; slug: string }>();
+    for (const row of result.results) {
+      const existing = map.get(row.asset_id);
+      if (existing) existing.push(row.slug);
+      else map.set(row.asset_id, [row.slug]);
+    }
+    return map;
+  }
+
   /** Unexecuted counterpart to `create()`, for combining with another repository's statement in a `db.batch()` call (e.g. `VariantPersistenceService`). */
   buildInsertStatement(id: string, input: CreateVariantRow, timestamp: string) {
     return this.db

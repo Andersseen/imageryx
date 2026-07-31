@@ -1,9 +1,9 @@
 # Contributing to Imageryx
 
 Thanks for your interest in contributing. Imageryx is early — currently in
-Phase 3 (functional backend and delivery flow, see
-[ROADMAP.md](ROADMAP.md)) — so please open an issue before starting
-substantial work, to avoid duplicated effort.
+Phase 4B (dashboard: asset workspace, presets, processing, API reference,
+settings — see [ROADMAP.md](ROADMAP.md)) — so please open an issue before
+starting substantial work, to avoid duplicated effort.
 
 ## Requirements
 
@@ -35,16 +35,29 @@ pnpm check
 ```
 
 This runs lint, typecheck, tests, and a build across every app and package
-via Turborepo, respecting the workspace's task dependency graph. If your
-change touches `api-worker`, `delivery-worker`, or `processing-worker`,
-also run the Workers-pool suite and, if it touches the upload/processing/
-delivery pipeline end to end, the backend integration test — neither is
-part of `pnpm check` (see README's "Commands" for why):
+via Turborepo, respecting the workspace's task dependency graph. Two suites
+are **not** part of `pnpm check` (see README's "Commands" for why) and need
+running explicitly when relevant:
 
 ```bash
-pnpm test:workers
-pnpm test:integration
+pnpm test:workers      # touching api-worker, delivery-worker or processing-worker
+pnpm test:integration  # touching the upload -> processing -> delivery pipeline
+pnpm test:e2e          # touching apps/dashboard (needs `pnpm e2e:install` once)
 ```
+
+Please run `pnpm test:e2e` for any dashboard change, and **especially** any
+change that adds a new route. This project has repeatedly shipped dashboard
+code that lints, typechecks, builds and passes unit tests while being
+broken in a browser: an SDK call that threw before reaching the network, a
+toast component that rendered nothing, and — most recently — a same-named
+list-page-file + detail-folder pair that Analog's file router silently
+nests as an unrenderable child route, invisible to every unit test because
+`provideRouter([...])` in a test bypasses real file-based route generation
+entirely. See context.md's "Phase 4B decisions and limitations" before
+adding a `<name>.page.ts` next to a `<name>/` folder — the correct shape is
+`<name>/index.page.ts` alongside its dynamic siblings.
+`pnpm --filter @imageryx/dashboard test:e2e:ui` opens Playwright's UI mode
+for iterating on one spec.
 
 You can also target a single app/package while iterating:
 

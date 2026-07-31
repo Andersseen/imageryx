@@ -1,16 +1,44 @@
-import { AssetRepository, FolderRepository, ProjectRepository } from "@imageryx/database";
+import {
+  AssetRepository,
+  FolderRepository,
+  PresetRepository,
+  ProjectRepository,
+  VariantRepository,
+} from "@imageryx/database";
 import { createDecodableImageFixture } from "@imageryx/test-utils";
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { authHeaders } from "./helpers";
 
-function fileFromFixture(mimeType: Parameters<typeof createDecodableImageFixture>[0]): {
+interface AssetListRow {
+  id: string;
+  readyVariantCount: number;
+  readyPresetSlugs: string[];
+}
+
+async function listAssets(projectId: string): Promise<AssetListRow[]> {
+  const response = await SELF.fetch(
+    `https://example.com/v1/assets?projectId=${projectId}`,
+    {
+      headers: authHeaders(),
+    },
+  );
+  const body = (await response.json()) as { items: AssetListRow[] };
+  return body.items;
+}
+
+function fileFromFixture(
+  mimeType: Parameters<typeof createDecodableImageFixture>[0],
+): {
   file: File;
   fixture: ReturnType<typeof createDecodableImageFixture>;
 } {
   const fixture = createDecodableImageFixture(mimeType);
   const bytes = new Uint8Array(fixture.bytes);
-  return { file: new File([bytes], fixture.filename, { type: mimeType }), fixture };
+  return {
+    file: new File([bytes], fixture.filename, { type: mimeType }),
+    fixture,
+  };
 }
 
 describe("POST /v1/assets/upload", () => {
@@ -77,8 +105,12 @@ describe("POST /v1/assets/upload", () => {
   });
 
   it("rejects a file whose claimed MIME type does not match its signature", async () => {
-    const pngBytes = new Uint8Array(createDecodableImageFixture("image/png").bytes);
-    const mislabeledFile = new File([pngBytes], "fake.jpg", { type: "image/jpeg" });
+    const pngBytes = new Uint8Array(
+      createDecodableImageFixture("image/png").bytes,
+    );
+    const mislabeledFile = new File([pngBytes], "fake.jpg", {
+      type: "image/jpeg",
+    });
     const form = new FormData();
     form.set("projectId", projectId);
     form.set("file", mislabeledFile);
@@ -109,9 +141,13 @@ describe("POST /v1/assets/upload", () => {
 
   it("normalizes a path-traversal filename into a safe slug", async () => {
     const fixture = createDecodableImageFixture("image/png");
-    const file = new File([new Uint8Array(fixture.bytes)], "../../etc/passwd.png", {
-      type: "image/png",
-    });
+    const file = new File(
+      [new Uint8Array(fixture.bytes)],
+      "../../etc/passwd.png",
+      {
+        type: "image/png",
+      },
+    );
     const form = new FormData();
     form.set("projectId", projectId);
     form.set("file", file);
@@ -122,7 +158,9 @@ describe("POST /v1/assets/upload", () => {
       body: form,
     });
     expect(response.status).toBe(201);
-    const body = (await response.json()) as { asset: { path: string; slug: string } };
+    const body = (await response.json()) as {
+      asset: { path: string; slug: string };
+    };
     expect(body.asset.path).not.toContain("..");
     expect(body.asset.path).not.toContain("/etc/");
   });
@@ -146,30 +184,40 @@ describe("POST /v1/assets/upload", () => {
     const form1 = new FormData();
     form1.set("projectId", projectId);
     form1.set("file", first);
-    const firstResponse = await SELF.fetch("https://example.com/v1/assets/upload", {
-      method: "POST",
-      headers: authHeaders(),
-      body: form1,
-    });
-    const firstBody = (await firstResponse.json()) as { asset: { id: string; path: string } };
+    const firstResponse = await SELF.fetch(
+      "https://example.com/v1/assets/upload",
+      {
+        method: "POST",
+        headers: authHeaders(),
+        body: form1,
+      },
+    );
+    const firstBody = (await firstResponse.json()) as {
+      asset: { id: string; path: string };
+    };
 
     const { file: second } = fileFromFixture("image/png");
     const form2 = new FormData();
     form2.set("projectId", projectId);
     form2.set("name", "Second Copy");
     form2.set("file", second);
-    const secondResponse = await SELF.fetch("https://example.com/v1/assets/upload", {
-      method: "POST",
-      headers: authHeaders(),
-      body: form2,
-    });
+    const secondResponse = await SELF.fetch(
+      "https://example.com/v1/assets/upload",
+      {
+        method: "POST",
+        headers: authHeaders(),
+        body: form2,
+      },
+    );
     expect(secondResponse.status).toBe(201);
     const secondBody = (await secondResponse.json()) as {
       duplicateCandidates: { assetId: string; path: string }[];
     };
-    expect(secondBody.duplicateCandidates.some((d) => d.assetId === firstBody.asset.id)).toBe(
-      true,
-    );
+    expect(
+      secondBody.duplicateCandidates.some(
+        (d) => d.assetId === firstBody.asset.id,
+      ),
+    ).toBe(true);
   });
 });
 
@@ -203,12 +251,45 @@ describe("asset lifecycle", () => {
   });
 
   it("lists assets scoped to a project", async () => {
-    const response = await SELF.fetch(`https://example.com/v1/assets?projectId=${projectId}`, {
-      headers: authHeaders(),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/assets?projectId=${projectId}`,
+      {
+        headers: authHeaders(),
+      },
+    );
     expect(response.status).toBe(200);
     const body = (await response.json()) as { items: { id: string }[] };
     expect(body.items.some((a) => a.id === assetId)).toBe(true);
+  });
+
+  it("reports ready preset slugs per asset, excluding not-yet-ready variants", async () => {
+    const preset = await new PresetRepository(env.DB).create({
+      projectId,
+      name: "Thumbnail",
+      slug: "thumbnail",
+      operations: [],
+      outputFormat: "auto",
+    });
+    const variants = new VariantRepository(env.DB);
+    const ready = await variants.create({
+      assetId,
+      presetId: preset.id,
+      presetHash: "hash-ready",
+      provider: "mock",
+      status: "pending",
+    });
+
+    const beforeReady = await listAssets(projectId);
+    expect(beforeReady.find((a) => a.id === assetId)?.readyPresetSlugs).toEqual(
+      [],
+    );
+
+    await variants.update(ready.id, { status: "ready" });
+
+    const afterReady = await listAssets(projectId);
+    const item = afterReady.find((a) => a.id === assetId);
+    expect(item?.readyPresetSlugs).toEqual(["thumbnail"]);
+    expect(item?.readyVariantCount).toBe(1);
   });
 
   it("filters assets by processingStatus", async () => {
@@ -221,21 +302,30 @@ describe("asset lifecycle", () => {
   });
 
   it("returns full asset details", async () => {
-    const response = await SELF.fetch(`https://example.com/v1/assets/${assetId}`, {
-      headers: authHeaders(),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/assets/${assetId}`,
+      {
+        headers: authHeaders(),
+      },
+    );
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { id: string; project: { slug: string } | null };
+    const body = (await response.json()) as {
+      id: string;
+      project: { slug: string } | null;
+    };
     expect(body.id).toBe(assetId);
     expect(body.project).toBeTruthy();
   });
 
   it("updates the asset name", async () => {
-    const response = await SELF.fetch(`https://example.com/v1/assets/${assetId}`, {
-      method: "PATCH",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Renamed" }),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/assets/${assetId}`,
+      {
+        method: "PATCH",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Renamed" }),
+      },
+    );
     expect(response.status).toBe(200);
     const body = (await response.json()) as { name: string };
     expect(body.name).toBe("Renamed");
@@ -250,11 +340,14 @@ describe("asset lifecycle", () => {
       path: "target",
     });
 
-    const response = await SELF.fetch(`https://example.com/v1/assets/${assetId}/move`, {
-      method: "POST",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ folderId: folder.id }),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/assets/${assetId}/move`,
+      {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ folderId: folder.id }),
+      },
+    );
     expect(response.status).toBe(200);
     const body = (await response.json()) as { folderId: string; path: string };
     expect(body.folderId).toBe(folder.id);
@@ -262,21 +355,27 @@ describe("asset lifecycle", () => {
   });
 
   it("replaces asset tags", async () => {
-    const response = await SELF.fetch(`https://example.com/v1/assets/${assetId}/tags`, {
-      method: "PUT",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ tags: ["portfolio", "hero"] }),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/assets/${assetId}/tags`,
+      {
+        method: "PUT",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: ["portfolio", "hero"] }),
+      },
+    );
     expect(response.status).toBe(200);
     const body = (await response.json()) as { tags: string[] };
     expect(body.tags.sort()).toEqual(["hero", "portfolio"]);
   });
 
   it("soft-deletes then restores an asset", async () => {
-    const deleteResponse = await SELF.fetch(`https://example.com/v1/assets/${assetId}`, {
-      method: "DELETE",
-      headers: authHeaders(),
-    });
+    const deleteResponse = await SELF.fetch(
+      `https://example.com/v1/assets/${assetId}`,
+      {
+        method: "DELETE",
+        headers: authHeaders(),
+      },
+    );
     expect(deleteResponse.status).toBe(204);
 
     const assets = new AssetRepository(env.DB);

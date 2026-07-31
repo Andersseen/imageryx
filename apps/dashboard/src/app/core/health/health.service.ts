@@ -59,10 +59,10 @@ export class HealthService {
     try {
       // Relative, same-origin path: /v1/* now requires a Bearer API key (see
       // src/middleware/auth.ts in api-worker), so this goes through the server-side
-      // proxy (src/server/routes/api/[...path].ts) instead of calling api-worker
+      // proxy (src/server/routes/proxy/[...path].ts) instead of calling api-worker
       // directly — the browser never needs to hold the key. /health (above) stays
       // direct since it's outside /v1/* and unauthenticated.
-      const data = await fetchJson<ApiInfo>("/api/v1/info");
+      const data = await fetchJson<ApiInfo>("/proxy/v1/info");
       this.apiInfo.set({ status: "success", data });
     } catch (error) {
       this.apiInfo.set({ status: "error", message: toErrorMessage(error) });

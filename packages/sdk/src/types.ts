@@ -4,6 +4,7 @@ import type {
   ImagePreset,
   ImageVariant,
   PaginatedResponse,
+  PreviewPresetResponse,
   ProcessingJob,
   Project,
 } from "@imageryx/contracts";
@@ -38,6 +39,8 @@ export interface ProjectTag {
 export interface AssetListItem extends ImageAsset {
   tags: string[];
   readyVariantCount: number;
+  /** Preset slugs with a `ready` variant — the only preset delivery URLs that resolve for this asset today. */
+  readyPresetSlugs: string[];
   folder: { id: string; name: string; path: string } | null;
 }
 
@@ -56,7 +59,7 @@ export interface AssetDetails extends ImageAsset {
   folder: { id: string; name: string; path: string } | null;
   presets: { id: string; name: string; slug: string }[];
   variants: ImageVariant[];
-  processingJobs: unknown[];
+  processingJobs: ProcessingJob[];
   activity: AssetActivityEntry[];
   delivery: { originalUrl: string; originalPath: string } | null;
   duplicateCandidates: { assetId: string; path: string }[];
@@ -65,7 +68,13 @@ export interface AssetDetails extends ImageAsset {
 export interface AssetDeliveryInfo {
   visibility: "public" | "private";
   originalUrl: string;
-  presets: { id: string; slug: string; name: string; ready: boolean; url: string }[];
+  presets: {
+    id: string;
+    slug: string;
+    name: string;
+    ready: boolean;
+    url: string;
+  }[];
 }
 
 export interface UploadAssetResponse {
@@ -97,6 +106,7 @@ export type {
   PaginatedResponse,
   ImagePreset,
   ImageVariant,
+  PreviewPresetResponse,
   ProcessingJob,
   Project,
   Folder,

@@ -17,6 +17,8 @@
     "test": "turbo run test",
     "test:workers": "turbo run test --filter=@imageryx/api-worker --filter=@imageryx/delivery-worker --filter=@imageryx/processing-worker",
     "test:integration": "turbo run test:integration",
+    "test:e2e": "turbo run test:e2e",
+    "e2e:install": "pnpm --filter @imageryx/dashboard run e2e:install",
     "check": "turbo run lint typecheck test build",
     "format": "prettier --write \"**/*.{ts,tsx,html,json,md,yml,yaml}\" --ignore-unknown",
     "format:check": "prettier --check \"**/*.{ts,tsx,html,json,md,yml,yaml}\" --ignore-unknown",
