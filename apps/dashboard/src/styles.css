@@ -2,6 +2,26 @@
 @import '@voltui/components/themes/presets/glacier-sharp.css';
 
 /*
+ * WCAG 2 AA color-contrast fixes, found by an automated axe scan (pnpm test:a11y), not guessed.
+ * Real-page-rendered contrast for this app's actual Tailwind v4 + Volt UI color pipeline runs
+ * noticeably lower than the same OKLCH values tested in isolation (confirmed empirically, not
+ * assumed) — these targets were verified against the real running page, not a swatch.
+ *
+ * `--muted-foreground`/`--primary` come from the glacier-sharp preset (`:root[data-color='glacier']`);
+ * `--destructive` is Volt's base token (plain `:root`, never redefined by any color preset) used by
+ * every "negative" status badge and `text-destructive` error text. Dark theme's equivalents already
+ * clear 4.5:1 (verified the same way) and are left untouched.
+ */
+:root[data-color='glacier'] {
+  --muted-foreground: oklch(0.46 0.03 225);
+  --primary: oklch(0.38 0.16 225);
+}
+
+:root {
+  --destructive: oklch(0.42 0.22 25);
+}
+
+/*
  * Safety net for reduced-motion: covers our own transitions AND any
  * third-party component transitions we don't author (e.g. Volt's sidebar
  * slide-in). Lumen icon animations and Angular Movement's directives

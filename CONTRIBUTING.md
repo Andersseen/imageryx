@@ -1,9 +1,10 @@
 # Contributing to Imageryx
 
 Thanks for your interest in contributing. Imageryx is early — currently in
-Phase 4B (dashboard: asset workspace, presets, processing, API reference,
-settings — see [ROADMAP.md](ROADMAP.md)) — so please open an issue before
-starting substantial work, to avoid duplicated effort.
+Phase 5 (production hardening: security, tests, CI, accessibility,
+documentation, Cloudflare deployment prep — see [ROADMAP.md](ROADMAP.md))
+— so please open an issue before starting substantial work, to avoid
+duplicated effort.
 
 ## Requirements
 
@@ -43,6 +44,8 @@ running explicitly when relevant:
 pnpm test:workers      # touching api-worker, delivery-worker or processing-worker
 pnpm test:integration  # touching the upload -> processing -> delivery pipeline
 pnpm test:e2e          # touching apps/dashboard (needs `pnpm e2e:install` once)
+pnpm test:a11y         # touching apps/dashboard templates/styles (same install)
+pnpm test:coverage     # touching a lot of one package — check you didn't drop its threshold
 ```
 
 Please run `pnpm test:e2e` for any dashboard change, and **especially** any
@@ -101,6 +104,52 @@ pnpm --filter @imageryx/dashboard lint
   `c.json()` an ad hoc error shape from inside a route.
 - No API key, signing secret, or other credential in code reachable from
   the browser (dashboard client code, `@imageryx/sdk`, `@imageryx/angular`).
+
+## Extending the domain
+
+- **Adding a contract**: `packages/contracts/src/<domain>/` — a Zod schema
+  plus its inferred type, organized by domain (see the existing
+  `projects/`, `assets/`, `presets/` directories). `contracts` never
+  imports another workspace package; keep it that way.
+- **Adding a migration**: a new numbered file in
+  `packages/database/migrations/` — never edit an already-applied one (see
+  the comment block at the top of `0001_initial_schema.sql`). Run
+  `pnpm db:migrate:local` and add/extend the relevant repository's tests
+  against the real migrated schema (`packages/database`'s own tests use
+  `createTestDatabase()`, a real Miniflare-backed D1, not a mock).
+- **Adding an image operation**: extend
+  `packages/contracts/src/presets/image-operation.schema.ts`, then wire it
+  through `packages/image-core`'s preset validation/hashing and both
+  provider mapping adapters (`packages/providers/src/transformations/`) —
+  explicitly reject it (an `UnsupportedOperationError`, not a silent
+  no-op) in whichever adapter genuinely can't support it, matching the
+  existing crop/grayscale pattern.
+- **Adding a provider**: implement `StorageProvider` or
+  `TransformationProvider` (`packages/providers/src/storage/` or
+  `.../transformations/`), register it in
+  `packages/providers/src/registry/provider-registry.ts` and
+  `config/provider-config.schema.ts`, and — critically — never fabricate a
+  successful result before the real integration exists; throw
+  `ProviderUnavailableError` until it's real (see the backend-conventions
+  rule above).
+
+## Releasing (Changesets)
+
+`@imageryx/sdk` and `@imageryx/angular` are tracked by
+[Changesets](https://github.com/changesets/changesets) for version
+planning; every other workspace package is deliberately excluded (see
+`.changeset/config.json`'s `ignore` list — apps are never published, other
+packages are internal-only for now). If your PR changes either package's
+public behavior:
+
+```bash
+pnpm changeset          # interactive — pick the package(s), bump type, and a summary
+```
+
+This adds a markdown file under `.changeset/` — commit it with your PR.
+`pnpm changeset:version` (maintainer-run, not part of a normal PR) applies
+pending changesets: bumps versions and writes `CHANGELOG.md` entries. Both
+packages are still `private: true`, so this does not publish to npm.
 
 ## Reporting bugs / requesting features
 

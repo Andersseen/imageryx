@@ -1,4 +1,9 @@
-import { AssetRepository, PresetRepository, ProjectRepository } from "@imageryx/database";
+import {
+  AssetRepository,
+  PresetRepository,
+  ProjectRepository,
+  VariantRepository,
+} from "@imageryx/database";
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 import { authHeaders } from "./helpers";
@@ -75,6 +80,31 @@ describe("POST /v1/assets/:assetId/variants", () => {
     const secondBody = (await second.json()) as { variant: { id: string }; status: string };
     expect(secondBody.variant.id).toBe(firstBody.variant.id);
     expect(secondBody.status).toBe("pending");
+  });
+
+  it("resolves two genuinely simultaneous requests to the same variant, never a 409 for the loser", async () => {
+    // Unlike the sequential idempotency test above, neither request is awaited before the other
+    // starts — both can race past the read-before-write check and hit
+    // `idx_variants_unique_asset_preset_hash` for real, exercising the constraint as the actual
+    // backstop it's meant to be, not just the fast path in front of it.
+    const fire = () =>
+      SELF.fetch(`https://example.com/v1/assets/${assetId}/variants`, {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ presetId }),
+      });
+
+    const [first, second] = await Promise.all([fire(), fire()]);
+
+    expect([first.status, second.status].sort()).toEqual([202, 202]);
+    const bodies = (await Promise.all([first.json(), second.json()])) as {
+      variant: { id: string };
+    }[];
+    expect(bodies[0]!.variant.id).toBe(bodies[1]!.variant.id);
+
+    const variants = new VariantRepository(env.DB);
+    const all = await variants.listByAsset(assetId);
+    expect(all).toHaveLength(1);
   });
 
   it("rejects a variant request for an asset that is not ready", async () => {

@@ -19,5 +19,14 @@ export default defineConfig({
     include: ["src/**/*.spec.ts"],
     setupFiles: ["./test-setup.ts"],
     globals: false,
+    // Tracked, not enforced — see root README's "Tests" section for why: a UI this large would
+    // need brittle visual/snapshot coverage to push a percentage meaningfully higher, which this
+    // repo's own testing philosophy (component tests over the real SDK, not implementation
+    // details) deliberately avoids chasing.
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary"],
+      include: ["src/**/*.ts"],
+    },
   },
 });

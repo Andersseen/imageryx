@@ -2,8 +2,8 @@
 
 ## Supported Versions
 
-Imageryx is in Phase 3 (functional backend and delivery flow) and has not
-yet reached a tagged release. Security fixes land on `main` only.
+Imageryx has not yet reached a tagged release (current status: personal-use
+alpha, in Phase 5 hardening). Security fixes land on `main` only.
 
 ## Reporting a Vulnerability
 
@@ -26,11 +26,29 @@ Please include:
 - An assessment of severity and, if confirmed, a plan for a fix.
 - Credit in the fix's changelog entry, unless you prefer to stay anonymous.
 
-## Scope notes for Phase 3
+## Scope notes
 
-As of Phase 3, `api-worker` has a real, meaningful attack surface — real
-authentication, real multipart upload handling, real signed download
-tokens — and reports about it are welcome:
+`api-worker` has a real, meaningful attack surface — real authentication,
+real multipart upload handling, real signed download tokens — and reports
+about it are welcome:
+
+- **Secrets are never committed, including in `wrangler.jsonc`.** An
+  earlier revision of this repo briefly committed `IMAGERYX_API_KEY` and
+  `DOWNLOAD_SIGNING_SECRET` as plaintext production `vars` — found and
+  fixed in Phase 5 (moved to `.dev.vars`/`wrangler secret put`; see
+  README's "Deployment" section). Both `api-worker` and `delivery-worker`
+  now refuse to serve **any** request when `APP_ENV=production` and either
+  secret is still set to its known local-development default value —
+  `middleware/validate-production-env.ts`, backed by
+  `@imageryx/image-core`'s `assertSafeProductionSecrets` — so this class of
+  mistake fails loudly instead of deploying silently.
+- **SVG delivery headers.** Every response whose `Content-Type` is
+  `image/svg+xml` (originals and, today, *every* simulated variant — see
+  "Upload validation" below) gets a restrictive
+  `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline';
+  sandbox` in addition to `X-Content-Type-Options: nosniff`, so an embedded
+  `<script>` cannot execute even on a direct top-level navigation to the
+  asset URL.
 
 - **Authentication:** every `/v1/*` route requires `Authorization: Bearer
 <IMAGERYX_API_KEY>`, compared with a constant-time algorithm
@@ -53,9 +71,12 @@ tokens — and reports about it are welcome:
   signed token.
 - **Upload validation:** `api-worker` validates claimed MIME type,
   extension, and magic bytes (not just a trusted `Content-Type` header)
-  before ever writing to storage, enforces `MAX_UPLOAD_SIZE_MB`, and
-  never executes or proxies raw SVG content as HTML — delivery responses
-  always set `X-Content-Type-Options: nosniff`.
+  before ever writing to storage, and enforces `MAX_UPLOAD_SIZE_MB`. SVG is
+  accepted as an untrusted asset — flagged in `securityWarnings`, never
+  sanitized, never rendered through `innerHTML` anywhere in the dashboard —
+  and, since every simulated variant (`generate-variant`'s mock
+  transformation) is itself rendered as real SVG bytes today, SVG delivery
+  is the common case, not a rare edge case; see the CSP note above.
 - **Path handling:** logical asset/folder paths are strictly validated
   against traversal, repeated separators, and encoded tricks
   (`@imageryx/image-core`); physical storage keys are always
@@ -74,10 +95,17 @@ tokens — and reports about it are welcome:
   ambiguity, not an access-control bypass (the misrouted request 404s or
   resolves to a different asset's variant, never bypasses visibility
   checks).
-- **Not yet implemented:** rate limiting, per-key scoping/rotation, audit
-  logging beyond structured console output, and CSRF protection (moot
-  today — the only authenticated caller is the SDK/dashboard proxy, never
-  a browser form).
+- **Key generation and rotation:** `pnpm key:generate` prints one
+  cryptographically random secret (never written to any file); rotating
+  either production secret is `wrangler secret put <NAME> --env production`
+  with a freshly generated value — there is no downtime-free rotation
+  scheme (rotating `IMAGERYX_API_KEY` invalidates every existing client
+  immediately) since this is still a single shared key, not per-key
+  credentials.
+- **Not yet implemented:** rate limiting, per-key scoping (multiple,
+  independently-revocable keys), audit logging beyond structured console
+  output, and CSRF protection (moot today — the only authenticated caller
+  is the SDK/dashboard proxy, never a browser form).
 
 Reports about the local health-check endpoints, the dashboard's
 server-side proxy (`server/routes/proxy/[...path].ts`), or the Delivery

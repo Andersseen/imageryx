@@ -6,7 +6,7 @@ import {
   output,
 } from "@angular/core";
 import type { Folder } from "@imageryx/sdk";
-import { VoltButton, VoltLabel, VoltNativeSelect } from "@voltui/components";
+import { VoltButton, VoltNativeSelect } from "@voltui/components";
 import { LmnXMarkIcon } from "lumen-icons";
 import {
   hasActiveFilters,
@@ -27,7 +27,7 @@ import {
 @Component({
   selector: "ix-library-filters",
   standalone: true,
-  imports: [VoltButton, VoltLabel, VoltNativeSelect, LmnXMarkIcon],
+  imports: [VoltButton, VoltNativeSelect, LmnXMarkIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
@@ -36,8 +36,8 @@ import {
       aria-label="Asset filters"
     >
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="flex flex-col gap-1.5">
-          <volt-label htmlFor="filter-folder">Folder</volt-label>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-sm font-medium text-foreground leading-none">Folder</span>
           <volt-native-select
             id="filter-folder"
             (change)="
@@ -60,10 +60,10 @@ import {
               </option>
             }
           </volt-native-select>
-        </div>
+        </label>
 
-        <div class="flex flex-col gap-1.5">
-          <volt-label htmlFor="filter-tag">Tag</volt-label>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-sm font-medium text-foreground leading-none">Tag</span>
           <volt-native-select
             id="filter-tag"
             [disabled]="tags().length === 0"
@@ -77,10 +77,10 @@ import {
               </option>
             }
           </volt-native-select>
-        </div>
+        </label>
 
-        <div class="flex flex-col gap-1.5">
-          <volt-label htmlFor="filter-status">Processing status</volt-label>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-sm font-medium text-foreground leading-none">Processing status</span>
           <volt-native-select
             id="filter-status"
             (change)="
@@ -102,10 +102,10 @@ import {
               </option>
             }
           </volt-native-select>
-        </div>
+        </label>
 
-        <div class="flex flex-col gap-1.5">
-          <volt-label htmlFor="filter-visibility">Visibility</volt-label>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-sm font-medium text-foreground leading-none">Visibility</span>
           <volt-native-select
             id="filter-visibility"
             (change)="
@@ -126,10 +126,10 @@ import {
               Private
             </option>
           </volt-native-select>
-        </div>
+        </label>
 
-        <div class="flex flex-col gap-1.5">
-          <volt-label htmlFor="filter-deleted">Deleted assets</volt-label>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-sm font-medium text-foreground leading-none">Deleted assets</span>
           <volt-native-select
             id="filter-deleted"
             (change)="emitChange({ deleted: $any($event.target).value })"
@@ -145,10 +145,10 @@ import {
               Show all
             </option>
           </volt-native-select>
-        </div>
+        </label>
 
-        <div class="flex flex-col gap-1.5">
-          <volt-label htmlFor="filter-sort">Sort by</volt-label>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-sm font-medium text-foreground leading-none">Sort by</span>
           <volt-native-select
             id="filter-sort"
             (change)="onSortChange($any($event.target).value)"
@@ -163,7 +163,7 @@ import {
               </option>
             }
           </volt-native-select>
-        </div>
+        </label>
       </div>
 
       @if (isFiltered()) {

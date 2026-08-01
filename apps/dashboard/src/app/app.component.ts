@@ -61,6 +61,12 @@ import { ToastHost } from "./ui/toast-host.component";
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+    >
+      Skip to content
+    </a>
     <div
       class="flex h-dvh overflow-hidden bg-background text-foreground"
       moveEnter="fade-up"
@@ -135,7 +141,7 @@ import { ToastHost } from "./ui/toast-host.component";
 
       <div class="flex min-w-0 flex-1 flex-col">
         <ix-topbar />
-        <main class="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main id="main-content" tabindex="-1" class="flex-1 overflow-y-auto p-4 sm:p-6">
           <router-outlet />
         </main>
       </div>

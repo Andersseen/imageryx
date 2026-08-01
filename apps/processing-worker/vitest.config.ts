@@ -22,6 +22,14 @@ export default defineConfig(async () => {
     test: {
       pool: cloudflarePool(workersOptions),
       setupFiles: ["./test/apply-migrations.ts"],
+      // See api-worker's vitest.config.ts: V8 coverage cannot see into the workerd isolate this
+      // pool runs code in, so istanbul (source-instrumented, not runtime-hooked) is used instead.
+      coverage: {
+        provider: "istanbul",
+        reporter: ["text", "json-summary"],
+        include: ["src/**/*.ts"],
+        thresholds: { statements: 80, branches: 55, functions: 75, lines: 80 },
+      },
     },
   };
 });

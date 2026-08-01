@@ -1,13 +1,14 @@
 import type { R2Bucket, R2Object } from "@cloudflare/workers-types";
 import type { StorageProviderName } from "@imageryx/contracts";
 import { ProviderUnavailableError } from "@imageryx/image-core";
-import type {
-  DownloadUrlInput,
-  StorageProvider,
-  StoragePutInput,
-  StoredObject,
-  StoredObjectBody,
-  StoredObjectMetadata,
+import {
+  readStorageBodyToBytes,
+  type DownloadUrlInput,
+  type StorageProvider,
+  type StoragePutInput,
+  type StoredObject,
+  type StoredObjectBody,
+  type StoredObjectMetadata,
 } from "./storage-provider";
 
 function mapR2Object(object: R2Object): StoredObject {
@@ -33,12 +34,18 @@ export class R2StorageProvider implements StorageProvider {
   constructor(private readonly bucket: R2Bucket) {}
 
   async put(input: StoragePutInput): Promise<StoredObject> {
-    // `StorageBody`'s `ReadableStream<Uint8Array>` (from the standard/Node lib) and workerd's own
-    // `ReadableStream` (declared by `@cloudflare/workers-types`) are two distinct ambient
-    // declarations of the same runtime object shape — structurally close but not identical, so
-    // TS won't unify them automatically. This is a known cross-typing friction, not a real risk:
-    // at runtime this always executes inside a Worker, where only workerd's ReadableStream exists.
-    const body = input.body as unknown as Parameters<R2Bucket["put"]>[1];
+    // R2's `bucket.put()` rejects a `ReadableStream` with no known length outright (confirmed by
+    // a real binding, not assumed) — every stream body is buffered first. Uint8Array/ArrayBuffer
+    // already have a known length and pass through unbuffered.
+    const bytes =
+      input.body instanceof ReadableStream
+        ? await readStorageBodyToBytes(input.body)
+        : input.body;
+    // Same cross-typing friction as elsewhere in this repo (see context.md's "Cross-runtime
+    // ambient type friction"): workerd's own `ReadableStream`/typed-array types are structurally
+    // close to, but not identical to, the standard lib's — safe at runtime, since this only ever
+    // executes inside a Worker.
+    const body = bytes as unknown as Parameters<R2Bucket["put"]>[1];
     const object = await this.bucket.put(input.key, body, {
       httpMetadata: input.contentType
         ? { contentType: input.contentType }

@@ -8,6 +8,7 @@ import {
   type D1Client,
 } from "@imageryx/database";
 import {
+  DuplicateVariantError,
   hashPreset,
   selectTransformationProvider,
   validatePresetSemantics,
@@ -89,15 +90,17 @@ export async function requestVariant(
 
   const variants = new VariantRepository(db);
   const jobs = new ProcessingJobRepository(db);
-  const existing = await variants.findByAssetAndPresetHash(asset.id, presetHash);
 
-  if (existing) {
+  async function outcomeForExisting(
+    existing: ImageVariant,
+    assetRef: { id: string; projectId: string },
+  ): Promise<RequestVariantOutcome> {
     if (existing.status === "ready") {
       return { status: "ready", variant: existing, processingJobId: null };
     }
     const relatedJobs = await jobs.list({
-      projectId: asset.projectId,
-      assetId: asset.id,
+      projectId: assetRef.projectId,
+      assetId: assetRef.id,
       type: "generate-variant",
     });
     const matchingJob = relatedJobs.find(
@@ -110,17 +113,32 @@ export async function requestVariant(
     return { status: "failed", variant: existing, processingJobId: matchingJob?.id ?? null };
   }
 
-  const service = new VariantPersistenceService(db);
-  const { variantId, processingJobId } = await service.createVariantWithJob(
-    { assetId: asset.id, presetId: preset.id, presetHash, provider: selection.provider, status: "pending" },
-    {
-      projectId: asset.projectId,
-      type: "generate-variant",
-      input: { type: "generate-variant", assetId: asset.id, presetId: preset.id, presetHash, persist: input.persist },
-    },
-  );
+  const assetRef = { id: asset.id, projectId: asset.projectId };
+  const existing = await variants.findByAssetAndPresetHash(asset.id, presetHash);
+  if (existing) return outcomeForExisting(existing, assetRef);
 
-  const variant = await variants.findById(variantId);
-  if (!variant) throw new Error("failed to read back newly created variant");
-  return { status: "created", variant, processingJobId };
+  const service = new VariantPersistenceService(db);
+  try {
+    const { variantId, processingJobId } = await service.createVariantWithJob(
+      { assetId: asset.id, presetId: preset.id, presetHash, provider: selection.provider, status: "pending" },
+      {
+        projectId: asset.projectId,
+        type: "generate-variant",
+        input: { type: "generate-variant", assetId: asset.id, presetId: preset.id, presetHash, persist: input.persist },
+      },
+    );
+
+    const variant = await variants.findById(variantId);
+    if (!variant) throw new Error("failed to read back newly created variant");
+    return { status: "created", variant, processingJobId };
+  } catch (error) {
+    // Two genuinely simultaneous requests can both pass the read-before-write check above before
+    // either has committed — `idx_variants_unique_asset_preset_hash` is the real backstop, and the
+    // loser must still get the normal idempotent response, not a raw 409 for doing nothing wrong.
+    if (error instanceof DuplicateVariantError) {
+      const nowExisting = await variants.findByAssetAndPresetHash(asset.id, presetHash);
+      if (nowExisting) return outcomeForExisting(nowExisting, assetRef);
+    }
+    throw error;
+  }
 }

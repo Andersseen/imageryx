@@ -63,11 +63,31 @@ export default defineEventHandler(async (event) => {
   const hasBody = method !== "GET" && method !== "HEAD";
   const body = hasBody ? await readRawBody(event, false) : undefined;
 
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body ? new Uint8Array(body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers,
+      body: body ? new Uint8Array(body) : undefined,
+    });
+  } catch {
+    // A `fetch` rejection here (api-worker down, DNS failure, ECONNREFUSED) previously fell
+    // through to Nitro's own generic error page — a body/status the SDK's `ApiErrorEnvelope`
+    // parser doesn't recognize, so every page rendered a bare, unhelpful "Server Error". Return
+    // the same envelope shape api-worker's own error handler uses, so `describeApiError` renders
+    // a normal, safe message instead.
+    setResponseStatus(event, 502);
+    setHeader(event, "content-type", "application/json");
+    return send(
+      event,
+      JSON.stringify({
+        error: {
+          code: "upstream_unreachable",
+          message: "The API could not be reached.",
+        },
+      }),
+    );
+  }
 
   setResponseStatus(event, response.status);
   response.headers.forEach((value, key) => {

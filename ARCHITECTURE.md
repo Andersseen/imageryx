@@ -1,13 +1,15 @@
 # Architecture
 
-This document describes how Imageryx's apps and packages fit together:
-what exists today (through Phase 4B) and what each is designed to do once
-later phases land. See [ROADMAP.md](ROADMAP.md) for the phase breakdown
+This document describes how Imageryx's apps and packages fit together. The
+application/route/API architecture below reflects the feature-complete
+state reached through Phase 4B; Phase 5 (current) hardens that base —
+security, tests, CI, accessibility, deployment prep — without changing the
+shape described here. See [ROADMAP.md](ROADMAP.md) for the phase breakdown
 and [context.md](context.md) for product/technology decisions and the
 detailed rationale behind the choices summarized here — in particular its
 "Phase 3 decisions and limitations", "Phase 4A decisions and limitations",
-and "Phase 4B decisions and limitations" sections, which this document only
-summarizes.
+"Phase 4B decisions and limitations", and "Phase 5 decisions and
+limitations" sections, which this document only summarizes.
 
 ## Applications
 
@@ -470,3 +472,40 @@ delivery-route `/p/` marker ambiguity, caching policy, etc.).
 | `angular`                            | Real, tested standalone `<imgyx-image>` component — signal inputs/outputs, responsive preset support, no SDK or API-key dependency                                                                                                                                                                                                                                                                                                                                                           |
 | `test-utils`                         | `isValidHealthCheckResponse` plus domain fixture builders and, via `/node`, a D1 test database + temporary storage directory helper, plus (Phase 3) real decodable-image fixtures (PNG/JPEG/GIF/WebP/SVG/AVIF) for metadata-inspection tests                                                                                                                                                                                                                                                 |
 | `typescript-config`, `eslint-config` | Shared strict TS/lint configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+## Security boundaries
+
+Summarized here; SECURITY.md has the full, current list. The load-bearing
+ones for anyone extending this codebase: every `/v1/*` route requires
+Bearer auth (constant-time comparison); a real HMAC-SHA256 signature (via
+`crypto.subtle`, never homegrown) gates every signed download; production
+deployments fail closed rather than open — `api-worker`/`delivery-worker`
+refuse all traffic if `APP_ENV=production` and either secret still equals
+its committed local-dev default; SVG is served with a script-blocking CSP
+since it's accepted as untrusted content and never sanitized; the
+dashboard's browser code never holds the API key — a same-origin
+server-side proxy injects it — though that proxy is not yet verified to
+run in the dashboard's current static-SPA production deployment (see
+context.md's "Dashboard dev-only proxy" note).
+
+## Future self-hosted model
+
+Today, "self-hosting" means cloning this repo and deploying it as-is —
+there's no packaged distribution. A real self-hosted offering (Roadmap's
+"Future — Self-Hosted Mode") would need: the Workers/dashboard published
+as installable units (not just source you fork), a setup flow that
+provisions D1/R2/Queue resources rather than assuming
+`docs/deployment-cloudflare.md` is followed by hand, and a clean split
+between "this maintainer's own deployment" and "anyone's deployment" —
+concretely, the production `wrangler.jsonc` resource names/IDs would need
+to stop being hardcoded in this repo's own config.
+
+## Future hosted (managed) model
+
+Explicitly out of scope for every phase through Phase 5 (see ROADMAP.md).
+Would require real multi-tenant authentication/authorization (replacing
+the single shared static API key), per-tenant data isolation at the D1/R2
+layer (today every table is a flat, single-tenant space keyed by
+project — not tenant), and billing — none of which this architecture
+currently has a seam for, by design, since building one prematurely would
+constrain Phase 5's actual, narrower goal.

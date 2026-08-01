@@ -90,7 +90,7 @@ describe("PresetEditor", () => {
     expect(fixture.nativeElement.querySelector("#crop-x")).toBeNull();
 
     const cropSwitch = fixture.nativeElement.querySelector(
-      'volt-switch[aria-label="Enable crop"]',
+      '[data-testid="crop-enabled-switch"]',
     );
     cropSwitch?.querySelector<HTMLElement>("button")?.click();
     await settle(fixture, 1);
@@ -103,7 +103,7 @@ describe("PresetEditor", () => {
     const fixture = await render(null);
 
     const grayscaleSwitch = fixture.nativeElement.querySelector(
-      'volt-switch[aria-label="Grayscale"]',
+      '[data-testid="grayscale-switch"]',
     );
     grayscaleSwitch?.querySelector<HTMLElement>("button")?.click();
     await settle(fixture, 1);

@@ -12,7 +12,6 @@ import {
   VoltButton,
   VoltFileDropzone,
   VoltInput,
-  VoltLabel,
   VoltNativeSelect,
   VoltSwitch,
 } from "@voltui/components";
@@ -51,7 +50,6 @@ const ACCEPTED_TYPES =
     VoltButton,
     VoltFileDropzone,
     VoltInput,
-    VoltLabel,
     VoltNativeSelect,
     VoltSwitch,
     LmnArrowUpTrayIcon,
@@ -144,8 +142,8 @@ const ACCEPTED_TYPES =
           }
 
           <div class="grid gap-4 sm:grid-cols-2">
-            <div class="flex flex-col gap-1.5">
-              <volt-label htmlFor="upload-folder">Folder</volt-label>
+            <label class="flex flex-col gap-1.5">
+              <span class="text-sm font-medium text-foreground leading-none">Folder</span>
               <volt-native-select
                 id="upload-folder"
                 [disabled]="uploads.isUploading()"
@@ -161,10 +159,10 @@ const ACCEPTED_TYPES =
                   </option>
                 }
               </volt-native-select>
-            </div>
+            </label>
 
-            <div class="flex flex-col gap-1.5">
-              <volt-label htmlFor="upload-visibility">Visibility</volt-label>
+            <label class="flex flex-col gap-1.5">
+              <span class="text-sm font-medium text-foreground leading-none">Visibility</span>
               <volt-native-select
                 id="upload-visibility"
                 [disabled]="uploads.isUploading()"
@@ -177,11 +175,11 @@ const ACCEPTED_TYPES =
                   Private — signed links only
                 </option>
               </volt-native-select>
-            </div>
+            </label>
           </div>
 
-          <div class="flex flex-col gap-1.5">
-            <volt-label htmlFor="upload-tags">Tags</volt-label>
+          <label class="flex flex-col gap-1.5">
+            <span class="text-sm font-medium text-foreground leading-none">Tags</span>
             <volt-input
               id="upload-tags"
               placeholder="hero, marketing"
@@ -192,9 +190,9 @@ const ACCEPTED_TYPES =
             <p class="text-xs text-muted-foreground">
               Comma-separated. Applied to every file.
             </p>
-          </div>
+          </label>
 
-          <div class="flex items-center justify-between gap-4">
+          <label class="flex items-center justify-between gap-4">
             <div class="flex flex-col">
               <span class="text-sm font-medium">Allow original downloads</span>
               <span class="text-xs text-muted-foreground">
@@ -207,7 +205,7 @@ const ACCEPTED_TYPES =
               [disabled]="uploads.isUploading()"
               (checkedChange)="downloadOriginalEnabled.set($event)"
             />
-          </div>
+          </label>
 
           @if (uploads.queue().length > 0) {
             <div class="flex flex-col gap-2 border-t border-border pt-4">

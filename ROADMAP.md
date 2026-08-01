@@ -155,20 +155,72 @@ shared static `IMAGERYX_API_KEY`; the `api_keys` table exists since Phase 2
 but nothing writes to it yet), and project/folder/preset-scoped activity as
 real rows instead of structured logs.
 
-## Phase 5 — Production Hardening & Release (current)
+## Phase 5 — Production Hardening (current)
 
-- Real authentication/authorization on business routes — replacing Phase
-  3's single shared static API key with per-user/per-team credentials
-  (CI/CD and basic Cloudflare deployment already exist as of Phase 2 — see
-  context.md, "Deployment" — but nothing deployed uses more than that
-  static key yet).
-- First tagged release; package publishing workflows for `@imageryx/sdk`
-  and `@imageryx/angular`.
-- A real transformation pipeline (or first real Cloudflare
-  Images/Cloudinary network calls) replacing Phase 3's mock provider.
+Narrower than earlier drafts of this phase described: hardens the
+feature-complete base from Phases 1–4B rather than adding new product
+surface. No multi-tenancy, user accounts, teams, or billing — see
+"Explicit scope narrowing" in this phase's own planning notes (context.md).
+
+- Production-config validation: `api-worker`/`delivery-worker` refuse to
+  serve traffic if `APP_ENV=production` and a real secret still equals its
+  committed local-dev default — closes the exact failure mode this repo
+  found in itself (a plaintext secret briefly committed in
+  `wrangler.jsonc`).
+- Meaningful new test coverage, not padding: a real concurrency bug in
+  variant generation, a real gap in `R2StorageProvider` (never tested
+  against a real binding until now), a real upstream accessibility bug in
+  `@voltui/components`'s label component — each found by writing the test,
+  not assumed. Per-package coverage thresholds set at the actual measured
+  baseline.
+- CI completion: CodeQL, dependency review, an accessibility smoke job,
+  Changesets (internal version planning for `@imageryx/sdk` /
+  `@imageryx/angular`, not npm publishing yet), a manual per-app deploy
+  workflow alongside the existing push-to-main one.
+- Cloudflare deployment preparation: production secret/variable docs,
+  remote D1/R2/Queue setup commands, deploy scripts, a non-destructive
+  smoke-check script — prepared and dry-run-validated, not executed
+  against a real account as part of this phase.
+
+## Phase 0.x — Personal Alpha (Phases 1 through 5)
+
+What every phase above adds up to: a real, tested, single-tenant image
+delivery and transformation platform, safe to run against your own
+Cloudflare account, with an honest boundary around what's still simulated
+(transformation itself — see "Current limitations" in README.md).
+
+## 1.0 — Personal Cloudflare Release
+
+The first tagged version, deployed to and validated against a real,
+personal Cloudflare account (not just Miniflare-simulated locally) —
+concretely:
+
+- A completed first real deployment following
+  `docs/deployment-cloudflare.md`, with a working smoke check against the
+  live URLs.
+- At least one working real transformation path — either a real
+  Cloudflare Images or Cloudinary network call, replacing the mock
+  provider for at least one operation set.
+- API key rotation exercised for real, not just documented.
+
+## Future — Self-Hosted Mode
+
+For anyone who wants to run their own Imageryx instance, not just this
+project's maintainer: a documented, repeatable self-hosting path beyond
+"clone and follow the deployment guide" — likely package-level
+distribution of the Workers/dashboard, a setup wizard or CLI, and clearer
+separation between "this repo's own deployment" and "a deployment anyone
+can stand up."
+
+## Future — Managed Hosting Exploration
+
+A hosted, multi-tenant offering — the scope explicitly excluded from every
+phase above. Real authentication/authorization, per-tenant isolation,
+billing, and everything that implies are out of scope until this is
+deliberately taken on, not a natural extension of Phase 5's hardening.
 
 ## Out of scope for now
 
-Multi-region storage replication, video/animated-format transformation,
-and a hosted managed offering are not planned in the phases above and will
-only be scoped once Phase 5 ships.
+Multi-region storage replication and video/animated-format transformation
+are not planned in any phase above and will only be scoped if a future
+phase explicitly takes them on.

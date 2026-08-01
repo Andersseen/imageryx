@@ -12,7 +12,14 @@ transformation platform: upload once, transform on request, and serve from
 the edge — without locking storage or transformation logic to a single
 vendor.
 
-## Status: Phase 4B — Asset Workspace, Presets, Processing, API & Settings
+## Status: Phase 5 — Production Hardening
+
+**Current status: personal-use alpha.** Feature-complete for a single-tenant,
+self-hosted installation (Phases 1–4B); Phase 5 hardens what exists —
+security, test coverage, CI, accessibility, documentation, and Cloudflare
+deployment preparation — rather than adding new product surface. It does
+not claim multi-tenant or production-service readiness; see "Current
+limitations" below and [ROADMAP.md](ROADMAP.md).
 
 Phase 1 shipped the monorepo structure and local dev experience. Phase 2
 added the provider-independent image domain, a real D1 schema, and real
@@ -48,11 +55,23 @@ live configuration, entirely read-only (there is no settings-mutation
 endpoint yet). **All of it still runs locally with zero Cloudflare or
 Cloudinary credentials.**
 
-There is still **no production auth/teams/billing, and no real network
-calls to Cloudflare Images, Cloudinary, or an R2 bucket that isn't
-Miniflare-simulated** — see [ROADMAP.md](ROADMAP.md) for what's next and
-[context.md](context.md) for the full working context, including the
-specific decisions and known limitations from this phase.
+**Phase 5** (current) hardens that feature-complete base rather than adding
+to it: production-config validation that refuses to serve traffic if a real
+secret still equals its committed local-dev default, meaningful new test
+coverage (including a real concurrency bug and a real third-party
+accessibility bug found and fixed along the way — see context.md),
+per-package coverage thresholds, an automated accessibility smoke suite,
+CodeQL/dependency-review/a manual deploy workflow, and prepared (not yet
+executed) Cloudflare deployment tooling.
+
+There is still **no multi-user auth/teams/billing** (a single shared static
+API key, now at least validated against known-unsafe defaults in
+production) **and no real network calls to Cloudflare Images, Cloudinary,
+or a real (non-Miniflare-simulated) R2 bucket** — completing either is
+explicitly out of this phase's scope, not an oversight. See
+[ROADMAP.md](ROADMAP.md) for what's next and [context.md](context.md) for
+the full working context, including the specific decisions and known
+limitations from this phase.
 
 ## Stack
 
@@ -124,26 +143,35 @@ pnpm build            # production build of every app/package
 pnpm lint             # ESLint across the workspace
 pnpm typecheck        # TypeScript project-reference typecheck across the workspace
 pnpm test             # Vitest (Node + Workers pools) across every app/package that has tests
+pnpm test:unit        # Just the plain Vitest packages — excludes the three Workers pools
 pnpm test:workers     # Just the @cloudflare/vitest-pool-workers suites (api/delivery/processing-worker)
 pnpm test:integration # The plain-Node backend integration test (real D1 + R2, no mocks)
 pnpm test:e2e         # Playwright: a real browser against a real api-worker, D1 and R2
+pnpm test:a11y        # Playwright + axe-core: an accessibility smoke scan of 5 representative pages
+pnpm test:coverage    # Per-package coverage against the thresholds in each vitest.config.ts
 pnpm e2e:install      # One-time: download the Chromium build Playwright uses
 pnpm check            # lint + typecheck + test + build, in dependency order
+pnpm check:full       # check, plus test:integration + test:e2e + test:a11y + test:coverage
 ```
 
-`pnpm test` and `pnpm check` do **not** include `test:integration` or
-`test:e2e`. `test:integration` spins up its own ephemeral Miniflare D1/R2
-pair (slower, and intentionally isolated from the workerd-based
-`vitest-pool-workers` suites that make up `pnpm test`; see context.md's
-"Backend integration test" note for why). `test:e2e` boots real servers and
-a real browser. Run them explicitly, or rely on CI, which runs each as its
-own job.
+`pnpm test` and `pnpm check` do **not** include `test:integration`,
+`test:e2e`, `test:a11y`, or `test:coverage` — `pnpm check:full` does, and is
+intentionally slower. `test:integration` spins up its own ephemeral
+Miniflare D1/R2 pair (slower, and intentionally isolated from the
+workerd-based `vitest-pool-workers` suites that make up `pnpm test`; see
+context.md's "Backend integration test" note for why). `test:e2e` and
+`test:a11y` both boot real servers and a real browser. Run them explicitly,
+or rely on CI, which runs each as its own job.
 
-`pnpm test:e2e` needs no Cloudflare credentials. It applies migrations,
-then starts api-worker on port 8887 and the dashboard on 5273 against
-`.wrangler-state-e2e` — deliberately separate from the dev ports and from
-the `.wrangler-state` your `pnpm dev` session uses, so an E2E run can never
-upload into or delete from the database you are working in.
+`pnpm test:e2e` and `pnpm test:a11y` need no Cloudflare credentials. Both
+apply migrations, then start api-worker on port 8887 and the dashboard on
+5273 against `.wrangler-state-e2e` — deliberately separate from the dev
+ports and from the `.wrangler-state` your `pnpm dev` session uses, so a run
+can never upload into or delete from the database you are working in. Run
+these one at a time locally — running one while another (or unrelated
+`wrangler dev` processes against the same `--persist-to` state) is already
+active produces false-positive failures from resource contention, not real
+regressions; this was confirmed the hard way during Phase 5.
 
 Run a single app's dev server from the root (useful when you only need one
 piece running):
@@ -316,9 +344,16 @@ pnpm --filter @imageryx/api-worker run db:migrate:production
 pnpm --filter @imageryx/api-worker run db:status:production
 ```
 
-Nothing deployed is auth-protected yet (see "Current limitations") — this
-stage only wires up the pipeline and exposes the same diagnostic-only
-surface described above, publicly.
+Every `/v1/*` route on the deployed `api-worker` requires the same Bearer
+`IMAGERYX_API_KEY` local requests do (see "Authentication" above) — set as
+a real secret via `wrangler secret put`, not a plaintext `vars` value (see
+"Deployment" secrets step above). `delivery-worker`'s routes are public by
+design, not a gap — that's how a CDN-style delivery layer is meant to work.
+What's still open: this is a single shared key, not per-user credentials
+(see "Current limitations"), and the dashboard's own server-side proxy that
+keeps this key out of browser code is not verified to run in the
+dashboard's current static-SPA production deployment — see context.md's
+"Dashboard dev-only proxy" note before relying on it in production.
 
 ## Local database & storage setup
 
@@ -481,6 +516,17 @@ incomplete combination fails fast rather than at first use:
 - CI deploys every app to Cloudflare on push to `main` (see "Deployment"
   above); the deployed api-worker/delivery-worker still expect the same
   local-style single static API key — no per-user credentials exist yet.
+- A real, upstream `@voltui/components` bug (`<volt-label htmlFor>` never
+  renders a working `for` attribute — see context.md's "Phase 5 decisions
+  and limitations") was found and fixed on every page `pnpm test:a11y`
+  scans; the same broken pattern still exists on other, not-yet-scanned
+  dashboard pages (tags/folders panels, the processing list, the project
+  dialog) — a known, diagnosed follow-up, not a hidden one.
+- One color-contrast case (`ix-service-status-card`'s "solid"/"destructive"
+  status badges) is excluded from the accessibility suite by exact
+  selector with a documented root-cause writeup, not fixed — see the
+  comment above `KNOWN_COLOR_CONTRAST_EXCLUSIONS` in
+  `apps/dashboard/e2e/accessibility.spec.ts`.
 
 See context.md's "Phase 3 decisions and limitations", "Phase 4A decisions
 and limitations", and "Phase 4B decisions and limitations" sections for the
