@@ -3,7 +3,114 @@
 All notable changes to this project are documented in this file. Format
 loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] — Phase 4A: Dashboard Foundation
+## [Unreleased] — Phase 5: Production Hardening
+
+Hardens the feature-complete base from Phases 1–4B; adds no new product
+surface. See ROADMAP.md's "Explicit scope narrowing" for what was
+deliberately left out (multi-tenant auth, a real transformation pipeline).
+
+### Added
+
+- Production-config validation (`assertSafeProductionSecrets` in
+  `@imageryx/image-core`, wired as middleware in `api-worker` and
+  `delivery-worker`): refuses every request when `APP_ENV=production` and
+  `IMAGERYX_API_KEY`/`DOWNLOAD_SIGNING_SECRET` still match their known
+  local-dev default values or are unset.
+- `pnpm key:generate` — a small script printing one cryptographically
+  random secret, never written to a file.
+- SVG delivery responses now also set a script-blocking
+  `Content-Security-Policy` (`apps/delivery-worker/src/lib/svg-headers.ts`)
+  — relevant today, not hypothetical: every simulated variant is real SVG.
+- Real binding-level tests for `R2StorageProvider`
+  (`apps/api-worker/test/r2-storage-provider.spec.ts`) — previously
+  untested against any real `R2Bucket`, since `packages/providers`' own
+  tests run under plain Node. Found and fixed a real bug along the way:
+  `put()` didn't buffer a `ReadableStream` body before handing it to R2,
+  which rejects streams with no known length.
+- A real concurrency test for variant generation
+  (`apps/api-worker/test/variants.spec.ts`) using `Promise.all`, not
+  sequential awaits — found and fixed a real bug: two genuinely
+  simultaneous requests could return a 409 to the loser instead of the
+  normal idempotent response (`generate-variant.service.ts` now catches
+  `DuplicateVariantError` and re-reads the now-existing variant).
+- `pnpm test:coverage` — per-package coverage (`@vitest/coverage-v8` for
+  Node/jsdom packages, `@vitest/coverage-istanbul` for the three
+  Workers-pool packages, since V8 coverage can't see into a real workerd
+  isolate), with thresholds set at each package's actual measured
+  baseline, not an arbitrary number.
+- `pnpm test:a11y` — a Playwright + `@axe-core/playwright` smoke suite
+  scanning 5 representative pages (Overview, Library, Upload, Asset
+  details, Preset form). Found and fixed real issues, not just added
+  coverage: a systemic WCAG AA color-contrast failure across two theme
+  tokens (`--muted-foreground`, `--destructive`) affecting every page, and
+  a real upstream `@voltui/components` bug — `<volt-label htmlFor="x">`
+  never renders a working `for` attribute (its `ngpLabel` directive
+  overrides it), silently unlabeling every native `<select>`/`<input>`
+  it's paired with. Fixed on every page this suite scans by wrapping the
+  control in a real `<label>` instead (implicit association, which
+  doesn't depend on the broken `for`/`id` link); the same broken pattern
+  still exists on ~26 other call sites across the dashboard, tracked as a
+  known follow-up (README.md's "Current limitations").
+- `.github/workflows/codeql.yml`, `dependency-review.yml`,
+  `deploy-manual.yml` (a `workflow_dispatch`-triggered per-app redeploy,
+  separate from `ci.yml`'s automatic push-to-main deploy); a new `a11y`
+  job and a `Coverage` step added to `ci.yml`.
+- Changesets, scoped to `@imageryx/sdk` and `@imageryx/angular` only
+  (`.changeset/config.json`) — both still `private: true`; used for
+  internal version planning, not npm publishing, until that's a
+  deliberate decision.
+- A skip-to-content link (`apps/dashboard/src/app/app.component.ts`).
+
+### Fixed
+
+- `apps/dashboard/src/server/routes/proxy/[...path].ts`: a `fetch()`
+  rejection (api-worker unreachable) previously fell through to Nitro's
+  own generic error page — a shape the SDK's error parser doesn't
+  recognize, rendering a bare, unhelpful "Server Error" everywhere. Now
+  returns the same JSON error envelope api-worker's own error handler
+  uses.
+- `packages/database/src/services/preset-persistence.service.ts` had zero
+  test coverage; `packages/database/src/config/wrangler-config.ts`
+  likewise — both real, previously-unverified code paths, now tested.
+
+### Security
+
+- The one critical finding from this phase's own audit: `wrangler.jsonc`'s
+  `env.production` blocks (api-worker, delivery-worker) had
+  `IMAGERYX_API_KEY`/`DOWNLOAD_SIGNING_SECRET` committed as plaintext
+  `vars`, equal to their local-dev default values — found, fixed (moved to
+  `.dev.vars`/`wrangler secret put`), and now structurally prevented from
+  recurring by the production-config validation above. See SECURITY.md.
+
+## Phase 4B: Asset Workspace, Presets, Processing, API & Settings
+
+Recorded here after the fact, like Phase 3 below — see ROADMAP.md and
+context.md's "Phase 4B decisions and limitations" for the authoritative
+record.
+
+### Added
+
+- `apps/dashboard`: `/library/:assetId` (full asset workspace — preview,
+  metadata, variant generation with scoped polling, before/after
+  comparison, delivery snippets, signed downloads, activity timeline,
+  settings); `/presets`, `/presets/new`, `/presets/:presetId` (one shared
+  editor, a real provider-compatibility panel); `/processing`,
+  `/processing/:jobId` (scoped per-row/per-job polling); `/api` (live
+  developer reference); `/settings` (the same live config, read-only).
+  Every route the original spec named is now real.
+
+### Fixed
+
+- Analog's file router silently nests a dynamic detail route as an
+  unrenderable child whenever a list page and its detail folder share a
+  name (`library.page.ts` next to `library/[assetId].page.ts`) — fixed by
+  moving the list page to `library/index.page.ts` for every list+detail
+  pair this phase added. The new `/api` page also collided with the
+  dev-only proxy's own `/api` prefix — the proxy moved to `/proxy`. See
+  context.md's "Phase 4B decisions and limitations" for the full
+  mechanism; required reading before adding another dynamic route.
+
+## Phase 4A: Dashboard Foundation
 
 ### Added
 

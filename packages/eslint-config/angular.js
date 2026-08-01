@@ -30,6 +30,24 @@ export function withAngular(prefix = 'ix') {
     {
       files: ['**/*.html'],
       extends: [...angular.configs.templateRecommended, ...angular.configs.templateAccessibility],
+      rules: {
+        // `label-has-associated-control`'s default `controlComponents` list is native tag names
+        // only (input/select/textarea/...), so it can't see that `<volt-input>`/
+        // `<volt-native-select>`/`<volt-textarea>`/`<volt-switch>` each render a real native
+        // control internally — a real `<label>` wrapping one of these (this repo's actual pattern
+        // for every Volt-backed form field) was a false positive without this.
+        '@angular-eslint/template/label-has-associated-control': [
+          'error',
+          {
+            controlComponents: [
+              'volt-input',
+              'volt-native-select',
+              'volt-textarea',
+              'volt-switch',
+            ],
+          },
+        ],
+      },
     },
   );
 }

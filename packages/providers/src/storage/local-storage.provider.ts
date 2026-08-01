@@ -5,13 +5,14 @@ import {
   InvalidImagePathError,
   computeSha256Checksum,
 } from "@imageryx/image-core";
-import type {
-  DownloadUrlInput,
-  StorageProvider,
-  StoragePutInput,
-  StoredObject,
-  StoredObjectBody,
-  StoredObjectMetadata,
+import {
+  readStorageBodyToBytes,
+  type DownloadUrlInput,
+  type StorageProvider,
+  type StoragePutInput,
+  type StoredObject,
+  type StoredObjectBody,
+  type StoredObjectMetadata,
 } from "./storage-provider";
 
 interface SidecarMetadata {
@@ -76,7 +77,7 @@ export class LocalStorageProvider implements StorageProvider {
     const objectPath = this.resolveObjectPath(input.key);
     await mkdir(dirname(objectPath), { recursive: true });
 
-    const bytes = await normalizeBody(input.body);
+    const bytes = await readStorageBodyToBytes(input.body);
     const etag = await computeSha256Checksum(bytes);
     const uploadedAt = new Date().toISOString();
     const metadata: SidecarMetadata = {
@@ -149,33 +150,6 @@ function isNotFoundError(error: unknown): boolean {
     "code" in error &&
     (error as NodeJS.ErrnoException).code === "ENOENT"
   );
-}
-
-async function normalizeBody(
-  body: StoragePutInput["body"],
-): Promise<Uint8Array> {
-  if (body instanceof Uint8Array) return body;
-  if (body instanceof ArrayBuffer) return new Uint8Array(body);
-
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) {
-      chunks.push(value);
-      total += value.byteLength;
-    }
-  }
-
-  const result = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return result;
 }
 
 function bytesToStream(bytes: Uint8Array): ReadableStream<Uint8Array> {

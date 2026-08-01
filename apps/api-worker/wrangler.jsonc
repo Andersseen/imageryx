@@ -3,6 +3,9 @@
   "name": "imageryx-api-worker",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-29",
+  // IMAGERYX_API_KEY and DOWNLOAD_SIGNING_SECRET are secrets, not plain
+  // vars — even the dev defaults live in .dev.vars (git-ignored), never
+  // here. Copy .dev.vars.example to .dev.vars to run this Worker locally.
   "vars": {
     "APP_ENV": "development",
     "STORAGE_PROVIDER": "r2",
@@ -10,12 +13,10 @@
     "DASHBOARD_URL": "http://localhost:5173",
     "DELIVERY_URL": "http://localhost:8788",
     "LOCAL_STORAGE_PATH": "../../.local/storage",
-    "IMAGERYX_API_KEY": "imgx_dev_local",
     "MAX_UPLOAD_SIZE_MB": "25",
     "ASSET_RECOVERY_DAYS": "30",
     "PROCESSING_MAX_ATTEMPTS": "3",
-    "PROCESSING_MODE": "queue",
-    "DOWNLOAD_SIGNING_SECRET": "replace-with-local-development-secret"
+    "PROCESSING_MODE": "queue"
   },
   "d1_databases": [
     {
@@ -43,11 +44,11 @@
       // Without an explicit name, `wrangler deploy --env production`
       // publishes as "imageryx-api-worker-production".
       "name": "imageryx-api-worker",
-      // FIXME(security): IMAGERYX_API_KEY and DOWNLOAD_SIGNING_SECRET are
-      // real secrets and must not ship as plaintext vars in a public repo —
-      // as written, the production API is protected by a key anyone can
-      // read. Move both to `wrangler secret put <NAME> --env production`
-      // (needs a `.dev.vars` story for local dev first — see README).
+      // IMAGERYX_API_KEY and DOWNLOAD_SIGNING_SECRET are real secrets and
+      // must never be plaintext vars here. Set them once per environment
+      // with `wrangler secret put <NAME> --env production` (see README's
+      // "Deployment" section) — they persist in Cloudflare across deploys
+      // and are not reset by `wrangler deploy`.
       "vars": {
         "APP_ENV": "production",
         "STORAGE_PROVIDER": "r2",
@@ -55,12 +56,10 @@
         "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev",
         "DELIVERY_URL": "https://imageryx-delivery-worker.workers.dev",
         "LOCAL_STORAGE_PATH": "../../.local/storage",
-        "IMAGERYX_API_KEY": "imgx_dev_local",
         "MAX_UPLOAD_SIZE_MB": "25",
         "ASSET_RECOVERY_DAYS": "30",
         "PROCESSING_MAX_ATTEMPTS": "3",
-        "PROCESSING_MODE": "queue",
-        "DOWNLOAD_SIGNING_SECRET": "replace-with-local-development-secret"
+        "PROCESSING_MODE": "queue"
       },
       "d1_databases": [
         {

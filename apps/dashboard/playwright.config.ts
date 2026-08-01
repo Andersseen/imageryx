@@ -26,6 +26,11 @@ const API_PORT = 8887;
  */
 export default defineConfig({
   testDir: "./e2e",
+  // `accessibility.spec.ts` also has its own `pnpm test:a11y` script/CI job (a filtered run of
+  // just that file) — tried excluding it here via `testIgnore` so `pnpm test:e2e` wouldn't
+  // re-run it too, but Playwright's `testIgnore` overrides even an explicit file argument in this
+  // version, which broke `test:a11y` outright. Left as overlap (both jobs run this file) rather
+  // than adding a second config for a CI-time optimization that isn't worth the complexity.
   fullyParallel: false,
   // Uploads, deletes and restores hit one shared database; running them concurrently would make
   // the assertions depend on each other's timing.

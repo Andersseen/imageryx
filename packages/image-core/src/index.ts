@@ -22,6 +22,7 @@ export * from "./security/base64";
 export * from "./security/checksum";
 export * from "./security/constant-time";
 export * from "./security/mime-validation";
+export * from "./security/production-config";
 export * from "./security/signed-token";
 
 export * from "./metadata/inspect-dimensions";

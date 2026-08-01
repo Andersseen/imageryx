@@ -14,7 +14,8 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@imageryx/image-core": "workspace:*",
@@ -33,6 +34,7 @@
     "@angular/platform-browser": "^21.2.0",
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
+    "@vitest/coverage-v8": "^4.1.10",
     "jsdom": "^30.0.1",
     "typescript": "^5.9.2",
     "vite": "^7.3.6",

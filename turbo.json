@@ -20,6 +20,10 @@
       "dependsOn": [],
       "outputs": []
     },
+    "test:coverage": {
+      "dependsOn": [],
+      "outputs": ["coverage/**"]
+    },
     "test:integration": {
       "dependsOn": [],
       "outputs": []
@@ -28,6 +32,11 @@
       "dependsOn": [],
       // Never cached: the run boots real Workers against a real local database, so a "cache hit"
       // would report a pass without having exercised anything.
+      "cache": false,
+      "outputs": []
+    },
+    "test:a11y": {
+      "dependsOn": [],
       "cache": false,
       "outputs": []
     },

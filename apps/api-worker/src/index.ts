@@ -4,6 +4,7 @@ import { requireApiKey } from "./middleware/auth";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler";
 import { structuredLogger } from "./middleware/logger";
 import { requestId, type RequestIdVariables } from "./middleware/request-id";
+import { validateProductionEnv } from "./middleware/validate-production-env";
 import { databaseDiagnosticsRoute } from "./routes/diagnostics/database";
 import { domainDiagnosticsRoute } from "./routes/diagnostics/domain";
 import { providersDiagnosticsRoute } from "./routes/diagnostics/providers";
@@ -22,6 +23,7 @@ const app = new Hono<{ Bindings: Env; Variables: RequestIdVariables }>();
 
 app.use("*", requestId);
 app.use("*", structuredLogger);
+app.use("*", validateProductionEnv);
 app.use(
   "*",
   cors({

@@ -25,6 +25,15 @@ export default defineConfig(async () => {
     test: {
       pool: cloudflarePool(workersOptions),
       setupFiles: ["./test/apply-migrations.ts"],
+      // V8 coverage reports a flat 0% here — the pool runs code inside a real workerd isolate,
+      // which V8's coverage API (hooked into the Node process) cannot see into. Istanbul
+      // instruments source at transform time instead, so it works across that boundary.
+      coverage: {
+        provider: "istanbul",
+        reporter: ["text", "json-summary"],
+        include: ["src/**/*.ts"],
+        thresholds: { statements: 65, branches: 50, functions: 60, lines: 70 },
+      },
       // Excludes test/integration/**: that suite runs under plain Node (see
       // vitest.integration.config.ts) against a real Miniflare-backed D1 + R2 pair directly —
       // it must never be picked up by this workerd-based pool, which cannot run Node-only code

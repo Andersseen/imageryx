@@ -3,10 +3,13 @@
   "name": "imageryx-delivery-worker",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-29",
+  // DOWNLOAD_SIGNING_SECRET is a secret, not a plain var — even the dev
+  // default lives in .dev.vars (git-ignored), never here. Copy
+  // .dev.vars.example to .dev.vars to run this Worker locally; it must
+  // match api-worker's DOWNLOAD_SIGNING_SECRET exactly.
   "vars": {
     "APP_ENV": "development",
-    "DASHBOARD_URL": "http://localhost:5173",
-    "DOWNLOAD_SIGNING_SECRET": "replace-with-local-development-secret"
+    "DASHBOARD_URL": "http://localhost:5173"
   },
   "d1_databases": [
     {
@@ -31,14 +34,17 @@
       // Without an explicit name, `wrangler deploy --env production`
       // publishes as "imageryx-delivery-worker-production".
       "name": "imageryx-delivery-worker",
-      // FIXME(security): DOWNLOAD_SIGNING_SECRET is a real secret and must
-      // not ship as a plaintext var in a public repo. Move it to
-      // `wrangler secret put DOWNLOAD_SIGNING_SECRET --env production`
-      // (needs a `.dev.vars` story for local dev first — see README).
+      // DOWNLOAD_SIGNING_SECRET is a real secret and must never be a
+      // plaintext var here. Set it once with `wrangler secret put
+      // DOWNLOAD_SIGNING_SECRET --env production` (see README's
+      // "Deployment" section) — it persists in Cloudflare across deploys
+      // and is not reset by `wrangler deploy`. It must be the exact same
+      // value as api-worker's production DOWNLOAD_SIGNING_SECRET, or
+      // signed download tokens issued by one will fail verification on
+      // the other.
       "vars": {
         "APP_ENV": "production",
-        "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev",
-        "DOWNLOAD_SIGNING_SECRET": "replace-with-local-development-secret"
+        "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev"
       },
       "d1_databases": [
         {

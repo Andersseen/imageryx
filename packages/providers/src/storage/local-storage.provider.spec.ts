@@ -103,6 +103,27 @@ describe("LocalStorageProvider", () => {
     ).rejects.toThrow(InvalidImagePathError);
   });
 
+  it("rejects an absolute-path key rather than letting it override the configured root", async () => {
+    // `path.resolve(root, key)` treats an absolute second argument as the whole result, discarding
+    // `root` entirely — the exact bypass this check exists to catch, not a hypothetical.
+    await expect(
+      provider.put({ key: "/etc/passwd", body: new Uint8Array([1]) }),
+    ).rejects.toThrow(InvalidImagePathError);
+  });
+
+  it("rejects a key containing a null byte instead of writing a malformed path", async () => {
+    await expect(
+      provider.put({ key: "a" + String.fromCharCode(0) + ".png", body: new Uint8Array([1]) }),
+    ).rejects.toThrow();
+  });
+
+  it("never deletes anything when the resolved path is the storage root itself", async () => {
+    await provider.put({ key: "keep-me.png", body: new Uint8Array([1]) });
+    // An empty key resolves to `this.root` unchanged — must be rejected before reaching `rm()`.
+    await expect(provider.delete("")).rejects.toThrow(InvalidImagePathError);
+    expect(await provider.exists("keep-me.png")).toBe(true);
+  });
+
   it("generates a deterministic local download reference for an existing object", async () => {
     await provider.put({ key: "a.png", body: new Uint8Array([1]) });
     const url = await provider.createDownloadUrl({ key: "a.png" });

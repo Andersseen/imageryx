@@ -15,7 +15,6 @@ import {
   VoltBadge,
   VoltButton,
   VoltInput,
-  VoltLabel,
   VoltNativeSelect,
   VoltSwitch,
   VoltTextarea,
@@ -72,7 +71,6 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
     VoltBadge,
     VoltButton,
     VoltInput,
-    VoltLabel,
     VoltNativeSelect,
     VoltSwitch,
     VoltTextarea,
@@ -133,8 +131,8 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
           >
             <h2 class="text-sm font-semibold">Basics</h2>
             <div class="grid gap-4 sm:grid-cols-2">
-              <div class="flex flex-col gap-1.5">
-                <volt-label htmlFor="preset-name">Name</volt-label>
+              <label class="flex flex-col gap-1.5">
+                <span class="text-sm font-medium text-foreground leading-none">Name</span>
                 <volt-input
                   id="preset-name"
                   [value]="basics().name"
@@ -142,9 +140,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   (valueChange)="onNameChange($event)"
                   data-testid="preset-name-input"
                 />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <volt-label htmlFor="preset-slug">Slug</volt-label>
+              </label>
+              <label class="flex flex-col gap-1.5">
+                <span class="text-sm font-medium text-foreground leading-none">Slug</span>
                 <volt-input
                   id="preset-slug"
                   [value]="basics().slug"
@@ -157,10 +155,10 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                     The slug cannot be changed after creation.
                   </p>
                 }
-              </div>
+              </label>
             </div>
-            <div class="flex flex-col gap-1.5">
-              <volt-label htmlFor="preset-description">Description</volt-label>
+            <label class="flex flex-col gap-1.5">
+              <span class="text-sm font-medium text-foreground leading-none">Description</span>
               <volt-textarea
                 id="preset-description"
                 [rows]="2"
@@ -168,7 +166,7 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                 [value]="basics().description"
                 (valueChange)="patchBasics({ description: $event })"
               />
-            </div>
+            </label>
           </section>
 
           <section
@@ -176,17 +174,19 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
           >
             <div class="flex items-center justify-between">
               <h2 class="text-sm font-semibold">Resize</h2>
-              <volt-switch
-                [checked]="ops().resizeEnabled"
-                [disabled]="isSystem()"
-                (checkedChange)="patchOps({ resizeEnabled: $event })"
-                aria-label="Enable resize"
-              />
+              <label class="flex items-center">
+                <span class="sr-only">Enable resize</span>
+                <volt-switch
+                  [checked]="ops().resizeEnabled"
+                  [disabled]="isSystem()"
+                  (checkedChange)="patchOps({ resizeEnabled: $event })"
+                />
+              </label>
             </div>
             @if (ops().resizeEnabled) {
               <div class="grid gap-4 sm:grid-cols-2">
-                <div class="flex flex-col gap-1.5">
-                  <volt-label htmlFor="resize-width">Width</volt-label>
+                <label class="flex flex-col gap-1.5">
+                  <span class="text-sm font-medium text-foreground leading-none">Width</span>
                   <volt-input
                     id="resize-width"
                     type="number"
@@ -194,9 +194,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                     [value]="numberInputValue(ops().width)"
                     (valueChange)="patchOps({ width: numberOrNull($event) })"
                   />
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <volt-label htmlFor="resize-height">Height</volt-label>
+                </label>
+                <label class="flex flex-col gap-1.5">
+                  <span class="text-sm font-medium text-foreground leading-none">Height</span>
                   <volt-input
                     id="resize-height"
                     type="number"
@@ -204,9 +204,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                     [value]="numberInputValue(ops().height)"
                     (valueChange)="patchOps({ height: numberOrNull($event) })"
                   />
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <volt-label htmlFor="resize-fit">Fit</volt-label>
+                </label>
+                <label class="flex flex-col gap-1.5">
+                  <span class="text-sm font-medium text-foreground leading-none">Fit</span>
                   <volt-native-select
                     id="resize-fit"
                     [disabled]="isSystem()"
@@ -218,9 +218,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                       </option>
                     }
                   </volt-native-select>
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <volt-label htmlFor="resize-position">Position</volt-label>
+                </label>
+                <label class="flex flex-col gap-1.5">
+                  <span class="text-sm font-medium text-foreground leading-none">Position</span>
                   <volt-native-select
                     id="resize-position"
                     [disabled]="isSystem()"
@@ -240,19 +240,18 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                       </option>
                     }
                   </volt-native-select>
-                </div>
+                </label>
               </div>
-              <span class="flex items-center gap-2 text-sm">
+              <label class="flex items-center gap-2 text-sm">
                 <volt-switch
                   [checked]="ops().withoutEnlargement"
                   [disabled]="isSystem()"
                   (checkedChange)="patchOps({ withoutEnlargement: $event })"
-                  aria-label="Never enlarge beyond the original size"
                 />
-                <span class="text-muted-foreground" aria-hidden="true"
+                <span class="text-muted-foreground"
                   >Never enlarge beyond the original</span
                 >
-              </span>
+              </label>
             }
           </section>
 
@@ -261,17 +260,20 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
           >
             <div class="flex items-center justify-between">
               <h2 class="text-sm font-semibold">Crop</h2>
-              <volt-switch
-                [checked]="ops().cropEnabled"
-                [disabled]="isSystem()"
-                (checkedChange)="patchOps({ cropEnabled: $event })"
-                aria-label="Enable crop"
-              />
+              <label class="flex items-center">
+                <span class="sr-only">Enable crop</span>
+                <volt-switch
+                  [checked]="ops().cropEnabled"
+                  [disabled]="isSystem()"
+                  (checkedChange)="patchOps({ cropEnabled: $event })"
+                  data-testid="crop-enabled-switch"
+                />
+              </label>
             </div>
             @if (ops().cropEnabled) {
               <div class="grid gap-4 sm:grid-cols-4">
-                <div class="flex flex-col gap-1.5">
-                  <volt-label htmlFor="crop-x">X</volt-label>
+                <label class="flex flex-col gap-1.5">
+                  <span class="text-sm font-medium text-foreground leading-none">X</span>
                   <volt-input
                     id="crop-x"
                     type="number"
@@ -279,9 +281,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                     [value]="String(ops().cropX)"
                     (valueChange)="patchOps({ cropX: numberOrZero($event) })"
                   />
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <volt-label htmlFor="crop-y">Y</volt-label>
+                </label>
+                <label class="flex flex-col gap-1.5">
+                  <span class="text-sm font-medium text-foreground leading-none">Y</span>
                   <volt-input
                     id="crop-y"
                     type="number"
@@ -289,9 +291,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                     [value]="String(ops().cropY)"
                     (valueChange)="patchOps({ cropY: numberOrZero($event) })"
                   />
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <volt-label htmlFor="crop-width">Width</volt-label>
+                </label>
+                <label class="flex flex-col gap-1.5">
+                  <span class="text-sm font-medium text-foreground leading-none">Width</span>
                   <volt-input
                     id="crop-width"
                     type="number"
@@ -301,9 +303,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                       patchOps({ cropWidth: numberOrZero($event) })
                     "
                   />
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <volt-label htmlFor="crop-height">Height</volt-label>
+                </label>
+                <label class="flex flex-col gap-1.5">
+                  <span class="text-sm font-medium text-foreground leading-none">Height</span>
                   <volt-input
                     id="crop-height"
                     type="number"
@@ -313,7 +315,7 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                       patchOps({ cropHeight: numberOrZero($event) })
                     "
                   />
-                </div>
+                </label>
               </div>
             }
           </section>
@@ -323,8 +325,8 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
           >
             <h2 class="text-sm font-semibold">Output</h2>
             <div class="grid gap-4 sm:grid-cols-2">
-              <div class="flex flex-col gap-1.5">
-                <volt-label htmlFor="output-format">Format</volt-label>
+              <label class="flex flex-col gap-1.5">
+                <span class="text-sm font-medium text-foreground leading-none">Format</span>
                 <volt-native-select
                   id="output-format"
                   [disabled]="isSystem()"
@@ -341,10 +343,10 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                     </option>
                   }
                 </volt-native-select>
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <volt-label htmlFor="output-quality"
-                  >Quality (blank = default)</volt-label
+              </label>
+              <label class="flex flex-col gap-1.5">
+                <span class="text-sm font-medium text-foreground leading-none"
+                  >Quality (blank = default)</span
                 >
                 <volt-input
                   id="output-quality"
@@ -353,19 +355,16 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   [value]="numberInputValue(basics().quality)"
                   (valueChange)="patchBasics({ quality: numberOrNull($event) })"
                 />
-              </div>
+              </label>
             </div>
 
-            <span class="flex items-center gap-2 text-sm">
+            <label class="flex items-center gap-2 text-sm">
               <volt-switch
                 [checked]="ops().backgroundEnabled"
                 [disabled]="isSystem()"
                 (checkedChange)="patchOps({ backgroundEnabled: $event })"
-                aria-label="Set a background color"
               />
-              <span class="text-muted-foreground" aria-hidden="true"
-                >Background</span
-              >
+              <span class="text-muted-foreground">Background</span>
               @if (ops().backgroundEnabled) {
                 <volt-input
                   [value]="ops().backgroundColor"
@@ -375,10 +374,10 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   class="w-32"
                 />
               }
-            </span>
+            </label>
 
-            <div class="flex flex-col gap-1.5">
-              <volt-label htmlFor="output-metadata">Metadata</volt-label>
+            <label class="flex flex-col gap-1.5">
+              <span class="text-sm font-medium text-foreground leading-none">Metadata</span>
               <volt-native-select
                 id="output-metadata"
                 [disabled]="isSystem()"
@@ -400,7 +399,7 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   Strip location only
                 </option>
               </volt-native-select>
-            </div>
+            </label>
           </section>
 
           <section
@@ -408,14 +407,16 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
           >
             <h2 class="text-sm font-semibold">Effects</h2>
             <div class="flex flex-col gap-1.5">
-              <volt-label htmlFor="effect-rotate">Rotate</volt-label>
+              <span class="text-sm font-medium text-foreground leading-none">Rotate</span>
               <span class="flex items-center gap-2">
-                <volt-switch
-                  [checked]="ops().rotateEnabled"
-                  [disabled]="isSystem()"
-                  (checkedChange)="patchOps({ rotateEnabled: $event })"
-                  aria-label="Enable rotate"
-                />
+                <label class="flex items-center">
+                  <span class="sr-only">Enable rotate</span>
+                  <volt-switch
+                    [checked]="ops().rotateEnabled"
+                    [disabled]="isSystem()"
+                    (checkedChange)="patchOps({ rotateEnabled: $event })"
+                  />
+                </label>
                 @if (ops().rotateEnabled) {
                   <volt-native-select
                     id="effect-rotate"
@@ -440,46 +441,43 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
             </div>
 
             <div class="flex flex-wrap items-center gap-4">
-              <span class="flex items-center gap-2 text-sm">
+              <label class="flex items-center gap-2 text-sm">
                 <volt-switch
                   [checked]="ops().flipHorizontal"
                   [disabled]="isSystem()"
                   (checkedChange)="patchOps({ flipHorizontal: $event })"
-                  aria-label="Flip horizontal"
                 />
-                <span aria-hidden="true">Flip horizontal</span>
-              </span>
-              <span class="flex items-center gap-2 text-sm">
+                <span>Flip horizontal</span>
+              </label>
+              <label class="flex items-center gap-2 text-sm">
                 <volt-switch
                   [checked]="ops().flipVertical"
                   [disabled]="isSystem()"
                   (checkedChange)="patchOps({ flipVertical: $event })"
-                  aria-label="Flip vertical"
                 />
-                <span aria-hidden="true">Flip vertical</span>
-              </span>
-              <span class="flex items-center gap-2 text-sm">
+                <span>Flip vertical</span>
+              </label>
+              <label class="flex items-center gap-2 text-sm">
                 <volt-switch
                   [checked]="ops().grayscaleEnabled"
                   [disabled]="isSystem()"
                   (checkedChange)="patchOps({ grayscaleEnabled: $event })"
-                  aria-label="Grayscale"
+                  data-testid="grayscale-switch"
                 />
-                <span aria-hidden="true">Grayscale</span>
-              </span>
+                <span>Grayscale</span>
+              </label>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2">
               <div class="flex flex-col gap-1.5">
-                <span class="flex items-center gap-2 text-sm">
+                <label class="flex items-center gap-2 text-sm">
                   <volt-switch
                     [checked]="ops().blurEnabled"
                     [disabled]="isSystem()"
                     (checkedChange)="patchOps({ blurEnabled: $event })"
-                    aria-label="Enable blur"
                   />
-                  <span aria-hidden="true">Blur</span>
-                </span>
+                  <span>Blur</span>
+                </label>
                 @if (ops().blurEnabled) {
                   <input
                     type="range"
@@ -497,15 +495,14 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                 }
               </div>
               <div class="flex flex-col gap-1.5">
-                <span class="flex items-center gap-2 text-sm">
+                <label class="flex items-center gap-2 text-sm">
                   <volt-switch
                     [checked]="ops().sharpenEnabled"
                     [disabled]="isSystem()"
                     (checkedChange)="patchOps({ sharpenEnabled: $event })"
-                    aria-label="Enable sharpen"
                   />
-                  <span aria-hidden="true">Sharpen</span>
-                </span>
+                  <span>Sharpen</span>
+                </label>
                 @if (ops().sharpenEnabled) {
                   <input
                     type="range"

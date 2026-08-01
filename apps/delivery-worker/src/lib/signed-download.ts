@@ -1,6 +1,7 @@
 import { AssetRepository, VariantRepository, type D1Client } from "@imageryx/database";
 import { verifySignedToken } from "@imageryx/image-core";
 import type { StorageProvider } from "@imageryx/providers";
+import { withSvgSecurityHeaders } from "./svg-headers";
 
 export interface SignedDownloadDeps {
   db: D1Client;
@@ -46,13 +47,16 @@ export async function resolveSignedDownload(
     return {
       kind: "ok",
       status: 200,
-      headers: {
-        "Content-Type": asset.mimeType,
-        "Content-Length": String(object.size),
-        "Content-Disposition": contentDisposition(asset.originalFilename),
-        "Cache-Control": "private, no-store",
-        "X-Content-Type-Options": "nosniff",
-      },
+      headers: withSvgSecurityHeaders(
+        {
+          "Content-Type": asset.mimeType,
+          "Content-Length": String(object.size),
+          "Content-Disposition": contentDisposition(asset.originalFilename),
+          "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+        asset.mimeType,
+      ),
       body: object.body,
     };
   }
@@ -71,13 +75,16 @@ export async function resolveSignedDownload(
   return {
     kind: "ok",
     status: 200,
-    headers: {
-      "Content-Type": variant.mimeType ?? "application/octet-stream",
-      "Content-Length": String(object.size),
-      "Content-Disposition": contentDisposition(`${asset.slug}-${variant.id}`),
-      "Cache-Control": "private, no-store",
-      "X-Content-Type-Options": "nosniff",
-    },
+    headers: withSvgSecurityHeaders(
+      {
+        "Content-Type": variant.mimeType ?? "application/octet-stream",
+        "Content-Length": String(object.size),
+        "Content-Disposition": contentDisposition(`${asset.slug}-${variant.id}`),
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+      variant.mimeType,
+    ),
     body: object.body,
   };
 }

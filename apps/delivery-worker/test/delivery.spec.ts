@@ -79,6 +79,7 @@ describe("delivery route", () => {
     expect(response.headers.get("ETag")).toBe(`"${asset.checksum}"`);
     expect(response.headers.get("Cache-Control")).toContain("public");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(response.headers.get("Content-Security-Policy")).toBeNull();
     const body = new Uint8Array(await response.arrayBuffer());
     expect(body).toEqual(PNG_BYTES);
   });
@@ -178,6 +179,11 @@ describe("delivery route", () => {
     expect(response.headers.get("Cache-Control")).toContain("immutable");
     expect(response.headers.get("X-Imageryx-Simulated")).toBe("true");
     expect(response.headers.get("ETag")).toBe(`"${"b".repeat(64)}"`);
+    // Every simulated variant is real SVG content today (renderSimulatedVariantSvg) — this isn't
+    // a hypothetical edge case, so a CSP that blocks script execution is load-bearing now.
+    expect(response.headers.get("Content-Security-Policy")).toBe(
+      "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    );
   });
 
   it("GET /health returns a healthy status", async () => {

@@ -13,6 +13,11 @@ concurrency:
 env:
   TURBO_TELEMETRY_DISABLED: "1"
 
+# Least-privilege default — only the deploy job (below) needs anything beyond read access, and
+# declares its own narrower `permissions` block that overrides this one for that job only.
+permissions:
+  contents: read
+
 jobs:
   check:
     name: Lint, typecheck, test, build
@@ -47,6 +52,13 @@ jobs:
 
       - name: Backend integration test (real D1 + R2, no mocks)
         run: pnpm test:integration
+
+      # Enforces the per-package thresholds in each vitest.config.ts (measured from the actual
+      # repository state, not arbitrary — see each config's comment). Not yet `continue-on-error`:
+      # thresholds were deliberately set at/below what's already passing, so a real regression
+      # should fail the build, not just get noted.
+      - name: Coverage
+        run: pnpm test:coverage
 
       - name: Build
         run: pnpm build
@@ -87,9 +99,44 @@ jobs:
           path: apps/dashboard/playwright-report
           retention-days: 7
 
+  a11y:
+    name: Accessibility smoke (axe)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm e2e:install
+
+      # Same real api-worker + dashboard boot as the e2e job, scanning 5 representative pages with
+      # axe-core (wcag2a/wcag2aa, serious+critical impact only) — a smoke check, not a full audit.
+      - name: Accessibility smoke tests
+        run: pnpm test:a11y
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-a11y
+          path: apps/dashboard/playwright-report
+          retention-days: 7
+
   deploy:
     name: Deploy ${{ matrix.app }}
-    needs: [check, e2e]
+    needs: [check, e2e, a11y]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

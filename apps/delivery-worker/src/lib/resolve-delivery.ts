@@ -2,6 +2,7 @@ import type { ImageAsset } from "@imageryx/contracts";
 import { AssetRepository, PresetRepository, ProjectRepository, VariantRepository, type D1Client } from "@imageryx/database";
 import { hashPreset } from "@imageryx/image-core";
 import type { StorageProvider } from "@imageryx/providers";
+import { withSvgSecurityHeaders } from "./svg-headers";
 
 export interface DeliveryDeps {
   db: D1Client;
@@ -66,13 +67,16 @@ export async function resolveDelivery(
   const object = await deps.storage.get(variant.storageKey);
   if (!object) return notFound("variant_object_missing");
 
-  const headers: Record<string, string> = {
-    "Content-Type": variant.mimeType ?? "application/octet-stream",
-    "Content-Length": String(object.size),
-    ETag: `"${variant.checksum}"`,
-    "Cache-Control": VARIANT_CACHE_CONTROL,
-    "X-Content-Type-Options": "nosniff",
-  };
+  const headers: Record<string, string> = withSvgSecurityHeaders(
+    {
+      "Content-Type": variant.mimeType ?? "application/octet-stream",
+      "Content-Length": String(object.size),
+      ETag: `"${variant.checksum}"`,
+      "Cache-Control": VARIANT_CACHE_CONTROL,
+      "X-Content-Type-Options": "nosniff",
+    },
+    variant.mimeType,
+  );
   if (variant.provider === "mock") {
     headers["X-Imageryx-Simulated"] = "true";
   }
@@ -104,13 +108,16 @@ async function streamOriginal(
   return {
     kind: "ok",
     status: 200,
-    headers: {
-      "Content-Type": asset.mimeType,
-      "Content-Length": String(object.size),
-      ETag: etag,
-      "Cache-Control": ORIGINAL_CACHE_CONTROL,
-      "X-Content-Type-Options": "nosniff",
-    },
+    headers: withSvgSecurityHeaders(
+      {
+        "Content-Type": asset.mimeType,
+        "Content-Length": String(object.size),
+        ETag: etag,
+        "Cache-Control": ORIGINAL_CACHE_CONTROL,
+        "X-Content-Type-Options": "nosniff",
+      },
+      asset.mimeType,
+    ),
     body: object.body,
   };
 }
