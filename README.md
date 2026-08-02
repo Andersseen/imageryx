@@ -150,18 +150,30 @@ pnpm test:e2e         # Playwright: a real browser against a real api-worker, D1
 pnpm test:a11y        # Playwright + axe-core: an accessibility smoke scan of 5 representative pages
 pnpm test:coverage    # Per-package coverage against the thresholds in each vitest.config.ts
 pnpm e2e:install      # One-time: download the Chromium build Playwright uses
-pnpm check            # lint + typecheck + test + build, in dependency order
-pnpm check:full       # check, plus test:integration + test:e2e + test:a11y + test:coverage
+pnpm check            # lint + typecheck + test + build, in dependency order (fast gate)
+pnpm check:full       # check, then test:integration, test:e2e, test:a11y, test:coverage — strictly
+                      # sequential (slow, complete gate)
 ```
 
-`pnpm test` and `pnpm check` do **not** include `test:integration`,
-`test:e2e`, `test:a11y`, or `test:coverage` — `pnpm check:full` does, and is
-intentionally slower. `test:integration` spins up its own ephemeral
-Miniflare D1/R2 pair (slower, and intentionally isolated from the
-workerd-based `vitest-pool-workers` suites that make up `pnpm test`; see
-context.md's "Backend integration test" note for why). `test:e2e` and
-`test:a11y` both boot real servers and a real browser. Run them explicitly,
-or rely on CI, which runs each as its own job.
+`pnpm check` is the fast gate: lint + typecheck + test + build, fanned out
+across packages by Turbo. Run it before every commit.
+
+`pnpm check:full` is the complete gate: `pnpm check`, then
+`test:integration`, `test:e2e`, `test:a11y`, `test:coverage`, run **one
+after another** (`&&`-chained in the root `check:full` script), never in
+parallel. `test:e2e` and `test:a11y` both drive the dashboard's Playwright
+suite against the same `.wrangler-state-e2e` D1/R2 state (see below) — Turbo
+would otherwise schedule them concurrently since neither declares a
+`dependsOn` on the other in `turbo.json`, and two `wrangler dev` processes
+writing to the same local D1 SQLite file at once fail with `SQLITE_BUSY`.
+Chaining `check:full` with `&&` at the `pnpm` level (rather than
+`turbo run test:e2e test:a11y`) is what guarantees they never overlap
+locally. In CI this isn't an issue — `e2e` and `a11y` are separate GitHub
+Actions jobs on separate runners/filesystems (see `.github/workflows/ci.yml`).
+`test:integration` spins up its own ephemeral Miniflare D1/R2 pair (slower,
+and intentionally isolated from the workerd-based `vitest-pool-workers`
+suites that make up `pnpm test`; see context.md's "Backend integration
+test" note for why).
 
 `pnpm test:e2e` and `pnpm test:a11y` need no Cloudflare credentials. Both
 apply migrations, then start api-worker on port 8887 and the dashboard on
@@ -171,7 +183,35 @@ can never upload into or delete from the database you are working in. Run
 these one at a time locally — running one while another (or unrelated
 `wrangler dev` processes against the same `--persist-to` state) is already
 active produces false-positive failures from resource contention, not real
-regressions; this was confirmed the hard way during Phase 5.
+regressions; this was confirmed the hard way during Phase 5. `pnpm
+check:full` already sequences this correctly; only be careful if you also
+run `pnpm test:e2e` or `pnpm test:a11y` by hand in another terminal at the
+same time.
+
+**If a run is interrupted (Ctrl-C, crash, killed terminal) mid-way**, a
+stale lock on `.wrangler-state-e2e`'s SQLite file can outlive the process
+and make the next run fail with `SQLITE_BUSY` even though nothing is
+running anymore. Before touching anything, confirm no relevant process is
+actually still alive:
+
+```bash
+ps aux | grep -i '[w]rangler dev.*wrangler-state-e2e'
+ps aux | grep -i '[p]laywright'
+```
+
+If either command prints a process, stop it (e.g. `kill <pid>`) — don't
+delete state out from under a live process. Only once both commands print
+nothing, and you've confirmed it's safe, remove the stale state directory:
+
+```bash
+rm -rf .wrangler-state-e2e
+```
+
+Treat that `rm -rf` as something to run deliberately yourself, not
+something to script or automate — it deletes local E2E fixture state only
+(never `.wrangler-state`, never anything production), but it's still a
+destructive command worth a manual double-check of the `ps aux` output
+first.
 
 Run a single app's dev server from the root (useful when you only need one
 piece running):
