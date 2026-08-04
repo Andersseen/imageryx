@@ -185,6 +185,7 @@ export class MockTransformationProvider implements TransformationProvider {
       // References delivery-worker's Phase 1 `/preview-placeholder` fixture route (`w`/`h` query params) rather than a fabricated URL scheme.
       deliveryUrl: `/preview-placeholder?${query.toString()}`,
       storageKey: null,
+      bytes: null,
       simulated: true,
     };
   }

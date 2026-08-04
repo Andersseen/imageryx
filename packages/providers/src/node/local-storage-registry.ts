@@ -3,6 +3,7 @@ import {
   createStorageProvider as createStorageProviderBase,
   createTransformationProvider,
   type CreateStorageProviderOptions,
+  type CreateTransformationProviderOptions,
   type ProviderRegistry,
 } from "../registry/provider-registry";
 import { LocalStorageProvider } from "../storage/local-storage.provider";
@@ -28,14 +29,20 @@ export function createStorageProvider(
 export function createProviderRegistry(
   options: CreateStorageProviderOptions,
 ): ProviderRegistry {
+  const transformationOptions: CreateTransformationProviderOptions = {
+    cloudinary: options.config.cloudinary,
+    fetch: globalThis.fetch.bind(globalThis),
+  };
   return {
     storage: createStorageProvider(options),
     transformation: createTransformationProvider(
       options.config.transformationProvider,
+      transformationOptions,
     ),
     advancedTransformation: options.config.advancedTransformationProvider
       ? createTransformationProvider(
           options.config.advancedTransformationProvider,
+          transformationOptions,
         )
       : null,
   };

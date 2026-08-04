@@ -49,6 +49,14 @@ export interface CloudinaryTransformationOptions {
   flags: string[];
 }
 
+export interface CloudinaryProviderOptions {
+  cloudName?: string;
+  apiKey?: string;
+  apiSecret?: string;
+  /** Injected fetch for tests; defaults to the global fetch at runtime. */
+  fetch?: typeof fetch;
+}
+
 export const CLOUDINARY_CAPABILITIES: TransformationProviderCapabilities = {
   provider: "cloudinary",
   supportedOperations: [
@@ -279,14 +287,80 @@ export async function signCloudinaryParams(
     .join("");
 }
 
+function buildCloudinaryTransformationString(
+  options: CloudinaryTransformationOptions,
+): string {
+  const parts: string[] = [];
+  if (options.crop) parts.push(`c_${options.crop}`);
+  if (options.width !== undefined) parts.push(`w_${options.width}`);
+  if (options.height !== undefined) parts.push(`h_${options.height}`);
+  if (options.x !== undefined) parts.push(`x_${options.x}`);
+  if (options.y !== undefined) parts.push(`y_${options.y}`);
+  if (options.gravity) parts.push(`g_${options.gravity}`);
+  if (options.quality !== undefined) {
+    parts.push(`q_${options.quality}`);
+  }
+  if (options.format && options.format !== "auto") {
+    parts.push(`f_${options.format}`);
+  }
+  if (options.angle) parts.push(`a_${options.angle}`);
+  for (const effect of options.effects) parts.push(`e_${effect}`);
+  if (options.background) {
+    parts.push(
+      options.background === "transparent"
+        ? "b_transparent"
+        : `b_${options.background}`,
+    );
+  }
+  for (const flag of options.flags) parts.push(`fl_${flag}`);
+  return parts.join(",");
+}
+
+function mimeTypeFromFormat(format: OutputImageFormat): string {
+  switch (format) {
+    case "avif":
+      return "image/avif";
+    case "webp":
+      return "image/webp";
+    case "jpeg":
+      return "image/jpeg";
+    case "png":
+      return "image/png";
+    case "auto":
+    default:
+      return "image/jpeg";
+  }
+}
+
 /**
- * Structural adapter over the mapping/signing functions above.
- * `transform()` deliberately throws rather than issuing a real request —
- * Phase 2 excludes real Cloudinary API calls entirely.
+ * Real Cloudinary transformation provider. Uploads the source bytes to
+ * Cloudinary, applies the mapped transformation eagerly, fetches the
+ * resulting bytes, and returns them for persistence in Imageryx/R2.
+ *
+ * `fetch` is injectable so tests can run without credentials or network.
  */
 export class CloudinaryProvider implements TransformationProvider {
   readonly name = "cloudinary" as const;
   readonly capabilities = CLOUDINARY_CAPABILITIES;
+  private readonly cloudName: string;
+  private readonly apiKey: string;
+  private readonly apiSecret: string;
+  private readonly fetchImpl: typeof fetch;
+
+  constructor(options: CloudinaryProviderOptions = {}) {
+    this.cloudName = options.cloudName ?? "";
+    this.apiKey = options.apiKey ?? "";
+    this.apiSecret = options.apiSecret ?? "";
+    this.fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
+  }
+
+  private assertCredentials(): void {
+    if (!this.cloudName || !this.apiKey || !this.apiSecret) {
+      throw new ProviderUnavailableError(
+        "Cloudinary provider requires cloudName, apiKey, and apiSecret",
+      );
+    }
+  }
 
   supports(
     operations: readonly ImageOperation[],
@@ -304,10 +378,123 @@ export class CloudinaryProvider implements TransformationProvider {
     };
   }
 
-  // `async` is intentional here (with no `await`) so a synchronous throw still rejects the returned Promise.
-  async transform(_input: TransformationInput): Promise<TransformationResult> {
-    throw new ProviderUnavailableError(
-      "Cloudinary network calls are not implemented until a later phase",
+  async transform(input: TransformationInput): Promise<TransformationResult> {
+    this.assertCredentials();
+
+    if (!input.sourceBytes || input.sourceBytes.byteLength === 0) {
+      throw new ProviderUnavailableError(
+        "Cloudinary transform requires source bytes",
+      );
+    }
+
+    const options = mapOperationsToCloudinaryOptions(
+      input.operations,
+      input.outputFormat,
+      input.quality,
     );
+    const transformationString = buildCloudinaryTransformationString(options);
+    const publicId = buildCloudinaryPublicId(input.assetId, input.presetHash);
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    const uploadParams: Record<string, string | number> = {
+      public_id: publicId,
+      timestamp,
+      api_key: this.apiKey,
+      eager: transformationString || "",
+    };
+    const signature = await signCloudinaryParams({
+      params: uploadParams,
+      apiSecret: this.apiSecret,
+    });
+
+    const form = new FormData();
+    const sourceBuffer = input.sourceBytes.buffer.slice(
+      input.sourceBytes.byteOffset,
+      input.sourceBytes.byteOffset + input.sourceBytes.byteLength,
+    ) as ArrayBuffer;
+    form.append(
+      "file",
+      new Blob([sourceBuffer], { type: input.sourceMimeType }),
+      "source",
+    );
+    form.append("public_id", publicId);
+    form.append("timestamp", String(timestamp));
+    form.append("api_key", this.apiKey);
+    form.append("signature", signature);
+    if (transformationString) {
+      form.append("eager", transformationString);
+    }
+
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`;
+    const uploadResponse = await this.fetchImpl(uploadUrl, {
+      method: "POST",
+      body: form,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new ProviderUnavailableError(
+        `Cloudinary upload failed (${uploadResponse.status})`,
+      );
+    }
+
+    let uploadJson: unknown;
+    try {
+      uploadJson = await uploadResponse.json();
+    } catch {
+      throw new ProviderUnavailableError(
+        "Cloudinary upload returned invalid JSON",
+      );
+    }
+
+    const eagerUrl = extractEagerUrl(uploadJson, transformationString);
+    if (!eagerUrl) {
+      throw new ProviderUnavailableError(
+        "Cloudinary upload did not return an eager transformation URL",
+      );
+    }
+
+    const variantResponse = await this.fetchImpl(eagerUrl);
+    if (!variantResponse.ok) {
+      throw new ProviderUnavailableError(
+        `Cloudinary eager fetch failed (${variantResponse.status})`,
+      );
+    }
+
+    const bytes = new Uint8Array(await variantResponse.arrayBuffer());
+    const mimeType =
+      variantResponse.headers.get("content-type") ??
+      mimeTypeFromFormat(input.outputFormat);
+    const checksumBuffer = await crypto.subtle.digest("SHA-256", bytes);
+    const checksum = Array.from(new Uint8Array(checksumBuffer))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    return {
+      providerOperationId: `cloudinary-${publicId}`,
+      mimeType,
+      width: options.width ?? input.sourceWidth,
+      height: options.height ?? input.sourceHeight,
+      sizeBytes: bytes.byteLength,
+      checksum,
+      deliveryUrl: null,
+      storageKey: null,
+      bytes,
+      simulated: false,
+    };
   }
+}
+
+function extractEagerUrl(
+  json: unknown,
+  _transformationString: string,
+): string | null {
+  if (!json || typeof json !== "object") return null;
+  const eager = (json as Record<string, unknown>).eager;
+  if (!Array.isArray(eager)) return null;
+  for (const entry of eager) {
+    if (!entry || typeof entry !== "object") continue;
+    const url = (entry as Record<string, unknown>).secure_url;
+    if (typeof url === "string") return url;
+  }
+  return null;
 }
