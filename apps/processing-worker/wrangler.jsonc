@@ -8,7 +8,10 @@
     "STORAGE_PROVIDER": "r2",
     "TRANSFORMATION_PROVIDER": "mock",
     "DASHBOARD_URL": "http://localhost:5173",
-    "PROCESSING_MAX_ATTEMPTS": "3"
+    "PROCESSING_MAX_ATTEMPTS": "3",
+    "CLOUDINARY_CLOUD_NAME": "",
+    "CLOUDINARY_API_KEY": "",
+    "CLOUDINARY_API_SECRET": ""
   },
   "d1_databases": [
     {
@@ -47,7 +50,10 @@
         "STORAGE_PROVIDER": "r2",
         "TRANSFORMATION_PROVIDER": "mock",
         "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev",
-        "PROCESSING_MAX_ATTEMPTS": "3"
+        "PROCESSING_MAX_ATTEMPTS": "3",
+        "CLOUDINARY_CLOUD_NAME": "",
+        "CLOUDINARY_API_KEY": "",
+        "CLOUDINARY_API_SECRET": ""
       },
       "d1_databases": [
         {

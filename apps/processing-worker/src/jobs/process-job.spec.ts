@@ -36,7 +36,7 @@ describe("processJob", () => {
 
   beforeEach(async () => {
     const storage = new R2StorageProvider(env.ASSET_STORAGE as unknown as R2Bucket);
-    deps = { db: env.DB, storage, maxAttempts: 3 };
+    deps = { db: env.DB, storage, maxAttempts: 3, cloudinary: null };
     projects = new ProjectRepository(env.DB);
     assets = new AssetRepository(env.DB);
     jobs = new ProcessingJobRepository(env.DB);

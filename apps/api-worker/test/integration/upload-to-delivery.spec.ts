@@ -61,7 +61,7 @@ describe("backend integration: upload -> processing -> variant -> delivery", () 
 
     // 6-7: run the inspect-metadata job (the same function the real Queue consumer calls) and
     // verify the asset becomes ready with real, non-invented dimensions.
-    const processingDeps = { db: env.db, storage, maxAttempts: 3 };
+    const processingDeps = { db: env.db, storage, maxAttempts: 3, cloudinary: null };
     const inspectOutcome = await runJobUntilSettled(processingDeps, uploadResult.processingJobId);
     expect(inspectOutcome).toEqual({ outcome: "completed" });
 

@@ -58,7 +58,10 @@ async function main(): Promise<void> {
     let completed = 0;
     let failed = 0;
     for (const row of queued.results) {
-      const outcome = await processJob({ db, storage, maxAttempts: 3 }, row.id);
+      const outcome = await processJob(
+        { db, storage, maxAttempts: 3, cloudinary: null },
+        row.id,
+      );
       if (outcome.outcome === "completed") completed += 1;
       else if (outcome.outcome === "failed") failed += 1;
       console.log(`  ${row.id}: ${JSON.stringify(outcome)}`);
