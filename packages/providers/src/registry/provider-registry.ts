@@ -1,7 +1,11 @@
 import type { R2Bucket } from "@cloudflare/workers-types";
 import type { TransformationProviderName } from "@imageryx/contracts";
 import { ProviderUnavailableError } from "@imageryx/image-core";
-import type { ProviderConfig } from "../config/provider-config.schema";
+import {
+  InvalidProviderConfigError,
+  type CloudinaryCredentials,
+  type ProviderConfig,
+} from "../config/provider-config.schema";
 import { R2StorageProvider } from "../storage/r2-storage.provider";
 import type { StorageProvider } from "../storage/storage-provider";
 import { CloudflareImagesProvider } from "../transformations/cloudflare-images.provider";
@@ -15,12 +19,20 @@ export interface CreateStorageProviderOptions {
   r2Bucket?: R2Bucket;
 }
 
+export interface CreateTransformationProviderOptions {
+  /** Cloudinary credentials when creating the Cloudinary provider. */
+  cloudinary?: CloudinaryCredentials | null;
+  /** Optional fetch override (useful for tests). */
+  fetch?: typeof fetch;
+}
+
 /**
  * Workers-safe: never imports `LocalStorageProvider` (which uses
  * `node:fs` and cannot run in workerd — Workers have no real filesystem).
  * Local storage is Node-only tooling (the seed script, package tests) and
- * lives behind `@imageryx/providers/node`, which wraps this same function
- * and adds the `'local'` case.
+ * lives behind `@imageryx/providers/node` subpath
+ * instead, so importing this barrel from a Worker never pulls in Node
+ * built-ins.
  */
 export function createStorageProvider(
   options: CreateStorageProviderOptions,
@@ -39,8 +51,21 @@ export function createStorageProvider(
   return new R2StorageProvider(options.r2Bucket);
 }
 
+function createCloudinaryProvider(
+  options: CreateTransformationProviderOptions | undefined,
+): CloudinaryProvider {
+  const creds = options?.cloudinary;
+  if (!creds?.cloudName || !creds?.apiKey || !creds?.apiSecret) {
+    throw new InvalidProviderConfigError(
+      "Cloudinary provider requires cloudinary credentials; pass them via options.cloudinary",
+    );
+  }
+  return new CloudinaryProvider({ ...creds, fetch: options?.fetch });
+}
+
 export function createTransformationProvider(
   name: TransformationProviderName,
+  options?: CreateTransformationProviderOptions,
 ): TransformationProvider {
   switch (name) {
     case "mock":
@@ -48,7 +73,7 @@ export function createTransformationProvider(
     case "cloudflare":
       return new CloudflareImagesProvider();
     case "cloudinary":
-      return new CloudinaryProvider();
+      return createCloudinaryProvider(options);
   }
 }
 
@@ -62,14 +87,20 @@ export interface ProviderRegistry {
 export function createProviderRegistry(
   options: CreateStorageProviderOptions,
 ): ProviderRegistry {
+  const transformationOptions: CreateTransformationProviderOptions = {
+    cloudinary: options.config.cloudinary,
+    fetch: globalThis.fetch.bind(globalThis),
+  };
   return {
     storage: createStorageProvider(options),
     transformation: createTransformationProvider(
       options.config.transformationProvider,
+      transformationOptions,
     ),
     advancedTransformation: options.config.advancedTransformationProvider
       ? createTransformationProvider(
           options.config.advancedTransformationProvider,
+          transformationOptions,
         )
       : null,
   };

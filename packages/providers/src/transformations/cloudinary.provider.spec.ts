@@ -1,11 +1,51 @@
 import { UnsupportedOperationError } from "@imageryx/image-core";
 import { describe, expect, it } from "vitest";
 import {
+  CloudinaryProvider,
   buildCloudinaryPublicId,
   buildCloudinarySignatureBase,
   mapOperationsToCloudinaryOptions,
   signCloudinaryParams,
 } from "./cloudinary.provider";
+
+const CREDS = {
+  cloudName: "demo",
+  apiKey: "api-key-123",
+  apiSecret: "api-secret-456",
+};
+
+function makeProvider(
+  fetchImpl: typeof fetch,
+  credentials = CREDS,
+): CloudinaryProvider {
+  return new CloudinaryProvider({ ...credentials, fetch: fetchImpl });
+}
+
+function baseInput(
+  overrides: Partial<Parameters<CloudinaryProvider["transform"]>[0]> = {},
+) {
+  return {
+    assetId: "asset-1",
+    assetSlug: "hero-banner",
+    sourceWidth: 1600,
+    sourceHeight: 1200,
+    sourceMimeType: "image/png",
+    sourceBytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+    operations: [
+      {
+        type: "resize" as const,
+        width: 320,
+        height: 240,
+        fit: "cover" as const,
+        position: "bottom-right" as const,
+      },
+    ],
+    outputFormat: "jpeg" as const,
+    quality: 82,
+    presetHash: "hash-abc",
+    ...overrides,
+  };
+}
 
 describe("mapOperationsToCloudinaryOptions — resize and crop", () => {
   it("maps a resize with fit and gravity", () => {
@@ -160,5 +200,133 @@ describe("Cloudinary signing", () => {
       apiSecret: "secret-b",
     });
     expect(a).not.toBe(b);
+  });
+});
+
+describe("CloudinaryProvider", () => {
+  it("throws a clear error when credentials are missing", async () => {
+    const provider = new CloudinaryProvider({
+      cloudName: "",
+      apiKey: "",
+      apiSecret: "",
+    });
+    await expect(provider.transform(baseInput())).rejects.toThrow(
+      /cloudName, apiKey, and apiSecret/,
+    );
+  });
+
+  it("throws a clear error when source bytes are missing", async () => {
+    const provider = makeProvider(async () => new Response());
+    await expect(
+      provider.transform({ ...baseInput(), sourceBytes: undefined }),
+    ).rejects.toThrow(/source bytes/);
+  });
+
+  it("returns real bytes with simulated: false on a mocked successful round-trip", async () => {
+    const variantBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    const mockFetch = async (input: string | URL | Request) => {
+      const url = input.toString();
+      if (url.includes("api.cloudinary.com")) {
+        return new Response(
+          JSON.stringify({
+            eager: [
+              {
+                secure_url:
+                  "https://res.cloudinary.com/demo/image/upload/f_jpg/imageryx/asset-1/hash-abc.jpg",
+              },
+            ],
+          }),
+          { headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response(variantBytes, {
+        headers: { "content-type": "image/jpeg" },
+      });
+    };
+
+    const provider = makeProvider(mockFetch as typeof fetch);
+    const result = await provider.transform(baseInput());
+
+    expect(result.simulated).toBe(false);
+    expect(result.bytes).toEqual(variantBytes);
+    expect(result.mimeType).toBe("image/jpeg");
+    expect(result.sizeBytes).toBe(variantBytes.byteLength);
+    expect(result.checksum).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.deliveryUrl).toBeNull();
+    expect(result.storageKey).toBeNull();
+  });
+
+  it("sends the expected upload parameters and transformation string", async () => {
+    const variantBytes = new Uint8Array([0xff, 0xd8]);
+    const calls: Array<{ url: string; body: FormData }> = [];
+    const mockFetch = async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ) => {
+      const url = input.toString();
+      if (url.includes("api.cloudinary.com")) {
+        calls.push({ url, body: init?.body as FormData });
+        return new Response(
+          JSON.stringify({
+            eager: [
+              {
+                secure_url:
+                  "https://res.cloudinary.com/demo/image/upload/f_jpg/imageryx/asset-1/hash-abc.jpg",
+              },
+            ],
+          }),
+          { headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response(variantBytes);
+    };
+
+    const provider = makeProvider(mockFetch as typeof fetch);
+    await provider.transform(baseInput());
+
+    expect(calls).toHaveLength(1);
+    const uploadCall = calls[0]!;
+    expect(uploadCall.url).toBe(
+      "https://api.cloudinary.com/v1_1/demo/image/upload",
+    );
+    expect(uploadCall.body.get("api_key")).toBe(CREDS.apiKey);
+    expect(uploadCall.body.get("public_id")).toBe("imageryx/asset-1/hash-abc");
+    const eager = uploadCall.body.get("eager");
+    expect(eager).toContain("c_fill");
+    expect(eager).toContain("w_320");
+    expect(eager).toContain("h_240");
+    expect(eager).toContain("q_82");
+    expect(eager).toContain("f_jpg");
+    expect(eager).toContain("g_south_east");
+    const signature = uploadCall.body.get("signature");
+    expect(signature).toMatch(/^[a-f0-9]{40}$/);
+  });
+
+  it("does not leak secrets in upload failure messages", async () => {
+    const mockFetch = async () =>
+      new Response(
+        JSON.stringify({ error: { message: `Invalid ${CREDS.apiSecret}` } }),
+        { status: 400, headers: { "content-type": "application/json" } },
+      );
+    const provider = makeProvider(mockFetch as typeof fetch);
+    await expect(provider.transform(baseInput())).rejects.toSatisfy(
+      (error: Error) => {
+        expect(error.message).toContain("Cloudinary upload failed (400)");
+        expect(error.message).not.toContain(CREDS.apiSecret);
+        expect(error.message).not.toContain(CREDS.apiKey);
+        return true;
+      },
+    );
+  });
+
+  it("throws when Cloudinary returns no eager transformation URL", async () => {
+    const mockFetch = async () =>
+      new Response(JSON.stringify({ eager: [] }), {
+        headers: { "content-type": "application/json" },
+      });
+    const provider = makeProvider(mockFetch as typeof fetch);
+    await expect(provider.transform(baseInput())).rejects.toThrow(
+      /did not return an eager transformation URL/,
+    );
   });
 });

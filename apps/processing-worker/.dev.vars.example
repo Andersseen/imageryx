@@ -3,10 +3,8 @@
 # wrangler.jsonc. Production values are set with `wrangler secret put`
 # (see README's "Deployment" section).
 
-IMAGERYX_API_KEY=imgx_dev_local
-DOWNLOAD_SIGNING_SECRET=replace-with-local-development-secret
-
-# Default transformation provider is Cloudinary. Set real credentials below.
+# Default transformation provider is Cloudinary. Keep these placeholders
+# only if you explicitly override TRANSFORMATION_PROVIDER=mock.
 TRANSFORMATION_PROVIDER=cloudinary
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key

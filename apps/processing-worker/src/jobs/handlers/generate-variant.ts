@@ -1,4 +1,10 @@
-import type { ProcessingJobInput, ProcessingJobResult } from "@imageryx/contracts";
+import {
+  MIME_TYPE_TO_EXTENSIONS,
+  SUPPORTED_IMAGE_EXTENSIONS,
+  type ProcessingJobInput,
+  type ProcessingJobResult,
+  type SupportedImageExtension,
+} from "@imageryx/contracts";
 
 type GenerateVariantInput = Extract<ProcessingJobInput, { type: "generate-variant" }>;
 type GenerateVariantResult = Extract<ProcessingJobResult, { type: "generate-variant" }>;
@@ -13,17 +19,25 @@ import {
   computeSha256Checksum,
   renderSimulatedVariantSvg,
 } from "@imageryx/image-core";
-import { createTransformationProvider } from "@imageryx/providers";
+import { createTransformationProvider, readStorageBodyToBytes } from "@imageryx/providers";
 import type { ProcessingDeps } from "../deps";
 import { DeletedAssetError, MissingResourceError } from "../errors";
 
+function extensionFromMimeType(mimeType: string): SupportedImageExtension {
+  const candidates =
+    MIME_TYPE_TO_EXTENSIONS[mimeType as keyof typeof MIME_TYPE_TO_EXTENSIONS];
+  const supported = candidates?.find((ext) =>
+    SUPPORTED_IMAGE_EXTENSIONS.includes(ext),
+  );
+  return supported ?? "jpeg";
+}
+
 /**
- * Only the `mock` provider does real work in this phase — `transform()`
- * on the Cloudflare/Cloudinary adapters always throws `ProviderUnavailableError`
- * (see context.md's Cloudflare/Cloudinary adapter state), which propagates
- * here unmodified and is classified as a permanent, non-retryable failure
- * by `classifyProcessingError`. This handler never fakes a completed
- * transformation for either of them.
+ * Generates a variant for an asset. The `mock` provider renders a real SVG
+ * derivative locally; the `cloudinary` provider uploads the source bytes to
+ * Cloudinary, applies the mapped transformation, fetches the resulting bytes,
+ * and persists them in Imageryx/R2. `cloudflare` still throws because it is
+ * not wired up yet. The handler never fakes a completed transformation.
  */
 export async function handleGenerateVariant(
   deps: ProcessingDeps,
@@ -62,12 +76,23 @@ export async function handleGenerateVariant(
     metadata: { variantId: variant.id, presetId: preset.id },
   });
 
-  const provider = createTransformationProvider(variant.provider);
+  const sourceObject = await deps.storage.get(asset.storageKey);
+  if (!sourceObject) {
+    throw new MissingResourceError(
+      `original bytes for asset "${asset.id}" were not found in storage`,
+    );
+  }
+  const sourceBytes = await readStorageBodyToBytes(sourceObject.body);
+
+  const provider = createTransformationProvider(variant.provider, {
+    cloudinary: deps.cloudinary,
+  });
 
   try {
     const transformed = await provider.transform({
       assetId: asset.id,
       assetSlug: asset.slug,
+      sourceBytes,
       sourceWidth: asset.width,
       sourceHeight: asset.height,
       sourceMimeType: asset.mimeType,
@@ -76,6 +101,50 @@ export async function handleGenerateVariant(
       quality: preset.quality,
       presetHash: input.presetHash,
     });
+
+    if (!transformed.simulated) {
+      let storageKey: string | null = null;
+      if (input.persist && transformed.bytes && transformed.bytes.byteLength > 0) {
+        const extension = extensionFromMimeType(transformed.mimeType);
+        storageKey = buildDerivedStorageKey(
+          asset.projectId,
+          asset.id,
+          input.presetHash,
+          extension,
+        );
+        await deps.storage.put({
+          key: storageKey,
+          body: transformed.bytes,
+          contentType: transformed.mimeType,
+        });
+      }
+
+      await variants.update(variant.id, {
+        status: "ready",
+        storageKey,
+        deliveryUrl: transformed.deliveryUrl,
+        mimeType: transformed.mimeType,
+        width: transformed.width,
+        height: transformed.height,
+        sizeBytes: transformed.sizeBytes,
+        checksum: transformed.checksum,
+      });
+      await activity.record({
+        assetId: asset.id,
+        projectId: asset.projectId,
+        event: "variant.ready",
+        metadata: { variantId: variant.id, simulated: false },
+      });
+
+      return {
+        type: "generate-variant",
+        variantId: variant.id,
+        storageKey,
+        width: transformed.width,
+        height: transformed.height,
+        sizeBytes: transformed.sizeBytes,
+      };
+    }
 
     // The mock provider's own `mimeType`/`sizeBytes`/`deliveryUrl` are fabricated numbers, not
     // real bytes — this handler only reuses its deterministic width/height derivation, then

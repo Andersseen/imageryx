@@ -1,6 +1,9 @@
 import { ProviderUnavailableError } from "@imageryx/image-core";
 import { describe, expect, it } from "vitest";
-import { parseProviderConfig } from "../config/provider-config.schema";
+import {
+  InvalidProviderConfigError,
+  parseProviderConfig,
+} from "../config/provider-config.schema";
 import { CloudflareImagesProvider } from "../transformations/cloudflare-images.provider";
 import { CloudinaryProvider } from "../transformations/cloudinary.provider";
 import { MockTransformationProvider } from "../transformations/mock-transformation.provider";
@@ -9,6 +12,12 @@ import {
   createStorageProvider,
   createTransformationProvider,
 } from "./provider-registry";
+
+const CLOUDINARY_CREDS = {
+  cloudName: "demo",
+  apiKey: "key",
+  apiSecret: "secret",
+};
 
 describe("createTransformationProvider", () => {
   it("creates the mock provider", () => {
@@ -23,9 +32,17 @@ describe("createTransformationProvider", () => {
     );
   });
 
-  it("creates the cloudinary provider", () => {
-    expect(createTransformationProvider("cloudinary")).toBeInstanceOf(
-      CloudinaryProvider,
+  it("creates the cloudinary provider when credentials are provided", () => {
+    expect(
+      createTransformationProvider("cloudinary", {
+        cloudinary: CLOUDINARY_CREDS,
+      }),
+    ).toBeInstanceOf(CloudinaryProvider);
+  });
+
+  it("throws a clear config error when cloudinary is selected without credentials", () => {
+    expect(() => createTransformationProvider("cloudinary")).toThrow(
+      InvalidProviderConfigError,
     );
   });
 });

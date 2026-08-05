@@ -36,6 +36,8 @@ export interface TransformationResult {
   checksum: string;
   deliveryUrl: string | null;
   storageKey: string | null;
+  /** Real output bytes when the provider performed an actual transformation; null for pure dynamic-delivery providers or stand-ins. */
+  bytes: Uint8Array | null;
   /** Explicit, never implied: every provider states in its own words whether this is a real transformation or a stand-in for one. */
   simulated: boolean;
 }

@@ -12,6 +12,7 @@ import {
   type ProcessingStatus,
   type SupportedImageExtension,
   type SupportedImageMimeType,
+  type TransformationProviderName,
 } from "@imageryx/contracts";
 import {
   AssetActivityRepository,
@@ -636,6 +637,7 @@ assetsRoute.post("/:assetId/variants", async (c) => {
     presetId: body.presetId,
     persist: body.persist,
     preferredProvider: body.preferredProvider,
+    configuredProvider: c.env.TRANSFORMATION_PROVIDER as TransformationProviderName,
   });
 
   if (outcome.status === "created") {
