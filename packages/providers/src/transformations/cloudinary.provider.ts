@@ -14,11 +14,10 @@ import type {
 
 /**
  * Parameter names and ranges below follow Cloudinary's publicly documented
- * transformation reference, not a live account (Phase 2 makes no real
- * Cloudinary calls). Where the docs leave a numeric range ambiguous
+ * transformation reference. Where the docs leave a numeric range ambiguous
  * (`blur`/`sharpen` effect strength), a reasonable linear mapping is
  * chosen and called out below — worth re-verifying against a real account
- * before this provider's `transform()` is wired up to real requests.
+ * if you tune these operations.
  */
 export interface CloudinaryTransformationOptions {
   crop?: "fill" | "fit" | "limit" | "pad" | "thumb" | "crop";
@@ -432,8 +431,22 @@ export class CloudinaryProvider implements TransformationProvider {
     });
 
     if (!uploadResponse.ok) {
+      let detail = "";
+      try {
+        const errorJson = (await uploadResponse.json()) as {
+          error?: { message?: string };
+        };
+        const rawMessage = errorJson.error?.message ?? "";
+        // Sanitize any echoed secret before it can leak into logs/errors.
+        const sanitizedMessage = rawMessage
+          .replaceAll(this.apiSecret, "[redacted]")
+          .replaceAll(this.apiKey, "[redacted]");
+        detail = sanitizedMessage ? `: ${sanitizedMessage}` : "";
+      } catch {
+        // Ignore bodies that aren't JSON.
+      }
       throw new ProviderUnavailableError(
-        `Cloudinary upload failed (${uploadResponse.status})`,
+        `Cloudinary upload failed (${uploadResponse.status})${detail}`,
       );
     }
 

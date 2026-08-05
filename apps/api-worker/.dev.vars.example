@@ -5,3 +5,9 @@
 
 IMAGERYX_API_KEY=imgx_dev_local
 DOWNLOAD_SIGNING_SECRET=replace-with-local-development-secret
+
+# Default transformation provider is Cloudinary. Set real credentials below.
+TRANSFORMATION_PROVIDER=cloudinary
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret

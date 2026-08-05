@@ -1,4 +1,8 @@
-import type { ImageVariant, PreferredProvider } from "@imageryx/contracts";
+import type {
+  ImageVariant,
+  PreferredProvider,
+  TransformationProviderName,
+} from "@imageryx/contracts";
 import {
   AssetRepository,
   PresetRepository,
@@ -25,6 +29,12 @@ export interface RequestVariantInput {
   presetId: string;
   persist: boolean;
   preferredProvider: PreferredProvider;
+  /**
+   * Provider configured for the deployment. When it is a real external provider
+   * (not "mock"), external providers are enabled and this provider is preferred
+   * unless the caller explicitly asked for another one.
+   */
+  configuredProvider?: TransformationProviderName;
 }
 
 export type RequestVariantOutcome =
@@ -77,14 +87,19 @@ export async function requestVariant(
     quality: preset.quality,
   });
 
+  const configuredProvider = input.configuredProvider ?? "mock";
+  const externalProvidersEnabled = configuredProvider !== "mock";
+  const explicitPreferred =
+    input.preferredProvider === "auto" ? undefined : input.preferredProvider;
+  const preferredProvider =
+    explicitPreferred ?? (externalProvidersEnabled ? configuredProvider : undefined);
+
   const selection = selectTransformationProvider({
     operations: preset.operations,
     outputFormat: preset.outputFormat,
     requiresPersistentOutput: input.persist,
-    preferredProvider: input.preferredProvider === "auto" ? undefined : input.preferredProvider,
-    // Phase 3's default/local configuration only ever enables the mock provider for real work —
-    // see context.md's Cloudflare/Cloudinary adapter state notes.
-    externalProvidersEnabled: false,
+    preferredProvider,
+    externalProvidersEnabled,
     capabilities: CAPABILITIES,
   });
 

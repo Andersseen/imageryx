@@ -6,6 +6,9 @@
   "vars": {
     "APP_ENV": "development",
     "STORAGE_PROVIDER": "r2",
+    // Dev default is "mock" so the Worker boots without Cloudinary secrets.
+    // Override this in your local .dev.vars (see .dev.vars.example) to use
+    // Cloudinary for real transformations during local development.
     "TRANSFORMATION_PROVIDER": "mock",
     "DASHBOARD_URL": "http://localhost:5173",
     "PROCESSING_MAX_ATTEMPTS": "3",
@@ -48,7 +51,7 @@
       "vars": {
         "APP_ENV": "production",
         "STORAGE_PROVIDER": "r2",
-        "TRANSFORMATION_PROVIDER": "mock",
+        "TRANSFORMATION_PROVIDER": "cloudinary",
         "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev",
         "PROCESSING_MAX_ATTEMPTS": "3",
         "CLOUDINARY_CLOUD_NAME": "",
