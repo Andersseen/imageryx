@@ -31,7 +31,7 @@
     "@imageryx/contracts": "workspace:*",
     "@imageryx/providers": "workspace:*",
     "@imageryx/sdk": "workspace:*",
-    "@voltui/components": "^0.7.0",
+    "@voltui/components": "^0.8.3",
     "angular-movement": "^0.5.0",
     "h3": "^1.15.11",
     "lumen-icons": "^0.2.0",
