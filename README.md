@@ -259,6 +259,51 @@ configurable `apiPrefix` (`vite.config.ts`), so a same-named prefix would
 shadow the page on a direct load or refresh. See context.md's "Dashboard
 dev-only proxy" note for the full request path.
 
+### User sign-in (DevAuth, OAuth 2.1 / OIDC)
+
+The API key above authenticates the _dashboard_ to `api-worker`. Signing a
+_person_ in is a separate concern, and Imageryx does not implement it: it is
+an OAuth client of **DevAuth** (`https://auth-devflare.andersseen.dev`), a
+standalone identity provider that owns credentials, GitHub sign-in and
+account linking.
+
+```text
+Imageryx  →  DevAuth  →  GitHub
+```
+
+Imageryx never talks to GitHub directly, and has no local account model — no
+sign-up, no password reset, no verification email. The entry point is a
+single hand-off to DevAuth.
+
+Four server routes, all under `apps/dashboard/src/server/routes/proxy/auth/`
+(the `/proxy` prefix is Analog's `apiPrefix`, as above — in development only
+that prefix reaches Nitro, so auth routes cannot live anywhere else):
+
+```
+GET  /proxy/auth/login      starts the flow (state + nonce + PKCE S256)
+GET  /proxy/auth/callback   the exact registered redirect URI
+POST /proxy/auth/logout     clears Imageryx's session
+GET  /proxy/auth/session    who is signed in (JSON)
+```
+
+Endpoint paths are read from DevAuth's discovery document, never hardcoded.
+The authorization code is exchanged **server side** with the PKCE verifier
+and the client secret; identity comes from the `userinfo` endpoint.
+
+The important part is what happens next: the callback creates **Imageryx's
+own session** — an `HttpOnly`, `SameSite=Lax`, HMAC-signed cookie keyed on
+DevAuth's `sub` claim — and from then on DevAuth is off the request path
+entirely. No DevAuth cookie is read, no token is stored or forwarded, and
+nothing asks the provider "who is this?" per request. `AuthSessionService`
+(`src/app/core/auth/`) is how app code reads it.
+
+Configure with `DEV_AUTH_URL`, `DEV_AUTH_CLIENT_ID`,
+`DEV_AUTH_CLIENT_SECRET`, `DEV_AUTH_REDIRECT_URI` and `SESSION_SECRET` in
+`apps/dashboard/.env` (git-ignored; copy `apps/dashboard/.env.example`, which
+documents each one). The redirect URI is matched byte for byte by DevAuth,
+and the client must be registered there first — until it is, the flow fails
+with `invalid_client`, which is expected rather than a bug.
+
 ## API surface (`api-worker`, all under `/v1/*`, Bearer-auth required)
 
 ```
