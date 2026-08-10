@@ -58,6 +58,18 @@ function required(env: EnvRecord, key: string): string {
   return value.trim();
 }
 
+function rejectPlaceholder(key: string, value: string): string {
+  const normalized = value.toLowerCase();
+  if (
+    normalized.includes("replace-with") ||
+    normalized.includes("placeholder") ||
+    normalized.includes("not-yet-registered")
+  ) {
+    throw new AuthConfigError(`${key} still contains a placeholder value.`);
+  }
+  return value;
+}
+
 function stripTrailingSlash(url: string): string {
   return url.replace(/\/+$/, "");
 }
@@ -87,11 +99,17 @@ export function readAuthConfig(env: EnvRecord): AuthRuntimeConfig {
     devAuth: {
       issuer,
       clientId: required(env, "DEV_AUTH_CLIENT_ID"),
-      clientSecret: required(env, "DEV_AUTH_CLIENT_SECRET"),
+      clientSecret: rejectPlaceholder(
+        "DEV_AUTH_CLIENT_SECRET",
+        required(env, "DEV_AUTH_CLIENT_SECRET"),
+      ),
       redirectUri,
       scope: env["DEV_AUTH_SCOPE"]?.trim() || DEFAULT_SCOPE,
     },
-    sessionSecret: required(env, "SESSION_SECRET"),
+    sessionSecret: rejectPlaceholder(
+      "SESSION_SECRET",
+      required(env, "SESSION_SECRET"),
+    ),
     secureCookies: redirect.protocol === "https:",
   };
 }

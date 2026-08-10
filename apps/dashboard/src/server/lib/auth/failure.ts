@@ -34,7 +34,7 @@ const FAILURES: Record<AuthFailureReason, FailureCopy> = {
     status: 500,
     title: "Sign-in is not configured",
     message:
-      "This deployment is missing its DevAuth settings. Check the server environment variables.",
+      "This deployment is missing real DevAuth settings, or one of them still contains a placeholder value. Check the server environment variables.",
     canRetry: false,
   },
   provider_denied: {

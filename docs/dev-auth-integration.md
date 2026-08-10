@@ -8,7 +8,8 @@ application session.
 
 | Setting             | Value                                                 |
 | ------------------- | ----------------------------------------------------- |
-| Issuer              | `https://auth-devflare.andersseen.dev`                |
+| Local issuer        | `http://localhost:8786`                               |
+| Production issuer   | `https://auth-devflare.andersseen.dev`                |
 | Client ID           | `imageryx`                                            |
 | Local callback      | `http://localhost:5173/proxy/auth/callback`           |
 | Production callback | `https://imageryx.andersseen.dev/proxy/auth/callback` |
@@ -69,14 +70,17 @@ client, for example:
 Set these server-side dashboard variables locally and in production:
 
 ```bash
-DEV_AUTH_URL=https://auth-devflare.andersseen.dev
+DEV_AUTH_URL=http://localhost:8786
 DEV_AUTH_CLIENT_ID=imageryx
 DEV_AUTH_CLIENT_SECRET=<same-secret-as-dev-auth-map>
-DEV_AUTH_REDIRECT_URI=https://imageryx.andersseen.dev/proxy/auth/callback
+DEV_AUTH_REDIRECT_URI=http://localhost:5173/proxy/auth/callback
 DEV_AUTH_SCOPE="openid profile email"
 SESSION_SECRET=<independent-random-session-secret>
 IMAGERYX_INTERNAL_API_KEY=<dashboard-proxy-api-key>
 ```
+
+For production, switch `DEV_AUTH_URL` and `DEV_AUTH_REDIRECT_URI` to the
+production issuer/callback values above.
 
 Do not use `VITE_` prefixes for secrets. Browser code reads session state
 from `/proxy/auth/session`; it never sees the DevAuth client secret,
@@ -96,6 +100,10 @@ provider tokens, the session-signing secret, or the internal API key.
 
 ## Troubleshooting
 
+- Clicking "Continue with DevAuth" renders "Sign-in is not configured":
+  Imageryx is still missing one of `DEV_AUTH_*` / `SESSION_SECRET`, or a value
+  still contains a placeholder such as `replace-with...` or
+  `placeholder-not-yet-registered`.
 - `invalid_client`: DevAuth does not have `imageryx` in `OAUTH_CLIENTS`, the
   secret map is missing `imageryx`, or the secret values differ.
 - Redirect never reaches Imageryx: the callback URI differs by path,

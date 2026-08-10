@@ -308,9 +308,10 @@ nothing asks the provider "who is this?" per request. `AuthSessionService`
 Configure with `DEV_AUTH_URL`, `DEV_AUTH_CLIENT_ID`,
 `DEV_AUTH_CLIENT_SECRET`, `DEV_AUTH_REDIRECT_URI` and `SESSION_SECRET` in
 `apps/dashboard/.env` (git-ignored; copy `apps/dashboard/.env.example`, which
-documents each one). The redirect URI is matched byte for byte by DevAuth,
-and the client must be registered there first — until it is, the flow fails
-with `invalid_client`, which is expected rather than a bug.
+documents each one). Placeholder secrets are rejected before the browser is sent
+to DevAuth. The redirect URI is matched byte for byte by DevAuth, and the client
+must be registered there first; if DevAuth itself shows `invalid_client`, its
+`OAUTH_CLIENTS` / `OAUTH_CLIENT_SECRETS` registration is still incomplete.
 
 ## API surface (`api-worker`, all under `/v1/*`, Bearer-auth required)
 

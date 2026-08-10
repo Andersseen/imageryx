@@ -59,6 +59,19 @@ describe("readAuthConfig", () => {
   });
 
   it.each([
+    ["DEV_AUTH_CLIENT_SECRET", "placeholder-not-yet-registered"],
+    ["DEV_AUTH_CLIENT_SECRET", "replace-with-the-secret-devauth-issued"],
+    ["SESSION_SECRET", "replace-with-a-long-random-local-development-secret"],
+  ])("rejects placeholder values for %s", (key, value) => {
+    expect(() => readAuthConfig({ ...VALID, [key]: value })).toThrow(
+      AuthConfigError,
+    );
+    expect(() => readAuthConfig({ ...VALID, [key]: value })).toThrow(
+      "placeholder",
+    );
+  });
+
+  it.each([
     ["https://app.example/callback?x=1", "a query string"],
     ["https://app.example/callback#frag", "a fragment"],
     ["not-a-url", "a relative value"],
