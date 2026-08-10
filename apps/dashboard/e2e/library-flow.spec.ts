@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createProject, deleteProjectBySlug, uploadImage } from "./fixtures";
+import {
+  authenticateE2E,
+  createProject,
+  deleteProjectBySlug,
+  uploadImage,
+} from "./fixtures";
 
 /**
  * The Phase 4A end-to-end flow, against a real api-worker, a real D1 database and real R2
@@ -135,6 +140,7 @@ test.describe("Projects flow", () => {
   test("creates a project, adds a folder and a tag, and offers them as library filters", async ({
     page,
   }) => {
+    await authenticateE2E(page);
     const project = await createProject(page, "projects");
     slug = project.slug;
 

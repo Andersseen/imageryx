@@ -1,4 +1,9 @@
-import { constantTimeEqual } from "@imageryx/image-core";
+import { ApiKeyRepository } from "@imageryx/database";
+import {
+  constantTimeEqual,
+  extractApiKeyPrefix,
+  hashApiKey,
+} from "@imageryx/image-core";
 import { createMiddleware } from "hono/factory";
 import { UnauthorizedError } from "../lib/errors";
 import type { RequestIdVariables } from "./request-id";
@@ -6,12 +11,12 @@ import type { RequestIdVariables } from "./request-id";
 const BEARER_PREFIX = "Bearer ";
 
 /**
- * Central authentication middleware for every `/v1/*` route (mounted once
- * in `index.ts`, never re-implemented per route). Compares the bearer
- * token against `env.IMAGERYX_API_KEY` with a constant-time comparison —
- * never `===`, which short-circuits on the first differing byte and can
- * leak timing information about how much of the key an attacker guessed
- * correctly. Never logs the header value, valid or not.
+ * Central authentication middleware for every `/v1/*` route.
+ *
+ * Database-backed API keys are the primary path. The legacy static
+ * `IMAGERYX_API_KEY` remains as an explicit migration fallback for bootstrapping
+ * the personal deployment and for older local scripts. Never logs the header
+ * value, valid or not.
  */
 export const requireApiKey = createMiddleware<{
   Bindings: Env;
@@ -22,7 +27,27 @@ export const requireApiKey = createMiddleware<{
     ? header.slice(BEARER_PREFIX.length).trim()
     : null;
 
-  if (!token || !constantTimeEqual(token, c.env.IMAGERYX_API_KEY)) {
+  if (!token) {
+    throw new UnauthorizedError(
+      "A valid Authorization: Bearer <api key> header is required.",
+    );
+  }
+
+  const prefix = extractApiKeyPrefix(token);
+  if (prefix) {
+    const repository = new ApiKeyRepository(c.env.DB);
+    const apiKey = await repository.findActiveByPrefix(prefix);
+    if (
+      apiKey &&
+      constantTimeEqual(await hashApiKey(token), apiKey.hashedSecret)
+    ) {
+      c.executionCtx.waitUntil(repository.markUsed(apiKey.id));
+      await next();
+      return;
+    }
+  }
+
+  if (!constantTimeEqual(token, c.env.IMAGERYX_API_KEY)) {
     throw new UnauthorizedError(
       "A valid Authorization: Bearer <api key> header is required.",
     );

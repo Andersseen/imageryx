@@ -9,6 +9,9 @@ import {
   setHeader,
   setResponseStatus,
 } from "h3";
+import { AuthConfigError } from "../../lib/auth/config";
+import { getSessionUser } from "../../lib/auth/session";
+import { resolveAuthDeps } from "../../lib/auth/runtime";
 
 /**
  * Server-side proxy to `api-worker`, injecting the Bearer API key. This is
@@ -25,9 +28,10 @@ import {
  * router claims any path under a same-named directory before the SPA ever
  * gets a chance to render that page for a direct load or a refresh.
  *
- * Dev-only in practice: this dashboard currently deploys as a static SPA
- * (`ssr: false`, `wrangler pages deploy dist/client`) — this route is not
- * verified to run in that production deployment.
+ * The route is intentionally session-protected. Programmatic consumers still
+ * call api-worker directly with their own API key; browser dashboard calls use
+ * this proxy and receive the internal server-side credential only after an
+ * Imageryx application session has been verified.
  */
 const HOP_BY_HOP_RESPONSE_HEADERS = new Set([
   "content-encoding",
@@ -42,7 +46,49 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event);
 
   const apiUrl = process.env["API_URL"] || "http://localhost:8787";
-  const apiKey = process.env["IMAGERYX_API_KEY"] || "imgx_dev_local";
+  const apiKey =
+    process.env["IMAGERYX_INTERNAL_API_KEY"] ??
+    process.env["IMAGERYX_API_KEY"] ??
+    "imgx_dev_local";
+
+  try {
+    const deps = resolveAuthDeps();
+    const user = await getSessionUser(event, {
+      secret: deps.config.sessionSecret,
+      secureCookies: deps.config.secureCookies,
+    });
+    if (!user) {
+      setResponseStatus(event, 401);
+      setHeader(event, "content-type", "application/json");
+      return send(
+        event,
+        JSON.stringify({
+          error: {
+            code: "unauthenticated_dashboard_session",
+            message: "Sign in to use the Imageryx dashboard.",
+          },
+        }),
+      );
+    }
+  } catch (error) {
+    if (error instanceof AuthConfigError) {
+      console.error(
+        `[auth] dashboard proxy is not configured: ${error.message}`,
+      );
+      setResponseStatus(event, 503);
+      setHeader(event, "content-type", "application/json");
+      return send(
+        event,
+        JSON.stringify({
+          error: {
+            code: "auth_not_configured",
+            message: "Dashboard authentication is not configured.",
+          },
+        }),
+      );
+    }
+    throw error;
+  }
 
   const url = new URL(`/${path}`, apiUrl);
   for (const [key, value] of Object.entries(query)) {

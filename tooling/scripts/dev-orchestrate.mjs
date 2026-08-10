@@ -95,18 +95,32 @@ async function killStaleWorkers() {
     const execAsync = promisify(exec);
 
     const repoRoot = new URL("../..", import.meta.url).pathname;
-    const { stdout } = await execAsync(
-      `ps aux | grep -E "wrangler|workerd" | grep "${repoRoot}" | awk '{print $2}' || true`,
-    );
-    const pids = stdout
-      .trim()
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const knownPorts = [
+      5173, 5174, 8787, 8788, 8789, 9229, 9230, 9231,
+    ].join(",");
+    const [repoProcessResult, portResult] = await Promise.all([
+      execAsync(
+        `ps aux | grep -E "wrangler|workerd" | grep "${repoRoot}" | awk '{print $2}' || true`,
+      ),
+      execAsync(`lsof -ti tcp:${knownPorts} -sTCP:LISTEN || true`),
+    ]);
+    const pids = [
+      ...repoProcessResult.stdout
+        .trim()
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      ...portResult.stdout
+        .trim()
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ];
+    const uniquePids = [...new Set(pids)];
 
-    if (pids.length > 0) {
-      console.log(`Killing ${pids.length} stale wrangler/workerd process(es)...`);
-      for (const pid of pids) {
+    if (uniquePids.length > 0) {
+      console.log(`Killing ${uniquePids.length} stale dev process(es)...`);
+      for (const pid of uniquePids) {
         try {
           process.kill(Number(pid), "SIGTERM");
         } catch {

@@ -5,7 +5,7 @@ account — it documents exactly what the repository's own scripts and
 `wrangler.jsonc` files do, not an aspirational process. See README.md's
 "Deployment" section for the shorter summary this guide expands on, and
 ARCHITECTURE.md's "Future hosted (managed) model" for what this
-deliberately does *not* cover (multi-tenant/managed hosting).
+deliberately does _not_ cover (multi-tenant/managed hosting).
 
 ## 1. Prerequisites
 
@@ -35,7 +35,7 @@ Opens a browser to authorize the CLI against your account. Confirm with
 **This repository's `wrangler.jsonc` files already reference real resource
 names and a real D1 database ID** (`imageryx-db`, `imageryx-storage`,
 `imageryx-processing-queue` — see `apps/api-worker/wrangler.jsonc`), which
-means these were already created at some point against *some* Cloudflare
+means these were already created at some point against _some_ Cloudflare
 account. Before creating anything new, confirm what already exists in
 **your** account:
 
@@ -49,7 +49,7 @@ If `imageryx-db` / `imageryx-storage` / `imageryx-processing-queue` are not
 in your account (e.g. you're deploying to a different account than
 whoever last touched this repo), create them and update the `database_id`
 in all three Workers' `wrangler.jsonc` (`api-worker`, `delivery-worker`,
-`processing-worker` — all three must reference the *same* D1 database and
+`processing-worker` — all three must reference the _same_ D1 database and
 R2 bucket):
 
 ```bash
@@ -71,20 +71,22 @@ step 4–7's `database_id` if you created a new database.
 
 ## 9. Environment variables and secrets
 
-| Name                       | Kind                | Where              |
-| --------------------------- | ------------------- | ------------------ |
-| `APP_ENV`                   | plain var            | `wrangler.jsonc`   |
-| `STORAGE_PROVIDER`           | plain var            | `wrangler.jsonc`   |
-| `TRANSFORMATION_PROVIDER`    | plain var            | `wrangler.jsonc`   |
-| `DASHBOARD_URL`/`DELIVERY_URL` | plain var          | `wrangler.jsonc`   |
-| `MAX_UPLOAD_SIZE_MB`          | plain var           | `wrangler.jsonc`   |
-| `ASSET_RECOVERY_DAYS`         | plain var           | `wrangler.jsonc`   |
-| `PROCESSING_MAX_ATTEMPTS`     | plain var           | `wrangler.jsonc`   |
-| `PROCESSING_MODE`             | plain var           | `wrangler.jsonc`   |
-| `IMAGERYX_API_KEY`            | **secret**          | `wrangler secret put` (api-worker only) |
-| `DOWNLOAD_SIGNING_SECRET`     | **secret**          | `wrangler secret put` (api-worker + delivery-worker) |
-| `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` | CI secret | GitHub Actions repo secrets (deploy workflows only) |
-| `CLOUDINARY_*`                | optional, unused unless `TRANSFORMATION_PROVIDER=cloudinary` | not set |
+| Name                                           | Kind                 | Where                                                            |
+| ---------------------------------------------- | -------------------- | ---------------------------------------------------------------- |
+| `APP_ENV`                                      | plain var            | `wrangler.jsonc`                                                 |
+| `STORAGE_PROVIDER`                             | plain var            | `wrangler.jsonc`                                                 |
+| `TRANSFORMATION_PROVIDER`                      | plain var            | `wrangler.jsonc`                                                 |
+| `DASHBOARD_URL`/`DELIVERY_URL`                 | plain var            | `wrangler.jsonc`                                                 |
+| `MAX_UPLOAD_SIZE_MB`                           | plain var            | `wrangler.jsonc`                                                 |
+| `ASSET_RECOVERY_DAYS`                          | plain var            | `wrangler.jsonc`                                                 |
+| `PROCESSING_MAX_ATTEMPTS`                      | plain var            | `wrangler.jsonc`                                                 |
+| `PROCESSING_MODE`                              | plain var            | `wrangler.jsonc`                                                 |
+| `IMAGERYX_API_KEY`                             | **secret**           | `wrangler secret put` (api-worker only; bootstrap fallback)      |
+| `IMAGERYX_INTERNAL_API_KEY`                    | **secret**           | dashboard server environment                                     |
+| `DEV_AUTH_*` / `SESSION_SECRET`                | **secret/plain mix** | dashboard server environment; see `docs/dev-auth-integration.md` |
+| `DOWNLOAD_SIGNING_SECRET`                      | **secret**           | `wrangler secret put` (api-worker + delivery-worker)             |
+| `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` | CI secret            | GitHub Actions repo secrets (deploy workflows only)              |
+| `CLOUDINARY_*`                                 | **secret**           | processing-worker production environment                         |
 
 ## 10. Secrets
 
@@ -98,12 +100,20 @@ pnpm key:generate   # run twice, once per secret below — never reuse one value
 pnpm --filter @imageryx/api-worker exec wrangler secret put IMAGERYX_API_KEY --env production
 pnpm --filter @imageryx/api-worker exec wrangler secret put DOWNLOAD_SIGNING_SECRET --env production
 pnpm --filter @imageryx/delivery-worker exec wrangler secret put DOWNLOAD_SIGNING_SECRET --env production
+pnpm --filter @imageryx/processing-worker exec wrangler secret put CLOUDINARY_CLOUD_NAME --env production
+pnpm --filter @imageryx/processing-worker exec wrangler secret put CLOUDINARY_API_KEY --env production
+pnpm --filter @imageryx/processing-worker exec wrangler secret put CLOUDINARY_API_SECRET --env production
 ```
 
 `DOWNLOAD_SIGNING_SECRET` **must be identical** between `api-worker` and
 `delivery-worker` — one issues signed download tokens, the other verifies
 them. Secrets set this way persist in Cloudflare across deploys; this is a
 one-time step per environment, not a per-deploy one.
+
+After bootstrapping, create a database-backed API key from the dashboard API
+page or `POST /v1/api-keys`, configure that as `IMAGERYX_INTERNAL_API_KEY`
+for the dashboard proxy, and keep `IMAGERYX_API_KEY` only until all old
+scripts have migrated.
 
 ## 11. Database migrations
 
@@ -146,14 +156,11 @@ pnpm --filter @imageryx/dashboard run build
 pnpm --filter @imageryx/dashboard run deploy
 ```
 
-Deploys to Cloudflare Pages as a static SPA (`ssr: false`) — see
-README's "Authentication" section and context.md's "Dashboard dev-only
-proxy" note for the **known, unresolved gap**: the server-side proxy that
-keeps the API key out of browser code is not verified to run in this
-static deployment. Until that's resolved, treat the deployed dashboard as
-best-effort rather than a verified-secure production path — prefer calling
-the API directly (`@imageryx/sdk`, or `curl` with your own key) for
-anything sensitive.
+Deploys to Cloudflare Pages today as a static SPA (`ssr: false`). The
+dashboard auth and proxy routes are Nitro server routes under `/proxy`;
+the personal release is not complete until the dashboard deployment target
+is verified to run those routes in production or is moved to the intended
+Cloudflare server runtime.
 
 ## 15. Custom domains
 
@@ -195,7 +202,7 @@ Cloudflare Workers/Pages don't have a single-command rollback in this
 setup. Practically: `git revert` the change, then re-run `pnpm deploy` (or
 the single-app `deploy-manual.yml` GitHub Action) for the affected app —
 the previous version isn't kept "warm" anywhere, so redeploying the
-previous commit *is* the rollback. For a D1 migration you need to undo,
+previous commit _is_ the rollback. For a D1 migration you need to undo,
 write a new migration that reverses it (see CONTRIBUTING.md — never edit
 an already-applied one).
 

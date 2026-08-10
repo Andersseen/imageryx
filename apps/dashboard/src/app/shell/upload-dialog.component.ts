@@ -61,7 +61,7 @@ const ACCEPTED_TYPES =
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <volt-button
-      variant="solid"
+      variant="outline"
       size="sm"
       [disabled]="!context.selectedProjectId()"
       (click)="open()"

@@ -65,6 +65,16 @@ list page and its detail folder share a name (`library.page.ts` next to
 are required reading — see "Phase 4B decisions and limitations" below —
 before adding any further nested route.
 
+**Personal Cloudflare Release — in progress.** DevAuth is the human
+identity provider; Imageryx now creates its own signed application session
+after the OAuth callback and protects both the dashboard shell and the
+server-side dashboard proxy. Programmatic access remains API-key based.
+Database-backed API keys can be created, listed and revoked, and are stored
+as hashes only; the legacy static `IMAGERYX_API_KEY` remains as an explicit
+bootstrap fallback. Cloudinary is no longer mapping-only: the provider has
+a real transform path and an optional real-account health test, but the full
+personal production image flow still needs live Cloudflare verification.
+
 ## Phase 2 decisions and limitations
 
 Read this section before writing Phase 3 code that touches `contracts`,
@@ -211,22 +221,40 @@ Two distinct, deliberately incompatible identifier spaces:
   "keep everything" or "strip everything") and is rejected the same way.
   Blur (0–250) and sharpen (0–10ish) domain-to-provider mappings are a
   chosen linear scale, not a value confirmed against a live account.
-- **Cloudinary mapping** (`packages/providers/src/transformations/cloudinary.provider.ts`)
+- **Cloudinary provider** (`packages/providers/src/transformations/cloudinary.provider.ts`)
   supports the full operation set, including crop and grayscale — this is
-  _why_ it's the fallback when Cloudflare can't do the job. Parameter names
-  and ranges follow Cloudinary's public docs, not a live account (no real
-  network calls exist in this phase); `metadata: 'strip-location'` is
-  rejected here too (no documented GPS-only strip flag), for the same
-  reason as Cloudflare. The signing function (`signCloudinaryParams`)
-  implements Cloudinary's real algorithm (sorted param string + secret,
-  SHA-1) and is unit-tested against its shape, but has never signed a
-  request Cloudinary's API actually accepted.
-- Both Cloudflare and Cloudinary provider classes exist (`CloudflareImagesProvider`,
-  `CloudinaryProvider`) implementing the shared `TransformationProvider`
-  interface, but their `transform()` methods always throw
-  `ProviderUnavailableError` — Phase 2 explicitly excludes real network
-  calls. Only `MockTransformationProvider.transform()` does real work
-  (deterministic simulated results).
+  _why_ it's the fallback when Cloudflare can't do the job. The provider now
+  performs real Cloudinary upload/transform/fetch work when credentials are
+  configured and returns `simulated: false`. `metadata: 'strip-location'` is
+  still rejected (no documented GPS-only strip flag), for the same reason as
+  Cloudflare. The real-account health check is optional and must not be part
+  of normal CI.
+- `CloudflareImagesProvider` remains mapping-only today; its `transform()`
+  still throws `ProviderUnavailableError`. `MockTransformationProvider`
+  remains the zero-credential deterministic local/default path.
+
+## Personal release decisions and limitations
+
+- DevAuth is the only identity provider Imageryx sees. GitHub, passwords,
+  account linking and registration are DevAuth concerns, not Imageryx code.
+- The current dashboard session is a signed HttpOnly cookie, not D1-backed
+  `app_sessions`. That keeps the dashboard deployable without adding a new
+  D1 binding to the Analog/Nitro tier, but it means logout cannot revoke a
+  stolen cookie before expiry. Keep the TTL short unless/until the dashboard
+  gets durable session storage.
+- The dashboard auth routes live under `/proxy/auth/*` because Analog's dev
+  server only forwards the configured `apiPrefix` to Nitro. DevAuth redirect
+  URIs must match that exact path.
+- Dashboard proxy requests require an Imageryx session and use
+  `IMAGERYX_INTERNAL_API_KEY` server-side. Public SDK/CI consumers should
+  call `api-worker` directly with their own generated API keys.
+- Database-backed API keys are primary. `IMAGERYX_API_KEY` is retained only
+  as a bootstrap/migration fallback and should be removed after the personal
+  deployment is operating on generated keys.
+- API-key scopes/project restrictions are intentionally minimal in this
+  pass; the table currently persists prefix/hash/name/timestamps/revocation.
+  More granular authorization is a follow-up, not a multi-tenant policy
+  system.
 
 ### Technical debt / compatibility workarounds
 

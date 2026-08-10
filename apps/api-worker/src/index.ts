@@ -11,6 +11,7 @@ import { providersDiagnosticsRoute } from "./routes/diagnostics/providers";
 import { seedDiagnosticsRoute } from "./routes/diagnostics/seed";
 import { healthRoute } from "./routes/health";
 import { infoRoute } from "./routes/info";
+import { apiKeysRoute } from "./routes/v1/api-keys";
 import { assetsRoute } from "./routes/v1/assets";
 import { foldersRoute } from "./routes/v1/folders";
 import { presetsRoute } from "./routes/v1/presets";
@@ -55,5 +56,6 @@ app.route("/v1/presets", presetsRoute);
 app.route("/v1/assets", assetsRoute);
 app.route("/v1/processing-jobs", processingJobsRoute);
 app.route("/v1/stats", statsRoute);
+app.route("/v1/api-keys", apiKeysRoute);
 
 export default app;

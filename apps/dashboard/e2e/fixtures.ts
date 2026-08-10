@@ -24,6 +24,11 @@ export function uniqueSuffix(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+export async function authenticateE2E(page: Page): Promise<void> {
+  const response = await page.request.post("/proxy/auth/test-login");
+  expect(response.ok()).toBe(true);
+}
+
 /**
  * Creates a project through the real UI and returns its name and slug.
  *
@@ -34,6 +39,7 @@ export async function createProject(
   page: Page,
   label: string,
 ): Promise<{ name: string; slug: string }> {
+  await authenticateE2E(page);
   const suffix = uniqueSuffix();
   const name = `E2E ${label} ${suffix}`;
   const slug = `e2e-${label}-${suffix}`.toLowerCase();

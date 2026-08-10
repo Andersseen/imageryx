@@ -64,11 +64,15 @@ per-package coverage thresholds, an automated accessibility smoke suite,
 CodeQL/dependency-review/a manual deploy workflow, and prepared (not yet
 executed) Cloudflare deployment tooling.
 
-There is still **no multi-user auth/teams/billing** (a single shared static
-API key, now at least validated against known-unsafe defaults in
-production) **and no real network calls to Cloudflare Images, Cloudinary,
-or a real (non-Miniflare-simulated) R2 bucket** — completing either is
-explicitly out of this phase's scope, not an oversight. See
+There is still **no multi-user auth/teams/billing**. Human dashboard access
+now goes through DevAuth (OAuth 2.1 / OIDC Authorization Code + PKCE) and an
+Imageryx-owned session, while programmatic access remains API-key based.
+Database-backed API keys can be created/revoked, with the legacy static
+`IMAGERYX_API_KEY` kept as a bootstrap compatibility fallback. Cloudinary is
+now implemented as the real transformation provider and covered by an
+optional real-account health check; the full personal production image flow
+still needs to be verified against live Cloudflare resources before this is
+called a release. See
 [ROADMAP.md](ROADMAP.md) for what's next and [context.md](context.md) for
 the full working context, including the specific decisions and known
 limitations from this phase.
@@ -242,7 +246,10 @@ pnpm processing:run-local
 ## Authentication
 
 Every `/v1/*` route on `api-worker` requires `Authorization: Bearer
-<IMAGERYX_API_KEY>` (default locally: `imgx_dev_local`, see `.env.example`).
+<api key>`. Database-backed keys (`imgx_dev_...` locally,
+`imgx_live_...` in production) are checked first and stored only as
+hashes; the legacy static `IMAGERYX_API_KEY` (default locally:
+`imgx_dev_local`) remains as an explicit bootstrap fallback.
 `/health` (all three Workers) and `delivery-worker`'s public routes are
 unauthenticated by design — delivery is meant to be fetched directly by
 browsers/CDNs, never through a Bearer-token proxy.
@@ -250,7 +257,8 @@ browsers/CDNs, never through a Bearer-token proxy.
 The dashboard's browser code **never holds this key**. Every authenticated
 dashboard page calls a same-origin server route
 (`apps/dashboard/src/server/routes/proxy/[...path].ts`, an Analog/Nitro h3
-route) that injects the key server-side and forwards to `api-worker`. Point
+route) that first verifies the Imageryx session, then injects
+`IMAGERYX_INTERNAL_API_KEY` server-side and forwards to `api-worker`. Point
 `@imageryx/sdk` at `/proxy` with no `apiKey` to use it; the SDK resolves a
 relative `baseUrl` against the current origin specifically to support this.
 Deliberately not `/api` — that's the dashboard's own API-reference _page_
@@ -259,11 +267,59 @@ configurable `apiPrefix` (`vite.config.ts`), so a same-named prefix would
 shadow the page on a direct load or refresh. See context.md's "Dashboard
 dev-only proxy" note for the full request path.
 
+### User sign-in (DevAuth, OAuth 2.1 / OIDC)
+
+The API key above authenticates the _dashboard_ to `api-worker`. Signing a
+_person_ in is a separate concern, and Imageryx does not implement it: it is
+an OAuth client of **DevAuth** (`https://auth-devflare.andersseen.dev`), a
+standalone identity provider that owns credentials, GitHub sign-in and
+account linking.
+
+```text
+Imageryx  →  DevAuth  →  GitHub
+```
+
+Imageryx never talks to GitHub directly, and has no local account model — no
+sign-up, no password reset, no verification email. The entry point is a
+single hand-off to DevAuth.
+
+Four server routes, all under `apps/dashboard/src/server/routes/proxy/auth/`
+(the `/proxy` prefix is Analog's `apiPrefix`, as above — in development only
+that prefix reaches Nitro, so auth routes cannot live anywhere else):
+
+```
+GET  /proxy/auth/login      starts the flow (state + nonce + PKCE S256)
+GET  /proxy/auth/callback   the exact registered redirect URI
+POST /proxy/auth/logout     clears Imageryx's session
+GET  /proxy/auth/session    who is signed in (JSON)
+```
+
+Endpoint paths are read from DevAuth's discovery document, never hardcoded.
+The authorization code is exchanged **server side** with the PKCE verifier
+and the client secret; identity comes from the `userinfo` endpoint.
+
+The important part is what happens next: the callback creates **Imageryx's
+own session** — an `HttpOnly`, `SameSite=Lax`, HMAC-signed cookie keyed on
+DevAuth's `sub` claim — and from then on DevAuth is off the request path
+entirely. No DevAuth cookie is read, no token is stored or forwarded, and
+nothing asks the provider "who is this?" per request. `AuthSessionService`
+(`src/app/core/auth/`) is how app code reads it.
+
+Configure with `DEV_AUTH_URL`, `DEV_AUTH_CLIENT_ID`,
+`DEV_AUTH_CLIENT_SECRET`, `DEV_AUTH_REDIRECT_URI` and `SESSION_SECRET` in
+`apps/dashboard/.env` (git-ignored; copy `apps/dashboard/.env.example`, which
+documents each one). Placeholder secrets are rejected before the browser is sent
+to DevAuth. The redirect URI is matched byte for byte by DevAuth, and the client
+must be registered there first; if DevAuth itself shows `invalid_client`, its
+`OAUTH_CLIENTS` / `OAUTH_CLIENT_SECRETS` registration is still incomplete.
+
 ## API surface (`api-worker`, all under `/v1/*`, Bearer-auth required)
 
 ```
 GET    /v1/info
 GET    /v1/stats
+GET    /v1/api-keys                      POST /v1/api-keys
+DELETE /v1/api-keys/:id
 
 GET    /v1/projects                       POST /v1/projects
 GET    /v1/projects/:id                   PATCH /v1/projects/:id     DELETE /v1/projects/:id
