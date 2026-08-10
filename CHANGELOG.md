@@ -3,14 +3,26 @@
 All notable changes to this project are documented in this file. Format
 loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] — Phase 5: Production Hardening
+## [Unreleased] — Personal Cloudflare Release Preparation
 
-Hardens the feature-complete base from Phases 1–4B; adds no new product
-surface. See ROADMAP.md's "Explicit scope narrowing" for what was
-deliberately left out (multi-tenant auth, a real transformation pipeline).
+Prepares the feature-complete personal alpha for a real Cloudflare
+deployment. Multi-tenancy, teams, billing and managed hosting remain out of
+scope.
 
 ### Added
 
+- DevAuth dashboard sign-in: Authorization Code + PKCE, state/nonce login
+  transactions, server-side code exchange, Imageryx-owned HttpOnly session
+  cookie, local logout, session endpoint and signed-out dashboard gate.
+- Dashboard proxy session enforcement. Browser API calls now require a
+  valid Imageryx session before the server injects
+  `IMAGERYX_INTERNAL_API_KEY` or the legacy fallback credential.
+- Database-backed API-key management: `GET /v1/api-keys`,
+  `POST /v1/api-keys`, `DELETE /v1/api-keys/:id`, secure key generation,
+  hash-only persistence, last-used updates, revocation tests and dashboard
+  create/list/revoke UI.
+- `docs/dev-auth-integration.md` with the exact DevFlare client
+  registration and secret checklist for `clientId: "imageryx"`.
 - Production-config validation (`assertSafeProductionSecrets` in
   `@imageryx/image-core`, wired as middleware in `api-worker` and
   `delivery-worker`): refuses every request when `APP_ENV=production` and

@@ -64,11 +64,15 @@ per-package coverage thresholds, an automated accessibility smoke suite,
 CodeQL/dependency-review/a manual deploy workflow, and prepared (not yet
 executed) Cloudflare deployment tooling.
 
-There is still **no multi-user auth/teams/billing** (a single shared static
-API key, now at least validated against known-unsafe defaults in
-production) **and no real network calls to Cloudflare Images, Cloudinary,
-or a real (non-Miniflare-simulated) R2 bucket** — completing either is
-explicitly out of this phase's scope, not an oversight. See
+There is still **no multi-user auth/teams/billing**. Human dashboard access
+now goes through DevAuth (OAuth 2.1 / OIDC Authorization Code + PKCE) and an
+Imageryx-owned session, while programmatic access remains API-key based.
+Database-backed API keys can be created/revoked, with the legacy static
+`IMAGERYX_API_KEY` kept as a bootstrap compatibility fallback. Cloudinary is
+now implemented as the real transformation provider and covered by an
+optional real-account health check; the full personal production image flow
+still needs to be verified against live Cloudflare resources before this is
+called a release. See
 [ROADMAP.md](ROADMAP.md) for what's next and [context.md](context.md) for
 the full working context, including the specific decisions and known
 limitations from this phase.
@@ -242,7 +246,10 @@ pnpm processing:run-local
 ## Authentication
 
 Every `/v1/*` route on `api-worker` requires `Authorization: Bearer
-<IMAGERYX_API_KEY>` (default locally: `imgx_dev_local`, see `.env.example`).
+<api key>`. Database-backed keys (`imgx_dev_...` locally,
+`imgx_live_...` in production) are checked first and stored only as
+hashes; the legacy static `IMAGERYX_API_KEY` (default locally:
+`imgx_dev_local`) remains as an explicit bootstrap fallback.
 `/health` (all three Workers) and `delivery-worker`'s public routes are
 unauthenticated by design — delivery is meant to be fetched directly by
 browsers/CDNs, never through a Bearer-token proxy.
@@ -250,7 +257,8 @@ browsers/CDNs, never through a Bearer-token proxy.
 The dashboard's browser code **never holds this key**. Every authenticated
 dashboard page calls a same-origin server route
 (`apps/dashboard/src/server/routes/proxy/[...path].ts`, an Analog/Nitro h3
-route) that injects the key server-side and forwards to `api-worker`. Point
+route) that first verifies the Imageryx session, then injects
+`IMAGERYX_INTERNAL_API_KEY` server-side and forwards to `api-worker`. Point
 `@imageryx/sdk` at `/proxy` with no `apiKey` to use it; the SDK resolves a
 relative `baseUrl` against the current origin specifically to support this.
 Deliberately not `/api` — that's the dashboard's own API-reference _page_
@@ -309,6 +317,8 @@ with `invalid_client`, which is expected rather than a bug.
 ```
 GET    /v1/info
 GET    /v1/stats
+GET    /v1/api-keys                      POST /v1/api-keys
+DELETE /v1/api-keys/:id
 
 GET    /v1/projects                       POST /v1/projects
 GET    /v1/projects/:id                   PATCH /v1/projects/:id     DELETE /v1/projects/:id

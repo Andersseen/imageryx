@@ -1,6 +1,11 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { createProject, deleteProjectBySlug, uploadImage } from "./fixtures";
+import {
+  authenticateE2E,
+  createProject,
+  deleteProjectBySlug,
+  uploadImage,
+} from "./fixtures";
 
 /**
  * Automated accessibility smoke coverage for the five representative pages named in the Phase 5
@@ -40,7 +45,8 @@ async function expectNoSeriousViolations(page: Page): Promise<void> {
   }
   const results = await builder.analyze();
   const serious = results.violations.filter(
-    (violation) => violation.impact === "serious" || violation.impact === "critical",
+    (violation) =>
+      violation.impact === "serious" || violation.impact === "critical",
   );
   expect(
     serious,
@@ -52,6 +58,7 @@ async function expectNoSeriousViolations(page: Page): Promise<void> {
 
 test.describe("Accessibility smoke", () => {
   test("Overview", async ({ page }) => {
+    await authenticateE2E(page);
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expectNoSeriousViolations(page);
@@ -85,7 +92,9 @@ test.describe("Accessibility smoke", () => {
     test("Asset details", async ({ page }) => {
       await page.goto("/library");
       await uploadImage(page, "a11y-asset.png");
-      await expect(page.getByTestId("asset-grid")).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByTestId("asset-grid")).toBeVisible({
+        timeout: 20_000,
+      });
       await page.getByTestId("asset-card").first().locator("a").click();
       await expect(page).toHaveURL(/\/library\/[^/]+$/);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

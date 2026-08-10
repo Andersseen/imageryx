@@ -150,10 +150,11 @@ controls that do not work.
   full mechanism and fix — required reading before adding another dynamic
   route.
 
-Still deferred to Phase 5: API key management (Phase 3's auth is a single
-shared static `IMAGERYX_API_KEY`; the `api_keys` table exists since Phase 2
-but nothing writes to it yet), and project/folder/preset-scoped activity as
-real rows instead of structured logs.
+Project/folder/preset-scoped activity as real rows instead of structured
+logs remains deferred. API key management moved into the Personal
+Cloudflare Release work: database-backed keys can now be created/revoked,
+with the old static `IMAGERYX_API_KEY` retained only as a bootstrap
+fallback.
 
 ## Phase 5 — Production Hardening (current)
 
@@ -189,19 +190,26 @@ delivery and transformation platform, safe to run against your own
 Cloudflare account, with an honest boundary around what's still simulated
 (transformation itself — see "Current limitations" in README.md).
 
-## 1.0 — Personal Cloudflare Release
+## Personal Cloudflare Release
 
-The first tagged version, deployed to and validated against a real,
-personal Cloudflare account (not just Miniflare-simulated locally) —
-concretely:
+The first real personal deployment target. Version target: `0.1.0` or the
+next appropriate alpha, not `1.0.0`.
 
-- A completed first real deployment following
-  `docs/deployment-cloudflare.md`, with a working smoke check against the
-  live URLs.
-- At least one working real transformation path — either a real
-  Cloudflare Images or Cloudinary network call, replacing the mock
-  provider for at least one operation set.
-- API key rotation exercised for real, not just documented.
+- Authentication: DevAuth OIDC client registration, Authorization Code +
+  PKCE, Imageryx-owned session, protected dashboard/proxy, local logout.
+- Production infrastructure: real D1, private R2 bucket, Queue
+  producer/consumer, Workers and dashboard deployment.
+- Live transformation: Cloudinary provider active with `simulated: false`
+  and transformed bytes persisted back to R2.
+- Production verification: authenticated dashboard upload, queued
+  processing, Cloudinary variant generation, original and variant served by
+  Delivery Worker, private/signed delivery behavior checked.
+
+## Next
+
+- Self-hosting experience beyond this maintainer's deployment.
+- Developer integrations and SDK/package release workflow.
+- Advanced image tooling and richer API-key scope/project restrictions.
 
 ## Future — Self-Hosted Mode
 

@@ -16,6 +16,7 @@ export * from "./ids";
 export * from "./presets/system-presets";
 
 export * from "./repositories/asset-activity.repository";
+export * from "./repositories/api-key.repository";
 export * from "./repositories/asset.repository";
 export * from "./repositories/folder.repository";
 export * from "./repositories/preset.repository";

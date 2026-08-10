@@ -1,7 +1,13 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalEnv": ["API_URL", "CI", "IMAGERYX_API_KEY"],
+  "globalEnv": [
+    "API_URL",
+    "CI",
+    "E2E_AUTH",
+    "IMAGERYX_API_KEY",
+    "IMAGERYX_INTERNAL_API_KEY"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

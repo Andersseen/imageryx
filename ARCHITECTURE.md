@@ -1,10 +1,8 @@
 # Architecture
 
 This document describes how Imageryx's apps and packages fit together. The
-application/route/API architecture below reflects the feature-complete
-state reached through Phase 4B; Phase 5 (current) hardens that base —
-security, tests, CI, accessibility, deployment prep — without changing the
-shape described here. See [ROADMAP.md](ROADMAP.md) for the phase breakdown
+application/route/API architecture below reflects the personal alpha moving
+toward its first real Cloudflare release. See [ROADMAP.md](ROADMAP.md) for the phase breakdown
 and [context.md](context.md) for product/technology decisions and the
 detailed rationale behind the choices summarized here — in particular its
 "Phase 3 decisions and limitations", "Phase 4A decisions and limitations",
@@ -59,8 +57,9 @@ rest of the system is healthy.
   see context.md's "Phase 4B decisions and limitations" for why a sibling
   `library.page.ts` + `library/[assetId].page.ts` silently never renders
   the child.
-- **Later phases:** API key management, teams, and everything else Phase 5
-  scopes in.
+- **Personal release:** dashboard access is gated by DevAuth OIDC plus an
+  Imageryx-owned session. The footer renders the signed-in identity, and
+  the dashboard API page can create/revoke database-backed API keys.
 
 ### api-worker
 
@@ -70,8 +69,8 @@ never runs expensive processing inline in a route handler.
 
 - **Phase 1:** `GET /health`, `GET /v1/info` only.
 - **Phase 2:** adds a D1 binding and four read-only diagnostic routes.
-- **Phase 3 (current):** every `/v1/*` route requires `Authorization:
-Bearer <IMAGERYX_API_KEY>` (constant-time comparison). Full CRUD for
+- **Phase 3:** every `/v1/*` route requires `Authorization:
+Bearer <api key>`. Full CRUD for
   projects, folders, tags, presets (+ preview), assets (+ multipart
   upload, move, tagging, activity, variant listing, delivery info, signed
   download-url issuance, soft delete/restore), variant generation
@@ -81,8 +80,13 @@ Bearer <IMAGERYX_API_KEY>` (constant-time comparison). Full CRUD for
   dispatched to `processing-worker` — via a real Cloudflare Queue message
   by default, or inline under `waitUntil` in `PROCESSING_MODE=inline-local`
   — never processed synchronously in the request.
+- **Personal release:** database-backed API keys are checked before the
+  legacy static `IMAGERYX_API_KEY` fallback. `/v1/api-keys` supports list,
+  create and revoke; complete keys are returned once and only hashes are
+  stored.
 - **Later phases:** project/preset-scoped activity as real rows (currently
-  structured logs only — see context.md), richer job-listing pagination.
+  structured logs only — see context.md), richer job-listing pagination and
+  more granular API-key authorization.
 
 ### delivery-worker
 
@@ -114,19 +118,18 @@ needs from D1/storage by ID.
 
 - **Phase 1:** `GET /health` plus a Cloudflare Queue consumer
   acknowledging one placeholder job shape.
-- **Phase 3 (current):** two real job handlers. `inspect-metadata` parses
+- **Phase 3:** two real job handlers. `inspect-metadata` parses
   real dimension/alpha data from image headers (PNG/JPEG/GIF/WebP/SVG; AVIF
   reports `null` with a warning, never a fabricated value) and generates a
   deterministic placeholder. `generate-variant` renders a real, visibly
   "Simulated transformation" SVG (via the mock `TransformationProvider`'s
   deterministic sizing plus `@imageryx/image-core`'s renderer) and, when
-  `persist: true`, writes it through `StorageProvider` — never fakes a
-  success response for the Cloudflare/Cloudinary providers, which still
-  always throw. Failed jobs are classified retryable/non-retryable and
-  respect `PROCESSING_MAX_ATTEMPTS`.
-- **Later phases:** a real decode/resize/crop/encode pipeline (or a real
-  Cloudflare Images/Cloudinary network call) replacing the mock provider's
-  simulated output.
+  `persist: true`, writes it through `StorageProvider`. Failed jobs are
+  classified retryable/non-retryable and respect
+  `PROCESSING_MAX_ATTEMPTS`.
+- **Personal release:** `CloudinaryProvider.transform()` performs the real
+  upload/transform/fetch path and returns `simulated: false`; production
+  still needs live credential and end-to-end deployment verification.
 
 ## Dashboard structure (Phase 4B)
 

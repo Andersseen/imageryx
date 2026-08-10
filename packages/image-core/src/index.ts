@@ -19,6 +19,7 @@ export * from "./paths/logical-path";
 export * from "./paths/storage-key";
 
 export * from "./security/base64";
+export * from "./security/api-key";
 export * from "./security/checksum";
 export * from "./security/constant-time";
 export * from "./security/mime-validation";

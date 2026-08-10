@@ -33,6 +33,19 @@ import { ServiceStatusCard } from "./overview/service-status-card.component";
 const EXAMPLE_ASSET_PATH = "photos/hero.jpg";
 type SnippetTab = "curl" | "sdk" | "angular" | "html";
 
+interface ApiKeySummary {
+  id: string;
+  name: string | null;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+interface CreatedApiKey extends ApiKeySummary {
+  key: string;
+}
+
 /**
  * `/api` — an in-application developer reference: the same live health/info the overview page
  * shows, the masked API key (never the full one — see `apiInfoData().apiKeyPrefix`), copyable
@@ -160,6 +173,117 @@ type SnippetTab = "curl" | "sdk" | "angular" | "html";
           </p>
         }
       }
+
+      <section
+        class="flex flex-col gap-4 rounded-lg border border-border bg-card p-4"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-semibold">API keys</h2>
+            <p class="text-xs text-muted-foreground">
+              Full keys are shown once. Store them before leaving this page.
+            </p>
+          </div>
+          <form
+            class="flex min-w-0 flex-1 justify-end gap-2 sm:flex-none"
+            (submit)="createApiKey($event, keyName.value)"
+          >
+            <input
+              #keyName
+              type="text"
+              name="name"
+              maxlength="80"
+              placeholder="Key name"
+              class="h-9 min-w-0 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <volt-button type="submit" size="sm">Create</volt-button>
+          </form>
+        </div>
+
+        @if (createdApiKey(); as created) {
+          <div
+            class="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3"
+            data-testid="created-api-key"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-medium text-muted-foreground"
+                >New key</span
+              >
+              <ix-copy-button
+                [value]="created.key"
+                label="new API key"
+                idleLabel="Copy"
+              />
+            </div>
+            <code class="break-all text-xs">{{ created.key }}</code>
+          </div>
+        }
+
+        @if (apiKeysState().status === "loading") {
+          <p class="text-sm text-muted-foreground">Loading keys...</p>
+        } @else if (apiKeysState().status === "error") {
+          <p class="text-sm text-destructive" role="alert">
+            {{ apiKeysErrorMessage() }}
+          </p>
+        } @else {
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[640px] text-left text-sm">
+              <thead class="text-xs text-muted-foreground">
+                <tr class="border-b border-border">
+                  <th class="py-2 pr-3 font-medium">Name</th>
+                  <th class="py-2 pr-3 font-medium">Prefix</th>
+                  <th class="py-2 pr-3 font-medium">Created</th>
+                  <th class="py-2 pr-3 font-medium">Last used</th>
+                  <th class="py-2 pr-3 font-medium">Status</th>
+                  <th class="py-2 text-right font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (key of apiKeysState().items; track key.id) {
+                  <tr class="border-b border-border last:border-0">
+                    <td class="py-2 pr-3">{{ key.name ?? "Untitled key" }}</td>
+                    <td class="py-2 pr-3 font-mono text-xs">
+                      {{ key.prefix }}
+                    </td>
+                    <td class="py-2 pr-3">{{ formatDate(key.createdAt) }}</td>
+                    <td class="py-2 pr-3">
+                      {{
+                        key.lastUsedAt ? formatDate(key.lastUsedAt) : "Never"
+                      }}
+                    </td>
+                    <td class="py-2 pr-3">
+                      <volt-badge
+                        [variant]="key.revokedAt ? 'secondary' : 'solid'"
+                      >
+                        {{ key.revokedAt ? "Revoked" : "Active" }}
+                      </volt-badge>
+                    </td>
+                    <td class="py-2 text-right">
+                      <volt-button
+                        variant="outline"
+                        size="sm"
+                        [disabled]="!!key.revokedAt"
+                        (click)="revokeApiKey(key.id)"
+                      >
+                        Revoke
+                      </volt-button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td
+                      colspan="6"
+                      class="py-6 text-center text-sm text-muted-foreground"
+                    >
+                      No database-backed API keys yet.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
 
       <section
         class="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
@@ -298,6 +422,16 @@ export default class ApiPage {
 
   protected readonly examplePath = EXAMPLE_ASSET_PATH;
   protected readonly activeSnippetTab = signal<SnippetTab>("curl");
+  protected readonly apiKeysState = signal<
+    | { status: "loading"; items: ApiKeySummary[] }
+    | { status: "success"; items: ApiKeySummary[] }
+    | { status: "error"; items: ApiKeySummary[]; message: string }
+  >({ status: "loading", items: [] });
+  protected readonly createdApiKey = signal<CreatedApiKey | null>(null);
+  protected readonly apiKeysErrorMessage = computed(() => {
+    const state = this.apiKeysState();
+    return state.status === "error" ? state.message : "";
+  });
 
   protected readonly infoState = computed(() => this.health.apiInfo());
   protected readonly isMockProvider = computed(() => {
@@ -354,6 +488,7 @@ export default class ApiPage {
 
   constructor() {
     void this.context.ensureLoaded();
+    void this.loadApiKeys();
 
     effect(() => {
       const projectId = this.context.selectedProjectId();
@@ -371,6 +506,7 @@ export default class ApiPage {
 
   protected refreshHealth(): void {
     this.health.refresh();
+    void this.loadApiKeys();
   }
 
   protected onSnippetTabChange(value: string | undefined): void {
@@ -381,6 +517,77 @@ export default class ApiPage {
       value === "html"
     ) {
       this.activeSnippetTab.set(value);
+    }
+  }
+
+  protected formatDate(value: string): string {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(value));
+  }
+
+  protected async createApiKey(
+    event: SubmitEvent,
+    name: string,
+  ): Promise<void> {
+    event.preventDefault();
+    const response = await fetch("/proxy/v1/api-keys", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: name.trim() || undefined }),
+    });
+    if (!response.ok) {
+      this.apiKeysState.set({
+        status: "error",
+        items: this.apiKeysState().items,
+        message: "Could not create API key.",
+      });
+      return;
+    }
+
+    const created = (await response.json()) as CreatedApiKey;
+    this.createdApiKey.set(created);
+    await this.loadApiKeys();
+  }
+
+  protected async revokeApiKey(id: string): Promise<void> {
+    const response = await fetch(
+      `/proxy/v1/api-keys/${encodeURIComponent(id)}`,
+      {
+        method: "DELETE",
+        credentials: "same-origin",
+      },
+    );
+    if (!response.ok) {
+      this.apiKeysState.set({
+        status: "error",
+        items: this.apiKeysState().items,
+        message: "Could not revoke API key.",
+      });
+      return;
+    }
+    await this.loadApiKeys();
+  }
+
+  private async loadApiKeys(): Promise<void> {
+    const previous = this.apiKeysState().items;
+    this.apiKeysState.set({ status: "loading", items: previous });
+    try {
+      const response = await fetch("/proxy/v1/api-keys", {
+        credentials: "same-origin",
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) throw new Error("API key list request failed.");
+      const body = (await response.json()) as { items: ApiKeySummary[] };
+      this.apiKeysState.set({ status: "success", items: body.items });
+    } catch {
+      this.apiKeysState.set({
+        status: "error",
+        items: previous,
+        message: "Could not load API keys.",
+      });
     }
   }
 }

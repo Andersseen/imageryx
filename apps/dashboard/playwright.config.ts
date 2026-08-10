@@ -70,6 +70,13 @@ export default defineConfig({
       env: {
         API_URL: `http://localhost:${API_PORT}`,
         IMAGERYX_API_KEY: "imgx_dev_local",
+        IMAGERYX_INTERNAL_API_KEY: "imgx_dev_local",
+        E2E_AUTH: "1",
+        DEV_AUTH_URL: "https://auth-devflare.andersseen.dev",
+        DEV_AUTH_CLIENT_ID: "imageryx",
+        DEV_AUTH_CLIENT_SECRET: "e2e-client-secret",
+        DEV_AUTH_REDIRECT_URI: `http://localhost:${DASHBOARD_PORT}/proxy/auth/callback`,
+        SESSION_SECRET: "e2e-session-secret-not-for-production",
         VITE_API_URL: `http://localhost:${API_PORT}`,
       },
       stdout: "pipe",
