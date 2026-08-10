@@ -9,12 +9,18 @@ import { defineConfig } from "vitest/config";
 const migrationsPath = fileURLToPath(
   new URL("../../packages/database/migrations", import.meta.url),
 );
+const TEST_DOWNLOAD_SIGNING_SECRET = "replace-with-local-development-secret";
 
 export default defineConfig(async () => {
   const migrations = await readD1Migrations(migrationsPath);
   const workersOptions = {
     wrangler: { configPath: "./wrangler.jsonc" },
-    miniflare: { bindings: { TEST_MIGRATIONS: migrations } },
+    miniflare: {
+      bindings: {
+        TEST_MIGRATIONS: migrations,
+        DOWNLOAD_SIGNING_SECRET: TEST_DOWNLOAD_SIGNING_SECRET,
+      },
+    },
   };
 
   return {
