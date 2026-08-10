@@ -51,7 +51,7 @@ export default defineConfig({
 
   webServer: [
     {
-      command: `pnpm exec wrangler dev --port ${API_PORT} --inspector-port 9329 --persist-to ../../.wrangler-state-e2e --var PROCESSING_MODE:inline-local --var DASHBOARD_URL:http://localhost:${DASHBOARD_PORT}`,
+      command: `pnpm exec wrangler dev --port ${API_PORT} --inspector-port 9329 --persist-to ../../.wrangler-state-e2e --var PROCESSING_MODE:inline-local --var DASHBOARD_URL:http://localhost:${DASHBOARD_PORT} --var IMAGERYX_API_KEY:imgx_dev_local --var DOWNLOAD_SIGNING_SECRET:e2e-download-signing-secret`,
       cwd: "../api-worker",
       url: `http://localhost:${API_PORT}/health`,
       reuseExistingServer: !process.env["CI"],
