@@ -199,6 +199,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_DEPLOY_ENABLED != 'true'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       deployments: write
     steps:
       - name: Mark previous Cloudflare deployments inactive
@@ -218,7 +219,7 @@ jobs:
               gh api "/repos/${GITHUB_REPOSITORY}/deployments" \
                 -f environment="$environment" \
                 -F per_page=100 \
-                --jq '.[].id'
+                --jq '.[].id' || true
             )"
 
             if [ -z "$deployment_ids" ]; then
@@ -228,10 +229,12 @@ jobs:
 
             while IFS= read -r deployment_id; do
               [ -n "$deployment_id" ] || continue
-              gh api --method POST "/repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses" \
+              if ! gh api --method POST "/repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses" \
                 -f state=inactive \
                 -f description="Automatic Cloudflare deploys are disabled for this repository." \
-                -F auto_inactive=false >/dev/null
+                -F auto_inactive=false >/dev/null; then
+                echo "::warning::Could not mark deployment $deployment_id inactive for $environment."
+              fi
             done <<< "$deployment_ids"
 
             echo "::notice::Marked previous deployments inactive for $environment."
