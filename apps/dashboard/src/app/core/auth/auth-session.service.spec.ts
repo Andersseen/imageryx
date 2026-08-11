@@ -63,6 +63,20 @@ describe("AuthSessionService", () => {
     expect(service.user()).toBeNull();
   });
 
+  it("treats a non-JSON session response as anonymous", async () => {
+    stubFetch(
+      new Response("<!doctype html><ix-root></ix-root>", {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      }),
+    );
+
+    await service.refresh();
+
+    expect(service.session()).toEqual({ status: "anonymous" });
+    expect(service.user()).toBeNull();
+  });
+
   it("treats an authenticated:true body with no user as anonymous", async () => {
     stubFetch(json({ authenticated: true, user: null }));
 

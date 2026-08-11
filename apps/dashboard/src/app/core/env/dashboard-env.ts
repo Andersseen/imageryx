@@ -5,11 +5,20 @@ export interface DashboardEnv {
   processingUrl: string;
 }
 
-const DEFAULTS = {
+type RawEnv = Record<string, string | boolean | undefined>;
+
+const DEVELOPMENT_DEFAULTS = {
   appEnv: "development",
   apiUrl: "http://localhost:8787",
   deliveryUrl: "http://localhost:8788",
   processingUrl: "http://localhost:8789",
+} as const;
+
+const PRODUCTION_DEFAULTS = {
+  appEnv: "production",
+  apiUrl: "https://imageryx-api-worker.workers.dev",
+  deliveryUrl: "https://imageryx-delivery-worker.workers.dev",
+  processingUrl: "https://imageryx-processing-worker.workers.dev",
 } as const;
 
 function stripTrailingSlash(url: string): string {
@@ -17,12 +26,18 @@ function stripTrailingSlash(url: string): string {
 }
 
 function readVar(
-  raw: Record<string, string | undefined>,
+  raw: RawEnv,
   key: string,
   fallback: string,
 ): string {
   const value = raw[key];
-  return value && value.trim().length > 0 ? value.trim() : fallback;
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : fallback;
+}
+
+function isProduction(raw: RawEnv): boolean {
+  return raw["PROD"] === true || raw["PROD"] === "true";
 }
 
 /**
@@ -31,16 +46,17 @@ function readVar(
  * defaults instead of each reading `import.meta.env` directly.
  */
 export function parseDashboardEnv(
-  raw: Record<string, string | undefined>,
+  raw: RawEnv,
 ): DashboardEnv {
+  const defaults = isProduction(raw) ? PRODUCTION_DEFAULTS : DEVELOPMENT_DEFAULTS;
   return {
-    appEnv: readVar(raw, "VITE_APP_ENV", DEFAULTS.appEnv),
-    apiUrl: stripTrailingSlash(readVar(raw, "VITE_API_URL", DEFAULTS.apiUrl)),
+    appEnv: readVar(raw, "VITE_APP_ENV", defaults.appEnv),
+    apiUrl: stripTrailingSlash(readVar(raw, "VITE_API_URL", defaults.apiUrl)),
     deliveryUrl: stripTrailingSlash(
-      readVar(raw, "VITE_DELIVERY_URL", DEFAULTS.deliveryUrl),
+      readVar(raw, "VITE_DELIVERY_URL", defaults.deliveryUrl),
     ),
     processingUrl: stripTrailingSlash(
-      readVar(raw, "VITE_PROCESSING_URL", DEFAULTS.processingUrl),
+      readVar(raw, "VITE_PROCESSING_URL", defaults.processingUrl),
     ),
   };
 }

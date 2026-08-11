@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
 import { VoltBadge, VoltButton, VoltSidebarService } from "@voltui/components";
 import { LmnMenuIcon, LmnMoonIcon, LmnSunIcon } from "lumen-icons";
+import { AuthSessionService } from "../core/auth/auth-session.service";
 import { DASHBOARD_ENV } from "../core/env/dashboard-env.token";
 import { ThemeService } from "../core/theme/theme.service";
 import { GlobalSearch } from "./global-search.component";
@@ -69,6 +70,10 @@ import { UploadDialog } from "./upload-dialog.component";
         }
       </volt-button>
 
+      <volt-button variant="ghost" class="hidden sm:inline-flex" (click)="signOut()">
+        Sign out
+      </volt-button>
+
       <ix-upload-dialog />
     </header>
   `,
@@ -77,4 +82,9 @@ export class Topbar {
   protected readonly env = inject(DASHBOARD_ENV);
   protected readonly theme = inject(ThemeService);
   protected readonly sidebar = inject(VoltSidebarService);
+  private readonly auth = inject(AuthSessionService);
+
+  protected async signOut(): Promise<void> {
+    await this.auth.logout();
+  }
 }

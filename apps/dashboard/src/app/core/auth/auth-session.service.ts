@@ -53,7 +53,8 @@ export class AuthSessionService {
         headers: { accept: "application/json" },
       });
 
-      if (!response.ok) {
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!response.ok || !contentType.includes("application/json")) {
         this.state.set({ status: "anonymous" });
         return this.state();
       }

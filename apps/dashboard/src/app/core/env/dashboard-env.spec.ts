@@ -23,6 +23,15 @@ describe("parseDashboardEnv", () => {
     expect(env.apiUrl).toBe("https://api.example.com");
   });
 
+  it("uses production defaults for production builds", () => {
+    expect(parseDashboardEnv({ PROD: true })).toEqual({
+      appEnv: "production",
+      apiUrl: "https://imageryx-api-worker.workers.dev",
+      deliveryUrl: "https://imageryx-delivery-worker.workers.dev",
+      processingUrl: "https://imageryx-processing-worker.workers.dev",
+    });
+  });
+
   it("strips trailing slashes so callers can safely append paths", () => {
     const env = parseDashboardEnv({ VITE_API_URL: "https://api.example.com/" });
     expect(env.apiUrl).toBe("https://api.example.com");
