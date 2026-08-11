@@ -161,8 +161,19 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
-      - name: Build and deploy dashboard
-        run: pnpm turbo run build deploy --filter=@imageryx/dashboard
+      - name: Build dashboard
+        run: pnpm --filter @imageryx/dashboard run build
+
+      - name: Verify Cloudflare Pages project
+        run: |
+          pnpm --filter @imageryx/dashboard exec wrangler pages project list > /tmp/cloudflare-pages-projects.txt
+          grep -q "imageryx-dashboard" /tmp/cloudflare-pages-projects.txt
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy dashboard
+        run: pnpm --filter @imageryx/dashboard run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
