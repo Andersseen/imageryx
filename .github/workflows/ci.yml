@@ -192,3 +192,47 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  retire-skipped-deployments:
+    name: Retire skipped deployments
+    needs: [check, e2e, a11y]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_DEPLOY_ENABLED != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      deployments: write
+    steps:
+      - name: Mark previous Cloudflare deployments inactive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          environments=(
+            "web (production)"
+            "dashboard (production)"
+            "api-worker (production)"
+            "delivery-worker (production)"
+            "processing-worker (production)"
+          )
+
+          for environment in "${environments[@]}"; do
+            deployment_ids="$(
+              gh api "/repos/${GITHUB_REPOSITORY}/deployments" \
+                -f environment="$environment" \
+                -F per_page=100 \
+                --jq '.[].id'
+            )"
+
+            if [ -z "$deployment_ids" ]; then
+              echo "::notice::No deployments found for $environment."
+              continue
+            fi
+
+            while IFS= read -r deployment_id; do
+              [ -n "$deployment_id" ] || continue
+              gh api --method POST "/repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses" \
+                -f state=inactive \
+                -f description="Automatic Cloudflare deploys are disabled for this repository." \
+                -F auto_inactive=false >/dev/null
+            done <<< "$deployment_ids"
+
+            echo "::notice::Marked previous deployments inactive for $environment."
+          done
