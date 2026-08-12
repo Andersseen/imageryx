@@ -137,7 +137,7 @@ jobs:
   deploy-dashboard:
     name: Deploy dashboard
     needs: [check, e2e, a11y]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CLOUDFLARE_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -248,6 +248,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           environments=(
+            "dashboard (production)"
             "web (production)"
             "api-worker (production)"
             "delivery-worker (production)"
