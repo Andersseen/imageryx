@@ -373,34 +373,33 @@ Issue a signed download token via `POST /v1/assets/:id/download-url`.
 
 ## Deployment
 
-Every app deploys to Cloudflare — `dashboard` and `web` as Pages projects,
-the three Workers as Cloudflare Workers:
+The two user-facing apps deploy to Cloudflare Pages:
 
-| App               | Deploys to         | Production URL                                   |
-| ----------------- | ------------------ | ------------------------------------------------ |
-| dashboard         | Cloudflare Pages   | https://imageryx-dashboard.pages.dev             |
-| web               | Cloudflare Pages   | https://imageryx-web.pages.dev                   |
-| api-worker        | Cloudflare Workers | `imageryx-api-worker` (Workers subdomain)        |
-| delivery-worker   | Cloudflare Workers | `imageryx-delivery-worker` (Workers subdomain)   |
-| processing-worker | Cloudflare Workers | `imageryx-processing-worker` (Workers subdomain) |
+| App       | Deploys to       | Production URL                       |
+| --------- | ---------------- | ------------------------------------ |
+| dashboard | Cloudflare Pages | https://imageryx-dashboard.pages.dev |
+| web       | Cloudflare Pages | https://imageryx-web.pages.dev       |
 
 `.github/workflows/ci.yml` runs a single `check` job (verify structure,
-lint, typecheck, test, build) on every push and pull request. On a push to
-`main`, once `check` passes, all five apps deploy as independent parallel
-matrix jobs — a failure in one doesn't block the others. Deploys need the
-repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
-(`CLOUDFLARE_ACCOUNT_ID` must be the account that owns the Pages projects,
-D1 database, R2 bucket, Queues, and Workers below). The API token must be
-able to edit Cloudflare Pages, Workers Scripts, D1, R2, and Queues for that
-account; add User Details read access too so Wrangler can identify the token
-cleanly in CI logs.
+lint, typecheck, test, build), dashboard E2E, and accessibility smoke checks
+on every push and pull request. On a push to `main`, once those checks pass,
+`web` and `dashboard` deploy as independent parallel matrix jobs. Deploys
+need the repository secrets `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` (`CLOUDFLARE_ACCOUNT_ID` must be the account that
+owns both Pages projects). The API token must be able to edit Cloudflare
+Pages for that account; add User Details read access too so Wrangler can
+identify the token cleanly in CI logs.
 
-Each matrix leg publishes to its own GitHub Environment
-(`web (production)`, `dashboard (production)`, `api-worker (production)`,
-…), so every deploy is recorded with its live URL under the repository's
-**Environments** tab and in the sidebar. Add required reviewers or branch
-protection rules per environment in **Settings → Environments** to gate any
-individual app without touching the workflow.
+Each matrix leg publishes to its own GitHub Environment (`web (production)`
+and `dashboard (production)`), so every deploy is recorded with its live URL
+under the repository's **Environments** tab and in the sidebar. Add required
+reviewers or branch protection rules per environment in
+**Settings → Environments** to gate either app without touching the workflow.
+
+The three Workers (`api-worker`, `delivery-worker`, `processing-worker`) are
+still deployed by the local/full release script documented in
+`docs/deployment-cloudflare.md`; they are not created as GitHub deployment
+environments by the push-to-main workflow.
 
 Before the first deploy of `api-worker` or `delivery-worker`, set their
 real secrets — `IMAGERYX_API_KEY` and `DOWNLOAD_SIGNING_SECRET` are **not**
