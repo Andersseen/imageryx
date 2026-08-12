@@ -389,7 +389,11 @@ lint, typecheck, test, build) on every push and pull request. On a push to
 `main`, once `check` passes, all five apps deploy as independent parallel
 matrix jobs — a failure in one doesn't block the others. Deploys need the
 repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
-(Workers/Pages/D1/Queues write scope).
+(`CLOUDFLARE_ACCOUNT_ID` must be the account that owns the Pages projects,
+D1 database, R2 bucket, Queues, and Workers below). The API token must be
+able to edit Cloudflare Pages, Workers Scripts, D1, R2, and Queues for that
+account; add User Details read access too so Wrangler can identify the token
+cleanly in CI logs.
 
 Each matrix leg publishes to its own GitHub Environment
 (`web (production)`, `dashboard (production)`, `api-worker (production)`,
