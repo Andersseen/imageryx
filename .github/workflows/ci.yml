@@ -134,62 +134,9 @@ jobs:
           path: apps/dashboard/playwright-report
           retention-days: 7
 
-  cloudflare-pages-preflight:
-    name: Cloudflare Pages deploy preflight
-    needs: [check, e2e, a11y]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-
-      - name: Install dependencies (frozen lockfile)
-        run: pnpm install --frozen-lockfile
-
-      - name: Verify Cloudflare Pages deploy credentials and resources
-        run: |
-          set -euo pipefail
-
-          missing=0
-          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
-            if [ -z "${!name:-}" ]; then
-              echo "::error::${name} is not set in GitHub Actions secrets."
-              missing=1
-            fi
-          done
-
-          if [ "$missing" -ne 0 ]; then
-            exit 1
-          fi
-
-          echo "Checking Cloudflare Pages projects..."
-          pnpm --filter @imageryx/dashboard exec wrangler pages project list > /tmp/cloudflare-pages-projects.txt
-          grep -q "imageryx-dashboard" /tmp/cloudflare-pages-projects.txt || {
-            echo "::error::CLOUDFLARE_API_TOKEN cannot access Pages project imageryx-dashboard in CLOUDFLARE_ACCOUNT_ID."
-            exit 1
-          }
-          grep -q "imageryx-web" /tmp/cloudflare-pages-projects.txt || {
-            echo "::error::CLOUDFLARE_API_TOKEN cannot access Pages project imageryx-web in CLOUDFLARE_ACCOUNT_ID."
-            exit 1
-          }
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
   deploy-pages:
     name: Deploy ${{ matrix.app }}
-    needs: [check, e2e, a11y, cloudflare-pages-preflight]
+    needs: [check, e2e, a11y]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -224,7 +171,10 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
-      - name: Build and deploy
+      - name: Build ${{ matrix.app }}
+        run: pnpm --filter ${{ matrix.package }} run build
+
+      - name: Deploy ${{ matrix.app }}
         run: pnpm --filter ${{ matrix.package }} run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
