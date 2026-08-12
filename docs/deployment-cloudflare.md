@@ -85,15 +85,14 @@ step 4–7's `database_id` if you created a new database.
 | `IMAGERYX_INTERNAL_API_KEY`                    | **secret**           | dashboard server environment                                     |
 | `DEV_AUTH_*` / `SESSION_SECRET`                | **secret/plain mix** | dashboard server environment; see `docs/dev-auth-integration.md` |
 | `DOWNLOAD_SIGNING_SECRET`                      | **secret**           | `wrangler secret put` (api-worker + delivery-worker)             |
-| `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` | CI secret            | GitHub Actions repo secrets (deploy workflows only)              |
+| `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` | CI secret            | GitHub Actions repo secrets (Pages app deploy workflows only)    |
 | `CLOUDINARY_*`                                 | **secret**           | processing-worker production environment                         |
 
 For CI deploys, `CLOUDFLARE_ACCOUNT_ID` must be the exact account that owns
-`imageryx-dashboard`, `imageryx-web`, `imageryx-db`,
-`imageryx-storage`, `imageryx-processing-queue`, and the three Workers.
-The `CLOUDFLARE_API_TOKEN` secret must have edit access for Cloudflare Pages,
-Workers Scripts, D1, R2, and Queues on that account. Also grant User Details
-read access so Wrangler can identify the token cleanly in CI logs.
+the two Pages projects, `imageryx-dashboard` and `imageryx-web`. The
+`CLOUDFLARE_API_TOKEN` secret must have edit access for Cloudflare Pages on
+that account. Also grant User Details read access so Wrangler can identify
+the token cleanly in CI logs.
 
 ## 10. Secrets
 
@@ -191,6 +190,11 @@ pnpm deploy             # the real thing: validate → migrate → processing �
 or a failed Worker deploy to touch the next one. It does not run any
 destructive database command.
 
+GitHub Actions intentionally deploys only the two Pages apps on pushes to
+`main`, creating exactly two GitHub deployment environments:
+`web (production)` and `dashboard (production)`. Use `pnpm deploy` for the
+full Workers + Pages release path above.
+
 ## 17. Smoke checks
 
 ```bash
@@ -207,7 +211,7 @@ image.
 
 Cloudflare Workers/Pages don't have a single-command rollback in this
 setup. Practically: `git revert` the change, then re-run `pnpm deploy` (or
-the single-app `deploy-manual.yml` GitHub Action) for the affected app —
+the single-app `deploy-manual.yml` GitHub Action for `web`/`dashboard`) for the affected app —
 the previous version isn't kept "warm" anywhere, so redeploying the
 previous commit _is_ the rollback. For a D1 migration you need to undo,
 write a new migration that reverses it (see CONTRIBUTING.md — never edit

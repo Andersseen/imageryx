@@ -3,7 +3,8 @@ name: Manual Deploy
 # Separate from ci.yml's automatic push-to-main deploy — lets a single app be redeployed on
 # demand (e.g. after rotating a secret, or re-running a flaky deploy step) without requiring a new
 # commit to main. Does not run `check`/`e2e`/`a11y` itself: only use this against a commit that
-# already passed CI, or accept the risk of deploying one that hasn't.
+# already passed CI, or accept the risk of deploying one that hasn't. This is intentionally scoped
+# to the two Cloudflare Pages apps that GitHub should show as production deployments.
 on:
   workflow_dispatch:
     inputs:
@@ -14,9 +15,6 @@ on:
         options:
           - web
           - dashboard
-          - api-worker
-          - delivery-worker
-          - processing-worker
 
 jobs:
   deploy:
@@ -27,6 +25,7 @@ jobs:
       deployments: write
     environment:
       name: ${{ inputs.app }} (production)
+      url: ${{ inputs.app == 'web' && 'https://imageryx-web.pages.dev' || 'https://imageryx-dashboard.pages.dev' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,15 +42,8 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
-      - name: Apply D1 migrations
-        if: inputs.app == 'api-worker'
-        run: pnpm --filter @imageryx/api-worker run db:migrate:production
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
       - name: Build and deploy
-        run: pnpm turbo run deploy --filter=@imageryx/${{ inputs.app }}
+        run: pnpm --filter @imageryx/${{ inputs.app }} run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
