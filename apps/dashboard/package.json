@@ -17,7 +17,7 @@
     "test:a11y": "pnpm --filter @imageryx/api-worker run db:migrate:e2e && playwright test e2e/accessibility.spec.ts",
     "test:e2e:ui": "pnpm --filter @imageryx/api-worker run db:migrate:e2e && playwright test --ui",
     "e2e:install": "playwright install --with-deps chromium",
-    "deploy": "wrangler pages deploy dist/client --project-name imageryx-dashboard --branch main"
+    "deploy": "wrangler pages deploy dist/analog/public --project-name imageryx-dashboard --branch main"
   },
   "dependencies": {
     "@analogjs/router": "^2.6.4",

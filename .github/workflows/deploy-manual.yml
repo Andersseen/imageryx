@@ -3,8 +3,7 @@ name: Manual Deploy
 # Separate from ci.yml's automatic push-to-main deploy — lets a single app be redeployed on
 # demand (e.g. after rotating a secret, or re-running a flaky deploy step) without requiring a new
 # commit to main. Does not run `check`/`e2e`/`a11y` itself: only use this against a commit that
-# already passed CI, or accept the risk of deploying one that hasn't. This is intentionally scoped
-# to the two Cloudflare Pages apps that GitHub should show as production deployments.
+# already passed CI, or accept the risk of deploying one that hasn't.
 on:
   workflow_dispatch:
     inputs:
@@ -15,6 +14,17 @@ on:
         options:
           - web
           - dashboard
+          - api-worker
+          - delivery-worker
+          - processing-worker
+      migrate:
+        description: "Apply D1 migrations first (api-worker only)"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
@@ -25,10 +35,28 @@ jobs:
       deployments: write
     environment:
       name: ${{ inputs.app }} (production)
-      url: ${{ inputs.app == 'web' && 'https://imageryx-web.pages.dev' || 'https://imageryx-dashboard.pages.dev' }}
+      url: ${{ (inputs.app == 'web' || inputs.app == 'dashboard') && format('https://imageryx-{0}.pages.dev', inputs.app) || format('https://imageryx-{0}.andriipap01.workers.dev', inputs.app) }}
+    # Shares a group with ci.yml's deploy jobs so a manual redeploy and an automatic
+    # one can never write to the same target at the same time.
+    concurrency:
+      group: deploy-${{ inputs.app }}
+      cancel-in-progress: false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Require Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing — set them under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -42,8 +70,23 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      - name: Apply D1 migrations (production)
+        if: inputs.app == 'api-worker' && inputs.migrate
+        run: pnpm --filter @imageryx/api-worker run db:migrate:production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Kept byte-identical to ci.yml's build env on purpose: Vite inlines VITE_* at build
+      # time, so a manual redeploy that omitted them would quietly ship a bundle pointing at
+      # localhost. Harmless for the Workers, which ignore these.
       - name: Build ${{ inputs.app }}
         run: pnpm --filter @imageryx/${{ inputs.app }} run build
+        env:
+          VITE_APP_ENV: production
+          VITE_API_URL: https://imageryx-api-worker.andriipap01.workers.dev
+          VITE_DELIVERY_URL: https://imageryx-delivery-worker.andriipap01.workers.dev
+          VITE_PROCESSING_URL: https://imageryx-processing-worker.andriipap01.workers.dev
 
       - name: Deploy ${{ inputs.app }}
         run: pnpm --filter @imageryx/${{ inputs.app }} run deploy

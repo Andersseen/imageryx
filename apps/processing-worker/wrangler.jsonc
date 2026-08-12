@@ -53,10 +53,14 @@
         "STORAGE_PROVIDER": "r2",
         "TRANSFORMATION_PROVIDER": "cloudinary",
         "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev",
-        "PROCESSING_MAX_ATTEMPTS": "3",
-        "CLOUDINARY_CLOUD_NAME": "",
-        "CLOUDINARY_API_KEY": "",
-        "CLOUDINARY_API_SECRET": ""
+        "PROCESSING_MAX_ATTEMPTS": "3"
+        // CLOUDINARY_* are deliberately absent here. Vars and secrets share one binding
+        // namespace on a Worker, and the config's vars are authoritative on every deploy —
+        // listing `"CLOUDINARY_API_SECRET": ""` here would overwrite the real secret set with
+        // `wrangler secret put` with an empty string on the next deploy, silently breaking
+        // every transformation. They stay in the top-level (development) `vars` only because
+        // `wrangler types` derives the `Env` interface from that block; production values come
+        // from `wrangler secret put --env production`.
       },
       "d1_databases": [
         {

@@ -43,6 +43,17 @@ export default defineConfig({
       // load or refresh of `/api` would be swallowed by Nitro's dev middleware before the SPA
       // ever got to render it.
       apiPrefix: "proxy",
+      // Without an explicit preset Nitro builds for `node-server`, which emits
+      // `dist/analog/server/index.mjs` and no `_worker.js` — so a `wrangler pages deploy` of
+      // the static output ships the SPA with *no* server behind it and every `/proxy/*` call
+      // 404s. The dashboard is unusable in that state: `/proxy` is the only path by which the
+      // browser reaches api-worker (it injects the Bearer key server-side, see
+      // `src/server/routes/proxy/[...path].ts`). `cloudflare-pages` instead emits
+      // `dist/analog/public/_worker.js` with those routes compiled in, which is what
+      // `pnpm deploy` uploads.
+      nitro: {
+        preset: "cloudflare-pages",
+      },
       prerender: {
         routes: [],
       },
