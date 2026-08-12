@@ -88,6 +88,13 @@ step 4–7's `database_id` if you created a new database.
 | `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` | CI secret            | GitHub Actions repo secrets (deploy workflows only)              |
 | `CLOUDINARY_*`                                 | **secret**           | processing-worker production environment                         |
 
+For CI deploys, `CLOUDFLARE_ACCOUNT_ID` must be the exact account that owns
+`imageryx-dashboard`, `imageryx-web`, `imageryx-db`,
+`imageryx-storage`, `imageryx-processing-queue`, and the three Workers.
+The `CLOUDFLARE_API_TOKEN` secret must have edit access for Cloudflare Pages,
+Workers Scripts, D1, R2, and Queues on that account. Also grant User Details
+read access so Wrangler can identify the token cleanly in CI logs.
+
 ## 10. Secrets
 
 **Required before the first real deploy** — `api-worker` and
