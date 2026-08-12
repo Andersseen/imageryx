@@ -57,7 +57,10 @@
         "STORAGE_PROVIDER": "r2",
         "TRANSFORMATION_PROVIDER": "cloudinary",
         "DASHBOARD_URL": "https://imageryx-dashboard.pages.dev",
-        "DELIVERY_URL": "https://imageryx-delivery-worker.workers.dev",
+        // A workers.dev hostname is always <worker>.<account-subdomain>.workers.dev — the
+        // account subdomain is not optional. Without it this resolved to a domain that does
+        // not exist, so every delivery URL api-worker handed back to a client was dead.
+        "DELIVERY_URL": "https://imageryx-delivery-worker.andriipap01.workers.dev",
         "LOCAL_STORAGE_PATH": "../../.local/storage",
         "MAX_UPLOAD_SIZE_MB": "25",
         "ASSET_RECOVERY_DAYS": "30",

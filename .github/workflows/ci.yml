@@ -134,7 +134,20 @@ jobs:
           path: apps/dashboard/playwright-report
           retention-days: 7
 
-  deploy-pages:
+  # ---------------------------------------------------------------------------
+  # Deploy — runs only for a push to main, which is what a PR merge produces.
+  #
+  # Ordering is deliberate: Workers first, then the Pages apps that talk to them.
+  # A dashboard build that goes live pointing at an api-worker whose deploy just
+  # failed is worse than not shipping the frontend at all, so `deploy-pages`
+  # gates on `deploy-workers` rather than running beside it.
+  #
+  # Every job below declares an `environment:`, which is what makes GitHub record
+  # a Deployment (and show it on the repo sidebar with a real state and URL)
+  # instead of the job passing silently. The five environment names here are
+  # exactly the five that already exist on the repository.
+  # ---------------------------------------------------------------------------
+  deploy-workers:
     name: Deploy ${{ matrix.app }}
     needs: [check, e2e, a11y]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -145,6 +158,87 @@ jobs:
     environment:
       name: ${{ matrix.app }} (production)
       url: ${{ matrix.url }}
+    # Serialize per app without cancelling: two merges landing close together must
+    # not race each other onto the same Worker. `cancel-in-progress: false` because
+    # a half-finished deploy is not something to abort partway.
+    concurrency:
+      group: deploy-${{ matrix.app }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: delivery-worker
+            package: "@imageryx/delivery-worker"
+            url: https://imageryx-delivery-worker.andriipap01.workers.dev
+          - app: processing-worker
+            package: "@imageryx/processing-worker"
+            url: https://imageryx-processing-worker.andriipap01.workers.dev
+          - app: api-worker
+            package: "@imageryx/api-worker"
+            url: https://imageryx-api-worker.andriipap01.workers.dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Deliberately fails rather than skipping. Earlier revisions of this workflow
+      # treated absent Cloudflare credentials as "nothing to do" and went green, which
+      # is precisely why the repo sat undeployed while CI looked healthy.
+      - name: Require Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing — set them under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # api-worker owns the schema, so it is the single place migrations are applied.
+      # This runs before its own deploy so the code that goes live never sees a table
+      # that does not exist yet.
+      - name: Apply D1 migrations (production)
+        if: matrix.app == 'api-worker'
+        run: pnpm --filter @imageryx/api-worker run db:migrate:production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy ${{ matrix.app }}
+        run: pnpm --filter ${{ matrix.package }} run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-pages:
+    name: Deploy ${{ matrix.app }}
+    needs: [deploy-workers]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: ${{ matrix.app }} (production)
+      url: ${{ matrix.url }}
+    concurrency:
+      group: deploy-${{ matrix.app }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
@@ -159,6 +253,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Require Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing — set them under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
@@ -171,8 +278,21 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      # Vite inlines VITE_* at build time, so these must be present here rather than
+      # configured on the Pages project afterwards. Without them the bundle keeps
+      # dashboard-env.ts's localhost defaults — which is what shipped previously and
+      # is why the deployed dashboard could never reach a real backend.
+      #
+      # The dashboard's own browser traffic goes through its server-side /proxy route,
+      # not VITE_API_URL; these values feed the copy-pasteable integration snippets the
+      # dashboard renders, so they still have to name the real public endpoints.
       - name: Build ${{ matrix.app }}
         run: pnpm --filter ${{ matrix.package }} run build
+        env:
+          VITE_APP_ENV: production
+          VITE_API_URL: https://imageryx-api-worker.andriipap01.workers.dev
+          VITE_DELIVERY_URL: https://imageryx-delivery-worker.andriipap01.workers.dev
+          VITE_PROCESSING_URL: https://imageryx-processing-worker.andriipap01.workers.dev
 
       - name: Deploy ${{ matrix.app }}
         run: pnpm --filter ${{ matrix.package }} run deploy
