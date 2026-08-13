@@ -37,10 +37,15 @@ import { LmnMagnifyingGlassIcon } from "lumen-icons";
         >
           <lmn-magnifying-glass [size]="16" tone="muted" />
         </span>
+        <!--
+          The icon is overlaid on the field, so the field has to reserve room for it: Volt's inner
+          <input> sets its own px-3, which put the placeholder underneath the icon rather than
+          beside it. pl-9 clears the icon's 10px offset plus its 16px box.
+        -->
         <volt-input
           id="global-search"
           type="search"
-          class="w-full"
+          class="w-full [&_input]:pl-9"
           placeholder="Search assets…"
           [value]="term()"
           (valueChange)="term.set($event)"

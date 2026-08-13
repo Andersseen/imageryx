@@ -68,7 +68,7 @@ import { EmptyState } from "../../ui/empty-state.component";
         </div>
         <div class="flex flex-1 flex-col gap-1.5">
           <volt-label htmlFor="new-folder-parent">Parent</volt-label>
-          <volt-native-select
+          <select voltNativeSelect
             id="new-folder-parent"
             (change)="parentId.set($any($event.target).value || null)"
           >
@@ -76,7 +76,7 @@ import { EmptyState } from "../../ui/empty-state.component";
             @for (folder of folders(); track folder.id) {
               <option [value]="folder.id">{{ folder.path }}</option>
             }
-          </volt-native-select>
+          </select>
         </div>
         <volt-button
           variant="solid"

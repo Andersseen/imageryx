@@ -124,7 +124,7 @@ type JobPage = PaginatedResponse<ProcessingJob>;
         >
           <div class="flex flex-col gap-1.5">
             <volt-label htmlFor="filter-status">Status</volt-label>
-            <volt-native-select
+            <select voltNativeSelect
               id="filter-status"
               (change)="
                 updateQuery({ status: $any($event.target).value || null })
@@ -139,11 +139,11 @@ type JobPage = PaginatedResponse<ProcessingJob>;
                   {{ status }}
                 </option>
               }
-            </volt-native-select>
+            </select>
           </div>
           <div class="flex flex-col gap-1.5">
             <volt-label htmlFor="filter-type">Type</volt-label>
-            <volt-native-select
+            <select voltNativeSelect
               id="filter-type"
               (change)="
                 updateQuery({ type: $any($event.target).value || null })
@@ -158,7 +158,7 @@ type JobPage = PaginatedResponse<ProcessingJob>;
                   {{ typeLabel(type) }}
                 </option>
               }
-            </volt-native-select>
+            </select>
           </div>
           @if (isFiltered()) {
             <volt-button

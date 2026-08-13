@@ -74,7 +74,7 @@ import { AssetComparison } from "./asset-comparison.component";
         <div class="flex flex-wrap items-end gap-3">
           <span class="flex flex-col gap-1.5 text-sm">
             <span class="text-muted-foreground" aria-hidden="true">Preset</span>
-            <volt-native-select
+            <select voltNativeSelect
               class="min-w-[12rem]"
               (change)="onPresetChange($any($event.target).value)"
               aria-label="Preset to generate a variant from"
@@ -91,7 +91,7 @@ import { AssetComparison } from "./asset-comparison.component";
                   {{ preset.name }}
                 </option>
               }
-            </volt-native-select>
+            </select>
           </span>
 
           <span class="flex items-center gap-2 text-sm">

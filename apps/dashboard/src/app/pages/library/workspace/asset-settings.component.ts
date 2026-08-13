@@ -78,7 +78,7 @@ function toFormValue(asset: AssetDetails): SettingsFormValue {
 
       <div class="flex flex-col gap-1.5">
         <volt-label htmlFor="settings-folder">Folder</volt-label>
-        <volt-native-select
+        <select voltNativeSelect
           id="settings-folder"
           (change)="patch({ folderId: $any($event.target).value || null })"
         >
@@ -91,7 +91,7 @@ function toFormValue(asset: AssetDetails): SettingsFormValue {
               {{ folder.path }}
             </option>
           }
-        </volt-native-select>
+        </select>
       </div>
 
       <div class="flex flex-col gap-1.5">
@@ -106,7 +106,7 @@ function toFormValue(asset: AssetDetails): SettingsFormValue {
 
       <div class="flex flex-col gap-1.5">
         <volt-label htmlFor="settings-visibility">Visibility</volt-label>
-        <volt-native-select
+        <select voltNativeSelect
           id="settings-visibility"
           (change)="patch({ visibility: $any($event.target).value })"
         >
@@ -116,7 +116,7 @@ function toFormValue(asset: AssetDetails): SettingsFormValue {
           <option value="private" [selected]="form().visibility === 'private'">
             Private — signed links only
           </option>
-        </volt-native-select>
+        </select>
       </div>
 
       <div class="flex items-center justify-between gap-4">
