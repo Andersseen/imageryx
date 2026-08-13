@@ -71,7 +71,6 @@ test.describe("Asset workspace, presets and processing flow", () => {
     // 6. Generate a variant from the new preset.
     await page
       .getByTestId("variant-preset-select")
-      .locator("select")
       .selectOption({ label: "E2E Thumbnail" });
     await expect(page.getByText(/Expected: \d+ × \d+/)).toBeVisible();
     await page.getByTestId("variant-generate-submit").click();

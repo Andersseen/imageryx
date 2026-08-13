@@ -88,10 +88,7 @@ test.describe("Library flow", () => {
     );
 
     // 9. It is not gone — it is in the deleted view, and restorable from there.
-    await page
-      .getByTestId("filter-deleted")
-      .locator("select")
-      .selectOption("deleted");
+    await page.getByTestId("filter-deleted").selectOption("deleted");
     await expect(page.getByTestId("asset-card")).toHaveCount(1);
     await page.getByTestId("asset-restore").first().click();
     await expect(page.getByTestId("empty-state")).toContainText(
@@ -99,10 +96,7 @@ test.describe("Library flow", () => {
     );
 
     // 10. Back in the active view, restored.
-    await page
-      .getByTestId("filter-deleted")
-      .locator("select")
-      .selectOption("active");
+    await page.getByTestId("filter-deleted").selectOption("active");
     await expect(page.getByTestId("asset-card")).toHaveCount(1);
   });
 
@@ -112,12 +106,8 @@ test.describe("Library flow", () => {
     await page.goto("/library?status=ready&view=table&sort=name&dir=asc");
 
     await expect(page.getByTestId("asset-table")).toBeVisible();
-    await expect(
-      page.getByTestId("filter-status").locator("select"),
-    ).toHaveValue("ready");
-    await expect(page.getByTestId("filter-sort").locator("select")).toHaveValue(
-      "name:asc",
-    );
+    await expect(page.getByTestId("filter-status")).toHaveValue("ready");
+    await expect(page.getByTestId("filter-sort")).toHaveValue("name:asc");
     await expect(page.getByTestId("asset-row")).toHaveCount(1);
   });
 
