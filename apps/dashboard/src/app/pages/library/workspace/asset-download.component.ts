@@ -82,7 +82,7 @@ const EXPIRY_OPTIONS = [
             </p>
           } @else {
             <div class="flex flex-wrap items-center gap-2">
-              <volt-native-select
+              <select voltNativeSelect
                 class="w-40"
                 [attr.aria-label]="'Link expiration for ' + option.label"
                 (change)="
@@ -92,7 +92,7 @@ const EXPIRY_OPTIONS = [
                 @for (choice of expiryOptions; track choice.value) {
                   <option [value]="choice.value">{{ choice.label }}</option>
                 }
-              </volt-native-select>
+              </select>
               <volt-button
                 variant="outline"
                 size="sm"

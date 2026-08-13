@@ -174,7 +174,7 @@ describe("ProcessingPage", () => {
     const fixture = await render();
 
     const select = fixture.nativeElement.querySelector<HTMLSelectElement>(
-      '[data-testid="filter-status"] select',
+      'select[data-testid="filter-status"]',
     );
     expect(select).toBeTruthy();
     select!.value = "failed";

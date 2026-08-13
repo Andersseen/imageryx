@@ -19,7 +19,7 @@ import {
  * Native `<select>` elements throughout, on purpose: they are keyboard-operable, screen-reader
  * correct and touch-friendly for free, and a filter bar is the one place where a custom listbox
  * buys appearance at the cost of behaviour that has to be reimplemented and re-tested. Volt
- * styles them via `<volt-native-select>` so they still match the rest of the UI.
+ * styles them via `<select voltNativeSelect>` so they still match the rest of the UI.
  *
  * Every change emits a whole new query rather than a field patch, so the parent has one code
  * path for "the view changed" and the URL stays the single source of truth.
@@ -38,7 +38,7 @@ import {
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label class="flex flex-col gap-1.5">
           <span class="text-sm font-medium text-foreground leading-none">Folder</span>
-          <volt-native-select
+          <select voltNativeSelect
             id="filter-folder"
             (change)="
               emitChange({ folderId: nullableValue($any($event.target).value) })
@@ -59,12 +59,12 @@ import {
                 {{ folder.path }}
               </option>
             }
-          </volt-native-select>
+          </select>
         </label>
 
         <label class="flex flex-col gap-1.5">
           <span class="text-sm font-medium text-foreground leading-none">Tag</span>
-          <volt-native-select
+          <select voltNativeSelect
             id="filter-tag"
             [disabled]="tags().length === 0"
             (change)="emitChange({ tag: $any($event.target).value || null })"
@@ -76,12 +76,12 @@ import {
                 {{ tag }}
               </option>
             }
-          </volt-native-select>
+          </select>
         </label>
 
         <label class="flex flex-col gap-1.5">
           <span class="text-sm font-medium text-foreground leading-none">Processing status</span>
-          <volt-native-select
+          <select voltNativeSelect
             id="filter-status"
             (change)="
               emitChange({
@@ -101,12 +101,12 @@ import {
                 {{ status.label }}
               </option>
             }
-          </volt-native-select>
+          </select>
         </label>
 
         <label class="flex flex-col gap-1.5">
           <span class="text-sm font-medium text-foreground leading-none">Visibility</span>
-          <volt-native-select
+          <select voltNativeSelect
             id="filter-visibility"
             (change)="
               emitChange({ visibility: $any($event.target).value || null })
@@ -125,12 +125,12 @@ import {
             >
               Private
             </option>
-          </volt-native-select>
+          </select>
         </label>
 
         <label class="flex flex-col gap-1.5">
           <span class="text-sm font-medium text-foreground leading-none">Deleted assets</span>
-          <volt-native-select
+          <select voltNativeSelect
             id="filter-deleted"
             (change)="emitChange({ deleted: $any($event.target).value })"
             data-testid="filter-deleted"
@@ -144,12 +144,12 @@ import {
             <option value="all" [selected]="query().deleted === 'all'">
               Show all
             </option>
-          </volt-native-select>
+          </select>
         </label>
 
         <label class="flex flex-col gap-1.5">
           <span class="text-sm font-medium text-foreground leading-none">Sort by</span>
-          <volt-native-select
+          <select voltNativeSelect
             id="filter-sort"
             (change)="onSortChange($any($event.target).value)"
             data-testid="filter-sort"
@@ -162,7 +162,7 @@ import {
                 {{ option.label }}
               </option>
             }
-          </volt-native-select>
+          </select>
         </label>
       </div>
 

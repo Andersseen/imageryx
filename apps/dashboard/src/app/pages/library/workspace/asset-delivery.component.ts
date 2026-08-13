@@ -107,7 +107,7 @@ type LoadingStrategy = "lazy" | "eager";
           </div>
           <div class="flex flex-col gap-1.5">
             <volt-label htmlFor="delivery-loading">Loading strategy</volt-label>
-            <volt-native-select
+            <select voltNativeSelect
               id="delivery-loading"
               (change)="loading.set($any($event.target).value)"
             >
@@ -117,7 +117,7 @@ type LoadingStrategy = "lazy" | "eager";
               <option value="eager" [selected]="loading() === 'eager'">
                 eager
               </option>
-            </volt-native-select>
+            </select>
           </div>
           <div class="flex flex-col gap-1.5">
             <volt-label htmlFor="delivery-sizes">Sizes</volt-label>

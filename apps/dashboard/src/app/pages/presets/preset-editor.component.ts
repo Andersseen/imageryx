@@ -207,7 +207,7 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                 </label>
                 <label class="flex flex-col gap-1.5">
                   <span class="text-sm font-medium text-foreground leading-none">Fit</span>
-                  <volt-native-select
+                  <select voltNativeSelect
                     id="resize-fit"
                     [disabled]="isSystem()"
                     (change)="patchOps({ fit: $any($event.target).value })"
@@ -217,11 +217,11 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                         {{ fit }}
                       </option>
                     }
-                  </volt-native-select>
+                  </select>
                 </label>
                 <label class="flex flex-col gap-1.5">
                   <span class="text-sm font-medium text-foreground leading-none">Position</span>
-                  <volt-native-select
+                  <select voltNativeSelect
                     id="resize-position"
                     [disabled]="isSystem()"
                     (change)="
@@ -239,7 +239,7 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                         {{ position }}
                       </option>
                     }
-                  </volt-native-select>
+                  </select>
                 </label>
               </div>
               <label class="flex items-center gap-2 text-sm">
@@ -327,7 +327,7 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="flex flex-col gap-1.5">
                 <span class="text-sm font-medium text-foreground leading-none">Format</span>
-                <volt-native-select
+                <select voltNativeSelect
                   id="output-format"
                   [disabled]="isSystem()"
                   (change)="
@@ -342,7 +342,7 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                       {{ format }}
                     </option>
                   }
-                </volt-native-select>
+                </select>
               </label>
               <label class="flex flex-col gap-1.5">
                 <span class="text-sm font-medium text-foreground leading-none"
@@ -378,7 +378,7 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
 
             <label class="flex flex-col gap-1.5">
               <span class="text-sm font-medium text-foreground leading-none">Metadata</span>
-              <volt-native-select
+              <select voltNativeSelect
                 id="output-metadata"
                 [disabled]="isSystem()"
                 (change)="patchOps({ metadataMode: $any($event.target).value })"
@@ -398,7 +398,7 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                 >
                   Strip location only
                 </option>
-              </volt-native-select>
+              </select>
             </label>
           </section>
 
@@ -418,7 +418,7 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   />
                 </label>
                 @if (ops().rotateEnabled) {
-                  <volt-native-select
+                  <select voltNativeSelect
                     id="effect-rotate"
                     [disabled]="isSystem()"
                     (change)="
@@ -435,7 +435,7 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                         {{ degrees }}°
                       </option>
                     }
-                  </volt-native-select>
+                  </select>
                 }
               </span>
             </div>

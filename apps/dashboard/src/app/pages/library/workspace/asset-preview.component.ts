@@ -105,7 +105,7 @@ export type { PreviewSource };
           <span class="text-muted-foreground" aria-hidden="true"
             >Background</span
           >
-          <volt-native-select
+          <select voltNativeSelect
             (change)="background.set($any($event.target).value)"
             aria-label="Preview background"
             data-testid="preview-background"
@@ -122,7 +122,7 @@ export type { PreviewSource };
             <option value="dark" [selected]="background() === 'dark'">
               Dark
             </option>
-          </volt-native-select>
+          </select>
         </span>
       </div>
 

@@ -272,7 +272,7 @@ describe("AssetWorkspacePage", () => {
     const root = harness.routeNativeElement!;
 
     const select = root.querySelector<HTMLSelectElement>(
-      '[data-testid="variant-preset-select"] select',
+      'select[data-testid="variant-preset-select"]',
     );
     expect(select).toBeTruthy();
     select!.value = "preset-1";

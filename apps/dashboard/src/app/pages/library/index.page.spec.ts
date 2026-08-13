@@ -4,6 +4,7 @@ import { provideRouter, Router } from "@angular/router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectContextService } from "../../core/projects/project-context.service";
 import { IMAGERYX_CLIENT } from "../../core/sdk/imageryx-client.token";
+import { settle } from "../../testing/render";
 import {
   apiErrorResponse,
   assetFixture,
@@ -38,6 +39,13 @@ describe("LibraryPage", () => {
    * Renders and settles. Several async hops chain here — project bootstrap, the URL-driven query
    * effect, then the list fetch — and each one can schedule the next, so this drains repeatedly
    * rather than assuming a fixed number of cycles.
+   *
+   * Uses the shared `settle()` rather than a local drain loop: this used to spin on
+   * `detectChanges()`/`whenStable()` alone, which only drains *microtasks*. That was enough until
+   * Volt UI 1.0, whose controls defer their first measurement to `afterNextRender`, putting a
+   * macrotask in the middle of the chain — the page then stayed on "Loading assets…" forever and
+   * every assertion below it failed. `settle()` yields to the macrotask queue between passes,
+   * which is exactly the case its own doc comment describes.
    */
   async function render(queryParams?: Record<string, string>) {
     await TestBed.inject(ProjectContextService).ensureLoaded();
@@ -45,11 +53,7 @@ describe("LibraryPage", () => {
       await TestBed.inject(Router).navigate(["/library"], { queryParams });
     }
     const fixture = TestBed.createComponent(LibraryPage);
-    for (let i = 0; i < 5; i++) {
-      fixture.detectChanges();
-      await fixture.whenStable();
-    }
-    fixture.detectChanges();
+    await settle(fixture, 5);
     return fixture;
   }
 

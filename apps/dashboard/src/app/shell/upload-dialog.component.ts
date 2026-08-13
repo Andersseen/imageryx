@@ -144,7 +144,7 @@ const ACCEPTED_TYPES =
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="flex flex-col gap-1.5">
               <span class="text-sm font-medium text-foreground leading-none">Folder</span>
-              <volt-native-select
+              <select voltNativeSelect
                 id="upload-folder"
                 [disabled]="uploads.isUploading()"
                 (change)="folderId.set($any($event.target).value || null)"
@@ -158,12 +158,12 @@ const ACCEPTED_TYPES =
                     {{ folder.path }}
                   </option>
                 }
-              </volt-native-select>
+              </select>
             </label>
 
             <label class="flex flex-col gap-1.5">
               <span class="text-sm font-medium text-foreground leading-none">Visibility</span>
-              <volt-native-select
+              <select voltNativeSelect
                 id="upload-visibility"
                 [disabled]="uploads.isUploading()"
                 (change)="visibility.set($any($event.target).value)"
@@ -174,7 +174,7 @@ const ACCEPTED_TYPES =
                 <option value="private" [selected]="visibility() === 'private'">
                   Private — signed links only
                 </option>
-              </volt-native-select>
+              </select>
             </label>
           </div>
 
