@@ -75,6 +75,40 @@ bootstrap fallback. Cloudinary is no longer mapping-only: the provider has
 a real transform path and an optional real-account health test, but the full
 personal production image flow still needs live Cloudflare verification.
 
+All five apps now deploy from `main` and serve live; production D1 is
+migrated and the Cloudinary secrets are set. What remains is the end-to-end
+production run itself — see "Production state, verified 2026-08-15" below
+before assuming anything about what production contains.
+
+## Production state, verified 2026-08-15
+
+Checked directly against the live account, not inferred from CI:
+
+- All five apps return 200 (`pnpm smoke:production`, which passes for the
+  first time — see the URL bug below). Production secrets present:
+  `CLOUDINARY_*` on processing-worker, `IMAGERYX_API_KEY` +
+  `DOWNLOAD_SIGNING_SECRET` on api-worker, `DOWNLOAD_SIGNING_SECRET` on
+  delivery-worker.
+- **Production has never been used.** `projects`, `assets`,
+  `processing_jobs`, `variants`, `tags` and `api_keys` are all empty. Every
+  claim about the production image flow is therefore a claim about local
+  and CI runs, not production.
+- **`smoke-production.mjs` could never have passed.** It hardcoded
+  `imageryx-<worker>.workers.dev` with no account subdomain, so all three
+  Worker checks failed on DNS. Fixed, and the hostnames are now env
+  overridable. A "prepared and dry-run-validated" script is not a working
+  script — this one shipped broken through an entire phase.
+- **Orphaned rows, cause unknown.** Production held 6 system presets and 1
+  folder pointing at project `fd7c8738-…`, which no longer exists. The
+  schema declares `ON DELETE CASCADE` and both paths were then tested:
+  Miniflare's D1 cascades correctly (new test in
+  `project.repository.spec.ts`, which had covered only the project row
+  itself), and so does remote D1 over the HTTP API (probe: deleting a
+  parent reported `changes: 2` and the child was gone). So neither the
+  schema nor `ProjectRepository.delete` explains it; the rows are residue
+  from some out-of-band operation on the database earlier in its life. Do
+  not "fix" the delete path in response to them — it is not the cause.
+
 ## Phase 2 decisions and limitations
 
 Read this section before writing Phase 3 code that touches `contracts`,

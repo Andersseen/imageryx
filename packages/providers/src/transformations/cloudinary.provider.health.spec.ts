@@ -15,7 +15,10 @@ import {
  * the test is skipped.
  */
 
-const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
+// `.href`, not the URL object — see the same call in api-worker's upload-to-delivery spec:
+// this package is typechecked inside every consuming app's tsconfig, so the ambient `URL`
+// here is not always `node:url`'s.
+const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url).href);
 const devVarsPath = resolve(
   repoRoot,
   "apps",
