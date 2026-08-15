@@ -180,8 +180,8 @@ surface. No multi-tenancy, user accounts, teams, or billing — see
   workflow alongside the existing push-to-main one.
 - Cloudflare deployment preparation: production secret/variable docs,
   remote D1/R2/Queue setup commands, deploy scripts, a non-destructive
-  smoke-check script — prepared and dry-run-validated, not executed
-  against a real account as part of this phase.
+  smoke-check script — prepared in this phase and since executed for real
+  (see "Personal Cloudflare Release" below).
 
 ## Phase 0.x — Personal Alpha (Phases 1 through 5)
 
@@ -195,15 +195,26 @@ Cloudflare account, with an honest boundary around what's still simulated
 The first real personal deployment target. Version target: `0.1.0` or the
 next appropriate alpha, not `1.0.0`.
 
-- Authentication: DevAuth OIDC client registration, Authorization Code +
+- ✅ Authentication: DevAuth OIDC client registration, Authorization Code +
   PKCE, Imageryx-owned session, protected dashboard/proxy, local logout.
-- Production infrastructure: real D1, private R2 bucket, Queue
-  producer/consumer, Workers and dashboard deployment.
-- Live transformation: Cloudinary provider active with `simulated: false`
-  and transformed bytes persisted back to R2.
-- Production verification: authenticated dashboard upload, queued
+- ✅ Production infrastructure: real D1 (migrated by CI before every
+  api-worker deploy), private R2 bucket, Queue producer/consumer, and all
+  five apps deploying from `main` — verified green and serving live.
+- ◻ Live transformation: Cloudinary provider active with `simulated: false`
+  and transformed bytes persisted back to R2. Configured
+  (`TRANSFORMATION_PROVIDER=cloudinary` plus real `CLOUDINARY_*` secrets on
+  `processing-worker` production) but never yet exercised in production.
+- ◻ Production verification: authenticated dashboard upload, queued
   processing, Cloudinary variant generation, original and variant served by
-  Delivery Worker, private/signed delivery behavior checked.
+  Delivery Worker, private/signed delivery behavior checked. Nothing has
+  run through production yet — the database holds no projects, assets or
+  variants. `pnpm smoke:production` covers reachability only, never a write.
+
+Two prerequisites for that verification, neither of which any code change
+can supply: a database-backed API key generated against production (the
+`api_keys` table is empty, so programmatic access still depends entirely on
+the bootstrap `IMAGERYX_API_KEY` fallback this release is meant to retire),
+and one interactive DevAuth login through a browser.
 
 ## Next
 

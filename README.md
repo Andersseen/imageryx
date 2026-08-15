@@ -61,8 +61,18 @@ secret still equals its committed local-dev default, meaningful new test
 coverage (including a real concurrency bug and a real third-party
 accessibility bug found and fixed along the way — see context.md),
 per-package coverage thresholds, an automated accessibility smoke suite,
-CodeQL/dependency-review/a manual deploy workflow, and prepared (not yet
-executed) Cloudflare deployment tooling.
+CodeQL/dependency-review/a manual deploy workflow, and Cloudflare deployment
+tooling.
+
+**The deployment is no longer hypothetical.** All five apps deploy from
+`main` on every push and serve live at the URLs in "Deployment" below;
+production D1 is migrated, R2 and the Queue exist, and the Cloudinary
+secrets are set on `processing-worker`. What has _not_ happened yet is a
+real end-to-end run against those live resources: as of 2026-08-15 the
+production database holds no projects, assets, variants or generated API
+keys, so "upload → queue → Cloudinary → delivery" is verified locally and
+in CI only. That verification is the last open item of the Personal
+Cloudflare Release — see [ROADMAP.md](ROADMAP.md).
 
 There is still **no multi-user auth/teams/billing**. Human dashboard access
 now goes through DevAuth (OAuth 2.1 / OIDC Authorization Code + PKCE) and an
@@ -70,9 +80,7 @@ Imageryx-owned session, while programmatic access remains API-key based.
 Database-backed API keys can be created/revoked, with the legacy static
 `IMAGERYX_API_KEY` kept as a bootstrap compatibility fallback. Cloudinary is
 now implemented as the real transformation provider and covered by an
-optional real-account health check; the full personal production image flow
-still needs to be verified against live Cloudflare resources before this is
-called a release. See
+optional real-account health check. See
 [ROADMAP.md](ROADMAP.md) for what's next and [context.md](context.md) for
 the full working context, including the specific decisions and known
 limitations from this phase.

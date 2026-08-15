@@ -7,12 +7,23 @@
  * anything; a missing API key just skips the authenticated checks with a
  * clear note, it doesn't fail the whole run.
  */
+/**
+ * A workers.dev hostname is `<worker>.<account-subdomain>.workers.dev` — the account
+ * subdomain is not optional, and a name without it does not resolve at all. This script
+ * originally hardcoded `imageryx-api-worker.workers.dev`, so every Worker check failed on
+ * DNS and `pnpm smoke:production` could never pass, whatever the deployment's real state.
+ * CI names the same three URLs (see `deploy-workers` in .github/workflows/ci.yml); they are
+ * env-overridable here so a different account, or a custom domain, does not need a code edit.
+ */
+const WORKERS_SUBDOMAIN = process.env['CLOUDFLARE_WORKERS_SUBDOMAIN'] ?? 'andriipap01';
+const workerUrl = (worker) => `https://imageryx-${worker}.${WORKERS_SUBDOMAIN}.workers.dev`;
+
 const URLS = {
-  dashboard: 'https://imageryx-dashboard.pages.dev',
-  web: 'https://imageryx-web.pages.dev',
-  apiWorker: 'https://imageryx-api-worker.workers.dev',
-  deliveryWorker: 'https://imageryx-delivery-worker.workers.dev',
-  processingWorker: 'https://imageryx-processing-worker.workers.dev',
+  dashboard: process.env['DASHBOARD_URL'] ?? 'https://imageryx-dashboard.pages.dev',
+  web: process.env['WEB_URL'] ?? 'https://imageryx-web.pages.dev',
+  apiWorker: process.env['API_URL'] ?? workerUrl('api-worker'),
+  deliveryWorker: process.env['DELIVERY_URL'] ?? workerUrl('delivery-worker'),
+  processingWorker: process.env['PROCESSING_URL'] ?? workerUrl('processing-worker'),
 };
 
 const apiKey = process.env['IMAGERYX_API_KEY'];

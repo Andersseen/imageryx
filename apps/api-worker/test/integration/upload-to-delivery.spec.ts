@@ -25,7 +25,13 @@ const SIGNING_SECRET = "integration-test-signing-secret";
  * The file is git-ignored; if it is missing or incomplete the whole suite is
  * skipped so CI and local dev without secrets stay green.
  */
-const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
+// `.href` rather than the URL object: this file is typechecked inside api-worker's tsconfig,
+// where the ambient `URL` is the Workers/DOM one, while `fileURLToPath` wants `node:url`'s.
+// The two are structurally identical until @types/node adds a member to one of them (26.x added
+// `Symbol.dispose` to `URLSearchParams` iterators), at which point the object overload stops
+// matching and only the string overload still does. Same cross-runtime friction as the other
+// cases in context.md's "Technical debt / compatibility workarounds".
+const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url).href);
 const devVarsPath = resolve(repoRoot, "apps", "processing-worker", ".dev.vars");
 
 function parseDevVars(path: string): Record<string, string> {
