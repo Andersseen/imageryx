@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   InvalidProviderConfigError,
   parseProviderConfig,
+  parseStorageConfig,
 } from "./provider-config.schema";
 
 describe("parseProviderConfig", () => {
@@ -79,5 +80,27 @@ describe("parseProviderConfig", () => {
       CLOUDINARY_API_SECRET: "secret",
     });
     expect(config.advancedTransformationProvider).toBe("cloudinary");
+  });
+});
+
+describe("parseStorageConfig", () => {
+  it("ignores the transformation provider entirely — a storage-only caller must not need Cloudinary credentials", () => {
+    const config = parseStorageConfig({
+      STORAGE_PROVIDER: "r2",
+      TRANSFORMATION_PROVIDER: "cloudinary",
+    });
+    expect(config).toEqual({ storageProvider: "r2", localStoragePath: null });
+  });
+
+  it("still rejects an unsupported storage provider value", () => {
+    expect(() => parseStorageConfig({ STORAGE_PROVIDER: "s3" })).toThrow(
+      InvalidProviderConfigError,
+    );
+  });
+
+  it("still rejects local storage with no LOCAL_STORAGE_PATH", () => {
+    expect(() => parseStorageConfig({ STORAGE_PROVIDER: "local" })).toThrow(
+      InvalidProviderConfigError,
+    );
   });
 });

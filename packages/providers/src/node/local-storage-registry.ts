@@ -2,6 +2,7 @@ import { ProviderUnavailableError } from "@imageryx/image-core";
 import {
   createStorageProvider as createStorageProviderBase,
   createTransformationProvider,
+  type CreateProviderRegistryOptions,
   type CreateStorageProviderOptions,
   type CreateTransformationProviderOptions,
   type ProviderRegistry,
@@ -27,7 +28,7 @@ export function createStorageProvider(
 }
 
 export function createProviderRegistry(
-  options: CreateStorageProviderOptions,
+  options: CreateProviderRegistryOptions,
 ): ProviderRegistry {
   const transformationOptions: CreateTransformationProviderOptions = {
     cloudinary: options.config.cloudinary,

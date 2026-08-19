@@ -10,13 +10,35 @@ import { expect } from "@playwright/test";
  * produces real dimensions rather than the nulls a random byte blob would yield — which is what
  * makes "wait until the asset is ready" a meaningful assertion instead of a timer.
  */
-export function pngUpload(name: string): {
+export function pngUpload(name: string): UploadFile {
+  const fixture = createDecodableImageFixture("image/png");
+  return { name, mimeType: "image/png", buffer: Buffer.from(fixture.bytes) };
+}
+
+export interface UploadFile {
   name: string;
   mimeType: string;
   buffer: Buffer;
-} {
+}
+
+/** A real SVG document — the format whose upload path is text, not magic bytes. */
+export function svgUpload(name: string): UploadFile {
+  const fixture = createDecodableImageFixture("image/svg+xml");
+  return {
+    name,
+    mimeType: "image/svg+xml",
+    buffer: Buffer.from(fixture.bytes),
+  };
+}
+
+/**
+ * PNG bytes presented as a JPEG. The claimed type and extension agree with
+ * each other, so only a real signature check can catch it — which is exactly
+ * the rejection the dialog has to report back to the user.
+ */
+export function mislabeledUpload(name: string): UploadFile {
   const fixture = createDecodableImageFixture("image/png");
-  return { name, mimeType: "image/png", buffer: Buffer.from(fixture.bytes) };
+  return { name, mimeType: "image/jpeg", buffer: Buffer.from(fixture.bytes) };
 }
 
 /** Unique per run, so a re-run never collides with rows a previous run left behind. */
@@ -85,22 +107,54 @@ export async function deleteProjectBySlug(
  * the request path, so how long it takes is not something a sleep should encode.
  */
 export async function uploadImage(page: Page, fileName: string): Promise<void> {
+  await uploadFiles(page, [pngUpload(fileName)]);
+}
+
+/**
+ * The same flow for any set of files, without assuming they succeed — a
+ * rejected upload has to be observable too. The wait is on every queue item
+ * having left its in-flight state rather than on a success badge, and the
+ * dialog is left open so the caller can assert on what it reports.
+ */
+export async function submitUpload(
+  page: Page,
+  files: UploadFile[],
+): Promise<void> {
   await page.getByTestId("upload-trigger").click();
   const dialog = page.getByTestId("upload-dialog");
   await expect(dialog).toBeVisible();
 
-  await dialog
-    .getByTestId("upload-file-input")
-    .setInputFiles(pngUpload(fileName));
+  await dialog.getByTestId("upload-file-input").setInputFiles(files);
   await expect(dialog.getByTestId("upload-selection-summary")).toContainText(
-    "1 file(s) selected",
+    `${files.length} file(s) selected`,
   );
 
   await dialog.getByTestId("upload-submit").click();
-  await expect(dialog.getByTestId("upload-queue")).toContainText("Ready", {
-    timeout: 30_000,
-  });
+  await expect(dialog.getByTestId("upload-queue")).not.toContainText(
+    /Queued|Uploading|Processing/,
+    { timeout: 30_000 },
+  );
+}
+
+/** Submits, requires every file to have reached `Ready`, then closes the dialog. */
+export async function uploadFiles(
+  page: Page,
+  files: UploadFile[],
+): Promise<void> {
+  await submitUpload(page, files);
+  const dialog = page.getByTestId("upload-dialog");
+  const queue = dialog.getByTestId("upload-queue");
+  await expect(queue).toContainText("Ready");
+  await expect(queue).not.toContainText("Failed");
 
   await dialog.getByTestId("upload-close").click();
   await expect(dialog).toBeHidden();
+}
+
+/** Creates a folder through the real projects UI, for uploads that target one. */
+export async function createFolder(page: Page, name: string): Promise<void> {
+  await page.goto("/projects");
+  await page.getByTestId("folder-name-input").locator("input").fill(name);
+  await page.getByTestId("folder-create").click();
+  await expect(page.getByTestId("folder-list")).toContainText(name);
 }

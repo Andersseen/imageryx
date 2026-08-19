@@ -1,4 +1,4 @@
-import { SELF } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { authHeaders } from "./helpers";
 
@@ -89,6 +89,45 @@ describe("GET /v1/diagnostics/providers", () => {
     const text = await response.text();
     expect(text.toLowerCase()).not.toContain("secret");
     expect(text.toLowerCase()).not.toContain("apikey");
+  });
+
+  /**
+   * The production shape: `TRANSFORMATION_PROVIDER=cloudinary` while the Cloudinary secrets live
+   * on processing-worker, the Worker that actually transforms. Calling that an invalid deployment
+   * (a 500) said nothing true about this Worker and failed `pnpm smoke:production`; the storage
+   * configuration this Worker does own is what `valid` describes.
+   */
+  it("reports a cloudinary transformation provider with no credentials as valid, and says they are not configured here", async () => {
+    const original = env.TRANSFORMATION_PROVIDER;
+    env.TRANSFORMATION_PROVIDER = "cloudinary";
+    try {
+      const response = await SELF.fetch("https://example.com/v1/diagnostics/providers", {
+        headers: authHeaders(),
+      });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(body.valid).toBe(true);
+      expect(body.transformationProvider).toBe("cloudinary");
+      expect(body.cloudinaryConfigured).toBe(false);
+    } finally {
+      env.TRANSFORMATION_PROVIDER = original;
+    }
+  });
+
+  it("reports an unusable storage provider as invalid, since that is this Worker's own configuration", async () => {
+    const original = env.STORAGE_PROVIDER;
+    (env as unknown as Record<string, string>)["STORAGE_PROVIDER"] = "s3";
+    try {
+      const response = await SELF.fetch("https://example.com/v1/diagnostics/providers", {
+        headers: authHeaders(),
+      });
+      expect(response.status).toBe(500);
+      const body = (await response.json()) as { valid: boolean; reason: string };
+      expect(body.valid).toBe(false);
+      expect(body.reason).toContain("provider configuration");
+    } finally {
+      env.STORAGE_PROVIDER = original;
+    }
   });
 });
 

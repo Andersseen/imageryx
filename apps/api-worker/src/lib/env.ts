@@ -1,10 +1,21 @@
-import { createStorageProvider, parseProviderConfig } from "@imageryx/providers";
+import { createStorageProvider, parseStorageConfig } from "@imageryx/providers";
 import type { StorageProvider } from "@imageryx/providers";
 
+/**
+ * `parseStorageConfig`, not `parseProviderConfig`: this Worker stores and
+ * reads bytes but never transforms them (transformation is
+ * `processing-worker`'s job), so its storage access must not depend on
+ * transformation credentials. It used to call `parseProviderConfig` while
+ * passing only the two provider *names* — which meant that in production,
+ * where `TRANSFORMATION_PROVIDER=cloudinary`, the parse always failed the
+ * "Cloudinary requires credentials" check with credentials it never passed
+ * in, and every upload and project purge died as a generic 500 before it
+ * ever reached R2. See test/env.spec.ts.
+ */
 export function getStorageProvider(env: Env): StorageProvider {
-  const config = parseProviderConfig({
+  const config = parseStorageConfig({
     STORAGE_PROVIDER: env.STORAGE_PROVIDER,
-    TRANSFORMATION_PROVIDER: env.TRANSFORMATION_PROVIDER,
+    LOCAL_STORAGE_PATH: env.LOCAL_STORAGE_PATH,
   });
   return createStorageProvider({ config, r2Bucket: env.ASSET_STORAGE });
 }
