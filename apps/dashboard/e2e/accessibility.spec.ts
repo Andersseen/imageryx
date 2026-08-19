@@ -15,35 +15,44 @@ import {
  * this. `wcag2a`/`wcag2aa` only — not `best-practice`, which flags stylistic preferences axe itself
  * doesn't consider failures.
  *
- * Known, diagnosed, not-yet-resolved: `ix-service-status-card`'s status badges
- * (`volt-badge`, `solid`/`destructive` variants — `bg-primary text-primary-foreground` /
- * `bg-destructive text-destructive-foreground`) render at a measurably *lighter* effective color
- * than the same tokens' real values elsewhere on the same page (confirmed twice, for both
- * variants: a pastel `#93bfd1` "Healthy" badge and a peachy-tan `#deafac` "Unreachable" badge —
- * the latter only reachable when a Worker this suite doesn't boot, e.g. delivery/processing, is
- * actually unreachable, which is the normal e2e state). Both `badgeVariants`'s own Tailwind class
- * strings (Volt UI's source) are plain and unconditional — no opacity modifier, no color-mix — so
- * the divergence is specifically in how `ix-service-status-card` composes with Tailwind v4's
- * `@theme`/OKLCH pipeline, not a simple token value (this repo's own token fixes above render
- * correctly everywhere else touched this session). Excluded by exact selector, not by disabling
- * the rule, so any *other* element hitting color-contrast still fails the suite. Follow-up:
- * reproduce with real devtools (computed style + paint order) rather than through axe's report
- * alone.
+ * Every scan waits for the page's entrance animation to finish first, which is
+ * not a nicety — it is the difference between measuring the UI and measuring a
+ * frame of a fade. `app-shell.component.ts` wraps the whole shell in
+ * `moveEnter="fade-up"`, so for a few hundred milliseconds every colour on the
+ * page is its real colour *blended with the background*, and axe reads that
+ * blend as the element's own colour. That produced a long-standing set of
+ * phantom `color-contrast` failures on `ix-service-status-card`'s badges (a
+ * "pastel `#93bfd1` Healthy badge", a "peachy-tan `#deafac` Unreachable
+ * badge") which were excluded here as unexplained, plus an intermittent one on
+ * the project-initials badge whenever a project existed. None of them were
+ * real: the project badge's fill was reported as `#1d7dae` at 4.44:1, while a
+ * sampled pixel of the settled page is `#006ca4` at 5.56:1 — and `#1d7dae` is
+ * exactly `#006ca4` composited at the 0.886 opacity the fade was passing
+ * through. With the wait in place the exclusions are gone, so every element on
+ * these pages is held to the real AA threshold again.
  */
-const KNOWN_COLOR_CONTRAST_EXCLUSIONS = [
-  ".bg-primary.text-primary-foreground.border-transparent",
-  ".bg-destructive.text-destructive-foreground.border-transparent",
-];
+/**
+ * Waits for every *finite* animation to finish. Infinite ones (a spinner's
+ * `animate-spin`) are skipped deliberately: their `finished` promise never
+ * settles, so awaiting them would hang the run rather than fail it.
+ */
+async function waitForAnimations(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const finite = document.getAnimations().filter((animation) => {
+      const timing = animation.effect?.getComputedTiming();
+      return timing !== undefined && timing.iterations !== Infinity;
+    });
+    await Promise.all(
+      finite.map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
+}
 
 async function expectNoSeriousViolations(page: Page): Promise<void> {
-  // `.exclude()` takes ONE selector per call — passing an array is a same-document selector
-  // *path* (for reaching into an iframe), not a list of independent exclusions. Confirmed the
-  // hard way: passing both strings in one call silently excluded neither.
-  let builder = new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]);
-  for (const selector of KNOWN_COLOR_CONTRAST_EXCLUSIONS) {
-    builder = builder.exclude(selector);
-  }
-  const results = await builder.analyze();
+  await waitForAnimations(page);
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
   const serious = results.violations.filter(
     (violation) =>
       violation.impact === "serious" || violation.impact === "critical",

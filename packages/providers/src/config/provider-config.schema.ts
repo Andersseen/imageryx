@@ -13,11 +13,14 @@ import { z } from "zod";
  * or a Cloudinary provider selected without credentials — rather than
  * deferring the failure to the first storage/transform call.
  */
-const rawProviderEnvSchema = z.object({
+const rawStorageEnvSchema = z.object({
   STORAGE_PROVIDER: storageProviderNameSchema,
+  LOCAL_STORAGE_PATH: z.string().min(1).optional(),
+});
+
+const rawProviderEnvSchema = rawStorageEnvSchema.extend({
   TRANSFORMATION_PROVIDER: transformationProviderNameSchema,
   ADVANCED_TRANSFORMATION_PROVIDER: transformationProviderNameSchema.optional(),
-  LOCAL_STORAGE_PATH: z.string().min(1).optional(),
   CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
   CLOUDINARY_API_KEY: z.string().min(1).optional(),
   CLOUDINARY_API_SECRET: z.string().min(1).optional(),
@@ -31,18 +34,31 @@ export interface CloudinaryCredentials {
   apiSecret: string;
 }
 
-export interface ProviderConfig {
+/** The storage half of {@link ProviderConfig} — everything `createStorageProvider` actually reads. */
+export interface StorageConfig {
   storageProvider: StorageProviderName;
+  localStoragePath: string | null;
+}
+
+export interface ProviderConfig extends StorageConfig {
   transformationProvider: TransformationProviderName;
   advancedTransformationProvider: TransformationProviderName | null;
-  localStoragePath: string | null;
   cloudinary: CloudinaryCredentials | null;
 }
 
 export class InvalidProviderConfigError extends Error {}
 
-export function parseProviderConfig(env: ProviderEnv): ProviderConfig {
-  const parsed = rawProviderEnvSchema.safeParse(env);
+/**
+ * Validates *only* the storage half of the configuration, for callers that
+ * store and read bytes but never transform them (`api-worker`, the seed
+ * script). Deliberately separate from `parseProviderConfig`: a Worker that
+ * only needs R2 must not be taken down by an incomplete *transformation*
+ * provider config — that coupling is what made every production upload
+ * fail with a generic 500 while `TRANSFORMATION_PROVIDER=cloudinary` and
+ * the Cloudinary secrets lived somewhere this call never passed them from.
+ */
+export function parseStorageConfig(env: ProviderEnv): StorageConfig {
+  const parsed = rawStorageEnvSchema.safeParse(env);
   if (!parsed.success) {
     throw new InvalidProviderConfigError(
       `invalid provider configuration: ${parsed.error.issues.map((i) => i.message).join("; ")}`,
@@ -55,6 +71,23 @@ export function parseProviderConfig(env: ProviderEnv): ProviderConfig {
       "LOCAL_STORAGE_PATH is required when STORAGE_PROVIDER=local",
     );
   }
+
+  return {
+    storageProvider: data.STORAGE_PROVIDER,
+    localStoragePath: data.LOCAL_STORAGE_PATH ?? null,
+  };
+}
+
+export function parseProviderConfig(env: ProviderEnv): ProviderConfig {
+  const parsed = rawProviderEnvSchema.safeParse(env);
+  if (!parsed.success) {
+    throw new InvalidProviderConfigError(
+      `invalid provider configuration: ${parsed.error.issues.map((i) => i.message).join("; ")}`,
+    );
+  }
+  const data = parsed.data;
+
+  const storage = parseStorageConfig(env);
 
   const needsCloudinary =
     data.TRANSFORMATION_PROVIDER === "cloudinary" ||
@@ -69,11 +102,10 @@ export function parseProviderConfig(env: ProviderEnv): ProviderConfig {
   }
 
   return {
-    storageProvider: data.STORAGE_PROVIDER,
+    ...storage,
     transformationProvider: data.TRANSFORMATION_PROVIDER,
     advancedTransformationProvider:
       data.ADVANCED_TRANSFORMATION_PROVIDER ?? null,
-    localStoragePath: data.LOCAL_STORAGE_PATH ?? null,
     cloudinary:
       needsCloudinary && cloudName && apiKey && apiSecret
         ? { cloudName, apiKey, apiSecret }

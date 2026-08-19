@@ -39,6 +39,13 @@ export interface StubApiRequest {
   path: string;
   query: URLSearchParams;
   body: unknown;
+  /**
+   * Every value of every multipart field, in order — `body` collapses a
+   * repeated field to its last value (`Object.fromEntries`), which would make
+   * "all of the tags were sent" unassertable, since the SDK appends one `tags`
+   * field per tag rather than one comma-joined value.
+   */
+  formFields?: Record<string, string[]>;
 }
 
 export interface StubApi {
@@ -104,6 +111,7 @@ export function createStubApi(initial: StubApiState = {}): StubApi {
     const path = url.pathname;
 
     let body: unknown = null;
+    let formFields: Record<string, string[]> | undefined;
     if (typeof init?.body === "string") {
       try {
         body = JSON.parse(init.body);
@@ -112,8 +120,13 @@ export function createStubApi(initial: StubApiState = {}): StubApi {
       }
     } else if (init?.body instanceof FormData) {
       body = Object.fromEntries(init.body.entries());
+      formFields = {};
+      for (const [key, value] of init.body.entries()) {
+        if (typeof value !== "string") continue;
+        (formFields[key] ??= []).push(value);
+      }
     }
-    requests.push({ method, path, query: url.searchParams, body });
+    requests.push({ method, path, query: url.searchParams, body, formFields });
 
     const override = overrides.find(
       (o) => o.method === method && o.pattern.test(path),

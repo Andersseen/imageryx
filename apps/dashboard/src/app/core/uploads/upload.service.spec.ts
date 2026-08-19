@@ -233,6 +233,130 @@ describe("UploadService", () => {
     expect(item?.securityWarnings).toContain("SVG content is not sanitized.");
   });
 
+  it("reports a poll failure with the API's own message rather than a silent stall", async () => {
+    const stub = createStubApi({
+      assets: [assetFixture("a-1", "Hero", { processingStatus: "pending" })],
+    });
+    const uploads = configure(stub);
+
+    await uploads.upload([pngFile()], request);
+    stub.override("GET", /\/v1\/assets\/a-1$/, () =>
+      apiErrorResponse(404, "not_found", "The asset no longer exists."),
+    );
+    await vi.advanceTimersByTimeAsync(1500);
+
+    const item = uploads.queue()[0];
+    expect(item?.status).toBe("failed");
+    expect(item?.error?.detail).toBe("The asset no longer exists.");
+    expect(uploads.settledAt()).toBe(1);
+  });
+
+  it("stops polling after a failed poll instead of retrying forever", async () => {
+    const stub = createStubApi({
+      assets: [assetFixture("a-1", "Hero", { processingStatus: "pending" })],
+    });
+    const uploads = configure(stub);
+
+    await uploads.upload([pngFile()], request);
+    stub.override("GET", /\/v1\/assets\/a-1$/, () =>
+      apiErrorResponse(500, "internal_error", "An unexpected error occurred."),
+    );
+    await vi.advanceTimersByTimeAsync(1500);
+    const pollsAtFailure = api.requests.filter(
+      (r) => r.path === "/api/v1/assets/a-1",
+    ).length;
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(
+      api.requests.filter((r) => r.path === "/api/v1/assets/a-1"),
+    ).toHaveLength(pollsAtFailure);
+  });
+
+  /**
+   * The honest end of a long wait: the asset exists and its job may still
+   * succeed, so a timeout must not be reported as a failed upload — but the
+   * library still has to be told to refresh once, or a finished asset would
+   * never appear without a manual reload.
+   */
+  it("leaves an asset that never settles as still processing, and notifies listeners exactly once", async () => {
+    const uploads = configure(
+      createStubApi({
+        assets: [assetFixture("a-1", "Hero", { processingStatus: "pending" })],
+      }),
+    );
+
+    await uploads.upload([pngFile()], request);
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    const item = uploads.queue()[0];
+    expect(item?.status).toBe("processing");
+    expect(item?.error).toBeNull();
+    expect(uploads.settledAt()).toBe(1);
+  });
+
+  it("polls nothing while the tab is hidden, and resumes when it is visible again", async () => {
+    const uploads = configure(
+      createStubApi({
+        assets: [assetFixture("a-1", "Hero", { processingStatus: "ready" })],
+      }),
+    );
+    const visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("hidden");
+
+    await uploads.upload([pngFile()], request);
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(api.requests.some((r) => r.path === "/api/v1/assets/a-1")).toBe(
+      false,
+    );
+    expect(uploads.queue()[0]?.status).toBe("processing");
+
+    visibility.mockReturnValue("visible");
+    await vi.advanceTimersByTimeAsync(1500);
+
+    expect(uploads.queue()[0]?.status).toBe("ready");
+    visibility.mockRestore();
+  });
+
+  it("keeps the queue on screen while files are in flight, and clears it once they are not", async () => {
+    const stub = createStubApi({
+      assets: [assetFixture("a-1", "Hero", { processingStatus: "pending" })],
+    });
+    let release: (() => void) | undefined;
+    stub.override("POST", /\/v1\/assets\/upload$/, async () => {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return new Response(
+        JSON.stringify({
+          asset: assetFixture("a-1", "Hero"),
+          processingJobId: "job-1",
+          processingDispatch: { mode: "queue", dispatched: true },
+          duplicateCandidates: [],
+          securityWarnings: [],
+        }),
+        { status: 201, headers: { "content-type": "application/json" } },
+      );
+    });
+    const uploads = configure(stub);
+
+    const pending = uploads.upload([pngFile()], request);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(uploads.isUploading()).toBe(true);
+
+    // A `clear()` mid-flight would drop the only report of what happened to
+    // each file, so it is refused while busy rather than applied.
+    uploads.clear();
+    expect(uploads.queue()).toHaveLength(1);
+
+    release?.();
+    await pending;
+    uploads.clear();
+    expect(uploads.queue()).toHaveLength(0);
+  });
+
   it("ignores an empty file list", async () => {
     const uploads = configure(createStubApi());
     await uploads.upload([], request);

@@ -148,6 +148,7 @@ const ACCEPTED_TYPES =
                 id="upload-folder"
                 [disabled]="uploads.isUploading()"
                 (change)="folderId.set($any($event.target).value || null)"
+                data-testid="upload-folder"
               >
                 <option value="">Project root</option>
                 @for (folder of context.folders(); track folder.id) {
@@ -167,6 +168,7 @@ const ACCEPTED_TYPES =
                 id="upload-visibility"
                 [disabled]="uploads.isUploading()"
                 (change)="visibility.set($any($event.target).value)"
+                data-testid="upload-visibility"
               >
                 <option value="public" [selected]="visibility() === 'public'">
                   Public — served at a delivery URL
@@ -186,6 +188,7 @@ const ACCEPTED_TYPES =
               [value]="tagsInput()"
               [disabled]="uploads.isUploading()"
               (valueChange)="tagsInput.set($event)"
+              data-testid="upload-tags"
             />
             <p class="text-xs text-muted-foreground">
               Comma-separated. Applied to every file.
@@ -204,6 +207,7 @@ const ACCEPTED_TYPES =
               [checked]="downloadOriginalEnabled()"
               [disabled]="uploads.isUploading()"
               (checkedChange)="downloadOriginalEnabled.set($event)"
+              data-testid="upload-download-original"
             />
           </label>
 

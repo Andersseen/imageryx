@@ -59,6 +59,7 @@ function toFormValue(asset: AssetDetails): SettingsFormValue {
           id="settings-name"
           [value]="form().name"
           (valueChange)="patch({ name: $event })"
+          data-testid="settings-name"
         />
       </div>
 
@@ -68,6 +69,7 @@ function toFormValue(asset: AssetDetails): SettingsFormValue {
           id="settings-slug"
           [value]="form().slug"
           (valueChange)="patch({ slug: $event })"
+          data-testid="settings-slug"
         />
         @if (slugChanged()) {
           <p class="text-xs text-amber-600 dark:text-amber-400">
@@ -81,6 +83,7 @@ function toFormValue(asset: AssetDetails): SettingsFormValue {
         <select voltNativeSelect
           id="settings-folder"
           (change)="patch({ folderId: $any($event.target).value || null })"
+          data-testid="settings-folder"
         >
           <option value="" [selected]="!form().folderId">Project root</option>
           @for (folder of folders(); track folder.id) {
@@ -101,6 +104,7 @@ function toFormValue(asset: AssetDetails): SettingsFormValue {
           placeholder="hero, marketing"
           [value]="form().tags"
           (valueChange)="patch({ tags: $event })"
+          data-testid="settings-tags"
         />
       </div>
 
@@ -109,6 +113,7 @@ function toFormValue(asset: AssetDetails): SettingsFormValue {
         <select voltNativeSelect
           id="settings-visibility"
           (change)="patch({ visibility: $any($event.target).value })"
+          data-testid="settings-visibility"
         >
           <option value="public" [selected]="form().visibility === 'public'">
             Public — served at a delivery URL
@@ -129,6 +134,7 @@ function toFormValue(asset: AssetDetails): SettingsFormValue {
         <volt-switch
           [checked]="form().downloadOriginalEnabled"
           (checkedChange)="patch({ downloadOriginalEnabled: $event })"
+          data-testid="settings-download-original"
         />
       </div>
 
@@ -148,6 +154,7 @@ function toFormValue(asset: AssetDetails): SettingsFormValue {
           type="button"
           [disabled]="!isDirty()"
           (click)="resetForm()"
+          data-testid="settings-discard"
         >
           Discard changes
         </volt-button>

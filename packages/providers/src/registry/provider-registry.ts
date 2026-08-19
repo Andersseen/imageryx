@@ -5,6 +5,7 @@ import {
   InvalidProviderConfigError,
   type CloudinaryCredentials,
   type ProviderConfig,
+  type StorageConfig,
 } from "../config/provider-config.schema";
 import { R2StorageProvider } from "../storage/r2-storage.provider";
 import type { StorageProvider } from "../storage/storage-provider";
@@ -14,9 +15,18 @@ import { MockTransformationProvider } from "../transformations/mock-transformati
 import type { TransformationProvider } from "../transformations/transformation-provider";
 
 export interface CreateStorageProviderOptions {
-  config: ProviderConfig;
+  /**
+   * Only the storage half is required — a caller that stores bytes and
+   * never transforms them (see `parseStorageConfig`) can pass a
+   * `StorageConfig`; a full `ProviderConfig` satisfies this too.
+   */
+  config: StorageConfig;
   /** Required only when `config.storageProvider === 'r2'` — a real Worker's binding, injected by the caller. */
   r2Bucket?: R2Bucket;
+}
+
+export interface CreateProviderRegistryOptions extends CreateStorageProviderOptions {
+  config: ProviderConfig;
 }
 
 export interface CreateTransformationProviderOptions {
@@ -85,7 +95,7 @@ export interface ProviderRegistry {
 }
 
 export function createProviderRegistry(
-  options: CreateStorageProviderOptions,
+  options: CreateProviderRegistryOptions,
 ): ProviderRegistry {
   const transformationOptions: CreateTransformationProviderOptions = {
     cloudinary: options.config.cloudinary,

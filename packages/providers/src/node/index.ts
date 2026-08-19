@@ -9,6 +9,7 @@
 export * from "../storage/local-storage.provider";
 export {
   createTransformationProvider,
+  type CreateProviderRegistryOptions,
   type CreateStorageProviderOptions,
   type ProviderRegistry,
 } from "../registry/provider-registry";

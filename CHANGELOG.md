@@ -33,6 +33,19 @@ scope.
 - SVG delivery responses now also set a script-blocking
   `Content-Security-Policy` (`apps/delivery-worker/src/lib/svg-headers.ts`)
   — relevant today, not hypothetical: every simulated variant is real SVG.
+- Tests around the upload path, which had no cover for the parts that
+  actually broke in production: `apps/dashboard/e2e/upload-flow.spec.ts`
+  (SVG upload, a signature-rejected file reported with the API's own
+  reason and nothing stored, folder/visibility/tags actually applied,
+  multi-file batches, and a batch where one file is rejected while the
+  rest succeed), the dashboard proxy's own behaviour
+  (`src/server/lib/proxy/proxy-handler.spec.ts` — session gate, key
+  injection, multipart body forwarded byte for byte, upstream error
+  envelope passed through, unreachable upstream, hop-by-hop headers),
+  `UploadService`'s polling edges (poll failure, timeout reported as still
+  processing rather than as a failure, hidden-tab pause), the upload
+  dialog's failure reporting, `AssetSettings` (only-changed-fields saves,
+  slug-change confirmation) and `ThemeService`.
 - Real binding-level tests for `R2StorageProvider`
   (`apps/api-worker/test/r2-storage-provider.spec.ts`) — previously
   untested against any real `R2Bucket`, since `packages/providers`' own
@@ -75,6 +88,40 @@ scope.
 
 ### Fixed
 
+- **Every upload in production failed with an opaque 500.**
+  `api-worker`'s `getStorageProvider` ran the _full_ provider parse while
+  passing only the two provider names, and that parse rejects a
+  `TRANSFORMATION_PROVIDER=cloudinary` configuration unless Cloudinary
+  credentials come with it — credentials this call never passed and this
+  Worker does not need, since it stores bytes and never transforms them.
+  Production sets `TRANSFORMATION_PROVIDER=cloudinary`, so
+  `POST /v1/assets/upload` and the project-purge path both threw before
+  reaching R2, while every local test passed under `mock`. Storage
+  configuration is now parsed on its own (`parseStorageConfig` in
+  `@imageryx/providers`), independent of transformation credentials, and
+  `apps/api-worker/test/env.spec.ts` covers the production-shaped config
+  directly.
+- `GET /v1/diagnostics/providers` answered `valid: false` with a 500 on
+  every production request (and so failed `pnpm smoke:production`'s
+  authenticated checks) for the same reason: it ran the full provider parse,
+  which demands Cloudinary credentials that live on `processing-worker` —
+  the Worker that actually transforms — and are correctly absent from
+  api-worker. `valid` now describes the storage configuration this Worker
+  owns, `transformationProvider` reports the configured name, and
+  `cloudinaryConfigured` reports whether _this_ Worker holds a complete
+  credential triple. No credential value reaches the response body.
+- The accessibility suite was measuring a frame of an animation, not the UI.
+  `app-shell.component.ts` fades the whole shell in (`moveEnter="fade-up"`),
+  so axe sampled every colour blended with the background and reported
+  contrast failures for colours the browser never paints — the reason two
+  selectors sat excluded in `e2e/accessibility.spec.ts` as "known, diagnosed,
+  not-yet-resolved", and why the Overview scan failed intermittently
+  depending on whether a project existed. The reported `#1d7dae` (4.44:1) is
+  precisely the real `#006ca4` (5.56:1, sampled from a rendered pixel)
+  composited at the fade's 0.886 opacity. Each scan now waits for every
+  finite animation to finish, and **both exclusions are gone** — every
+  element on those pages is held to the real AA threshold again. No palette
+  change was needed.
 - `apps/dashboard/src/server/routes/proxy/[...path].ts`: a `fetch()`
   rejection (api-worker unreachable) previously fell through to Nitro's
   own generic error page — a shape the SDK's error parser doesn't
