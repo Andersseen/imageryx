@@ -31,7 +31,7 @@
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
     "@vitest/coverage-v8": "^4.1.10",
-    "typescript": "^5.9.2",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }
 }
