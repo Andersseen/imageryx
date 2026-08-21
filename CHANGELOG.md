@@ -3,7 +3,59 @@
 All notable changes to this project are documented in this file. Format
 loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] — Personal Cloudflare Release Preparation
+## [Unreleased] — 0.1 Personal Production Verification
+
+Completes the first real production verification milestone. The goal is to
+prove the existing product works end-to-end against the deployed Cloudflare
+environment and to start using Imageryx as the actual image source for at
+least one real project.
+
+### Added
+
+- `pnpm verify:production` — a write-capable production verification script
+  that exercises the real deployed stack end-to-end: authenticate → resolve
+  or create a canary project → upload a tiny PNG fixture → poll metadata
+  processing → request a variant → poll variant generation → fetch original
+  and variant through the Delivery Worker → validate headers, MIME, cache
+  policy, and `simulated: false` → soft-delete the canary asset. Requires
+  `IMAGERYX_PRODUCTION_API_KEY` in the environment; never logs the key.
+- `.github/workflows/verify-production.yml` — a `workflow_dispatch`-only
+  GitHub Actions workflow that runs `pnpm verify:production` against the
+  live deployment. Manual invocation only, because it creates real
+  Cloudinary API activity. Uses the
+  `IMAGERYX_PRODUCTION_API_KEY` repository secret.
+- `apps/processing-worker/src/middleware/validate-production-env.ts` —
+  production-config validation for the processing Worker: refuses all
+  traffic when `APP_ENV=production`, `TRANSFORMATION_PROVIDER=cloudinary`,
+  and any `CLOUDINARY_*` secret is missing or empty. Closes the gap where
+  api-worker and delivery-worker already had this guard but
+  processing-worker did not.
+- `apps/processing-worker/test/validate-production-env.spec.ts` — four
+  tests covering the new middleware: missing Cloudinary secrets in
+  production fail, real secrets pass, mock provider does not require
+  Cloudinary secrets, and development mode never rejects.
+
+### Fixed
+
+- `apps/dashboard/src/app/core/env/dashboard-env.ts`'s
+  `PRODUCTION_DEFAULTS` used `*.workers.dev` URLs without the
+  `andriipap01` account subdomain — dead URLs that would only activate if
+  `VITE_*` build vars were missing. Masked by CI correctly passing all
+  `VITE_*` vars, but any deploy without them would produce a broken
+  dashboard. Fixed to match the real production hostnames.
+- `apps/dashboard/.env.example` line 9 referenced the old proxy path
+  `src/server/routes/api/[...path].ts` instead of the current
+  `src/server/routes/proxy/[...path].ts`.
+- `docs/deployment-cloudflare.md` step 14 described the dashboard
+  deployment as incomplete ("not complete until the dashboard deployment
+  target is verified to run those routes in production") — updated to
+  reflect that the `cloudflare-pages` Nitro preset emits `_worker.js` and
+  the `/proxy` routes run as Pages Functions in production.
+- `docs/deployment-cloudflare.md` step 16 stated "GitHub Actions
+  intentionally deploys only the two Pages apps on pushes to `main`" —
+  stale since CI was updated to deploy all five apps. Fixed.
+
+## [Previous] — Personal Cloudflare Release Preparation
 
 Prepares the feature-complete personal alpha for a real Cloudflare
 deployment. Multi-tenancy, teams, billing and managed hosting remain out of

@@ -16,9 +16,9 @@ const DEVELOPMENT_DEFAULTS = {
 
 const PRODUCTION_DEFAULTS = {
   appEnv: "production",
-  apiUrl: "https://imageryx-api-worker.workers.dev",
-  deliveryUrl: "https://imageryx-delivery-worker.workers.dev",
-  processingUrl: "https://imageryx-processing-worker.workers.dev",
+  apiUrl: "https://imageryx-api-worker.andriipap01.workers.dev",
+  deliveryUrl: "https://imageryx-delivery-worker.andriipap01.workers.dev",
+  processingUrl: "https://imageryx-processing-worker.andriipap01.workers.dev",
 } as const;
 
 function stripTrailingSlash(url: string): string {

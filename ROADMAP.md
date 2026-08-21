@@ -156,18 +156,17 @@ Cloudflare Release work: database-backed keys can now be created/revoked,
 with the old static `IMAGERYX_API_KEY` retained only as a bootstrap
 fallback.
 
-## Phase 5 — Production Hardening (current)
+## Phase 5 — Production Hardening ✅
 
 Narrower than earlier drafts of this phase described: hardens the
 feature-complete base from Phases 1–4B rather than adding new product
 surface. No multi-tenancy, user accounts, teams, or billing — see
 "Explicit scope narrowing" in this phase's own planning notes (context.md).
 
-- Production-config validation: `api-worker`/`delivery-worker` refuse to
-  serve traffic if `APP_ENV=production` and a real secret still equals its
-  committed local-dev default — closes the exact failure mode this repo
-  found in itself (a plaintext secret briefly committed in
-  `wrangler.jsonc`).
+- Production-config validation: all three Workers refuse to serve traffic
+  if `APP_ENV=production` and a real secret still equals its committed
+  local-dev default — closes the exact failure mode this repo found in
+  itself (a plaintext secret briefly committed in `wrangler.jsonc`).
 - Meaningful new test coverage, not padding: a real concurrency bug in
   variant generation, a real gap in `R2StorageProvider` (never tested
   against a real binding until now), a real upstream accessibility bug in
@@ -180,66 +179,62 @@ surface. No multi-tenancy, user accounts, teams, or billing — see
   workflow alongside the existing push-to-main one.
 - Cloudflare deployment preparation: production secret/variable docs,
   remote D1/R2/Queue setup commands, deploy scripts, a non-destructive
-  smoke-check script — prepared in this phase and since executed for real
-  (see "Personal Cloudflare Release" below).
+  smoke-check script — prepared in this phase and since executed for real.
 
-## Phase 0.x — Personal Alpha (Phases 1 through 5)
+## Current — 0.1 Personal Production
 
-What every phase above adds up to: a real, tested, single-tenant image
-delivery and transformation platform, safe to run against your own
-Cloudflare account, with an honest boundary around what's still simulated
-(transformation itself — see "Current limitations" in README.md).
-
-## Personal Cloudflare Release
-
-The first real personal deployment target. Version target: `0.1.0` or the
-next appropriate alpha, not `1.0.0`.
+The first real personal deployment. Version target: `0.1.0`.
 
 - ✅ Authentication: DevAuth OIDC client registration, Authorization Code +
   PKCE, Imageryx-owned session, protected dashboard/proxy, local logout.
 - ✅ Production infrastructure: real D1 (migrated by CI before every
   api-worker deploy), private R2 bucket, Queue producer/consumer, and all
   five apps deploying from `main` — verified green and serving live.
+- ✅ Production verification tooling: `pnpm verify:production` exercises
+  the real write path end-to-end (canary project → upload → metadata →
+  Cloudinary variant → delivery → cleanup), gated behind
+  `IMAGERYX_PRODUCTION_API_KEY` and a `workflow_dispatch` GitHub Actions
+  workflow.
 - ◻ Live transformation: Cloudinary provider active with `simulated: false`
   and transformed bytes persisted back to R2. Configured
   (`TRANSFORMATION_PROVIDER=cloudinary` plus real `CLOUDINARY_*` secrets on
-  `processing-worker` production) but never yet exercised in production.
+  `processing-worker` production) — requires one interactive production
+  run to confirm.
 - ◻ Production verification: authenticated dashboard upload, queued
   processing, Cloudinary variant generation, original and variant served by
-  Delivery Worker, private/signed delivery behavior checked. Nothing has
-  run through production yet — the database holds no projects, assets or
-  variants. `pnpm smoke:production` covers reachability only, never a write.
+  Delivery Worker, private/signed delivery behavior checked. Requires a
+  database-backed API key and one DevAuth login through a browser.
 
-Two prerequisites for that verification, neither of which any code change
-can supply: a database-backed API key generated against production (the
-`api_keys` table is empty, so programmatic access still depends entirely on
-the bootstrap `IMAGERYX_API_KEY` fallback this release is meant to retire),
-and one interactive DevAuth login through a browser.
+## Next — 0.2 Image Delivery Experience
 
-## Next
+- On-demand variant generation from the Delivery Worker (today a variant
+  must already be `ready`; the delivery route never triggers processing).
+- Richer delivery: responsive `srcset` generation, format negotiation
+  (Accept header → WebP/AVIF), and image CDN features (focal-point crop,
+  auto-quality).
+- Real Cloudflare Images provider as an alternative to Cloudinary for
+  transformation.
 
-- Self-hosting experience beyond this maintainer's deployment.
-- Developer integrations and SDK/package release workflow.
-- Advanced image tooling and richer API-key scope/project restrictions.
+## Later
 
-## Future — Self-Hosted Mode
+- 0.3 Browser Image Toolkit — client-side crop/rotate/annotate before
+  upload.
+- 0.4 Developer Experience — CLI, richer SDK snippets, webhook
+  notifications on processing events.
+- 0.5 Self-hosting — package-level distribution of the Workers/dashboard,
+  a setup wizard, and a clean split between "this repo's own deployment"
+  and "a deployment anyone can stand up."
 
-For anyone who wants to run their own Imageryx instance, not just this
-project's maintainer: a documented, repeatable self-hosting path beyond
-"clone and follow the deployment guide" — likely package-level
-distribution of the Workers/dashboard, a setup wizard or CLI, and clearer
-separation between "this repo's own deployment" and "a deployment anyone
-can stand up."
+## Future
 
-## Future — Managed Hosting Exploration
-
-A hosted, multi-tenant offering — the scope explicitly excluded from every
-phase above. Real authentication/authorization, per-tenant isolation,
-billing, and everything that implies are out of scope until this is
-deliberately taken on, not a natural extension of Phase 5's hardening.
+- 1.0 stable API / SDK / Angular integration — npm-published packages,
+  semver guarantees, and a public changelog.
+- Optional managed hosting — a hosted, multi-tenant offering. Real
+  authentication/authorization, per-tenant isolation, billing, and
+  everything that implies.
 
 ## Out of scope for now
 
 Multi-region storage replication and video/animated-format transformation
-are not planned in any phase above and will only be scoped if a future
-phase explicitly takes them on.
+are not planned and will only be scoped if a future phase explicitly takes
+them on.

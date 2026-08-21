@@ -162,11 +162,13 @@ pnpm --filter @imageryx/dashboard run build
 pnpm --filter @imageryx/dashboard run deploy
 ```
 
-Deploys to Cloudflare Pages today as a static SPA (`ssr: false`). The
-dashboard auth and proxy routes are Nitro server routes under `/proxy`;
-the personal release is not complete until the dashboard deployment target
-is verified to run those routes in production or is moved to the intended
-Cloudflare server runtime.
+Deploys to Cloudflare Pages. The `cloudflare-pages` Nitro preset emits a
+`_worker.js` alongside the static assets, so the auth and proxy routes
+under `/proxy` run as Pages Functions in production — the same code that
+runs locally under `wrangler pages dev`. The dashboard build sets
+`ssr: false` (the client-side Angular app is fully static), but the server
+routes still execute on every request that matches them before the SPA
+fallback serves `index.html`.
 
 ## 15. Custom domains
 
@@ -190,10 +192,12 @@ pnpm deploy             # the real thing: validate → migrate → processing �
 or a failed Worker deploy to touch the next one. It does not run any
 destructive database command.
 
-GitHub Actions intentionally deploys only the two Pages apps on pushes to
-`main`, creating exactly two GitHub deployment environments:
-`web (production)` and `dashboard (production)`. Use `pnpm deploy` for the
-full Workers + Pages release path above.
+GitHub Actions deploys all five apps on pushes to `main` — three Workers
+(`api-worker`, `delivery-worker`, `processing-worker`) followed by the two
+Pages apps (`web`, `dashboard`) — creating one GitHub deployment
+environment per app. Workers deploy first so the Pages apps that call them
+never point at a stale revision. Use `pnpm deploy` for the same sequence
+from a local machine.
 
 ## 17. Smoke checks
 

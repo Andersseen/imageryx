@@ -33,6 +33,7 @@
     "deploy:validate": "node tooling/scripts/deploy-validate.mjs",
     "deploy": "node tooling/scripts/deploy.mjs",
     "smoke:production": "node tooling/scripts/smoke-production.mjs",
+    "verify:production": "node tooling/scripts/verify-production.mjs",
     "setup:local": "node tooling/scripts/setup-local.mjs",
     "db:migrate:local": "pnpm --filter @imageryx/api-worker run db:migrate:local",
     "db:seed:local": "pnpm --filter @imageryx/database run seed:local",
