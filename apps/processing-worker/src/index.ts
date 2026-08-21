@@ -3,12 +3,14 @@ import { cors } from "hono/cors";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler";
 import { structuredLogger } from "./middleware/logger";
 import { requestId, type RequestIdVariables } from "./middleware/request-id";
+import { validateProductionEnv } from "./middleware/validate-production-env";
 import { handleQueueBatch } from "./queue/consumer";
 import { healthRoute } from "./routes/health";
 
 const app = new Hono<{ Bindings: Env; Variables: RequestIdVariables }>();
 
 app.use("*", requestId);
+app.use("*", validateProductionEnv);
 app.use("*", structuredLogger);
 app.use(
   "*",

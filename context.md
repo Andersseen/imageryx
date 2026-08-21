@@ -65,20 +65,26 @@ list page and its detail folder share a name (`library.page.ts` next to
 are required reading — see "Phase 4B decisions and limitations" below —
 before adding any further nested route.
 
-**Personal Cloudflare Release — in progress.** DevAuth is the human
+**0.1 Personal Production — in progress.** DevAuth is the human
 identity provider; Imageryx now creates its own signed application session
 after the OAuth callback and protects both the dashboard shell and the
 server-side dashboard proxy. Programmatic access remains API-key based.
 Database-backed API keys can be created, listed and revoked, and are stored
 as hashes only; the legacy static `IMAGERYX_API_KEY` remains as an explicit
 bootstrap fallback. Cloudinary is no longer mapping-only: the provider has
-a real transform path and an optional real-account health test, but the full
-personal production image flow still needs live Cloudflare verification.
+a real transform path and an optional real-account health test.
 
-All five apps now deploy from `main` and serve live; production D1 is
-migrated and the Cloudinary secrets are set. What remains is the end-to-end
-production run itself — see "Production state, verified 2026-08-15" below
-before assuming anything about what production contains.
+All five apps deploy from `main` and serve live; production D1 is
+migrated and the Cloudinary secrets are set. `pnpm verify:production`
+exercises the real write path end-to-end (canary project → upload →
+metadata → Cloudinary variant → delivery → cleanup), gated behind
+`IMAGERYX_PRODUCTION_API_KEY` and a `workflow_dispatch` GitHub Actions
+workflow. All three Workers now validate their own production secrets
+(api-worker: `IMAGERYX_API_KEY` + `DOWNLOAD_SIGNING_SECRET`; delivery-worker:
+`DOWNLOAD_SIGNING_SECRET`; processing-worker: `CLOUDINARY_*` when
+`TRANSFORMATION_PROVIDER=cloudinary`). What remains is one interactive
+production run to confirm the full flow — see "Production state, verified
+2026-08-15" below before assuming anything about what production contains.
 
 ## Production state, verified 2026-08-15
 
