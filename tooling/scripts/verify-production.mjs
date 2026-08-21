@@ -65,27 +65,10 @@ async function pollUntil(predicate, label) {
   throw new Error(`Timed out after ${POLL_TIMEOUT_MS}ms waiting for ${label}`);
 }
 
-function buildTinyPng() {
-  const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-  const ihdrData = new Uint8Array(13);
-  const view = new DataView(ihdrData.buffer);
-  view.setUint32(0, 4);
-  view.setUint32(4, 4);
-  ihdrData[8] = 8;
-  ihdrData[9] = 2;
-  const ihdrType = new TextEncoder().encode("IHDR");
-  const ihdrBody = new Uint8Array(4 + 13);
-  ihdrBody.set(ihdrType, 0);
-  ihdrBody.set(ihdrData, 4);
-  const ihdrLen = new Uint8Array(4);
-  new DataView(ihdrLen.buffer).setUint32(0, 13);
-  const iendType = new TextEncoder().encode("IEND");
-  const iendLen = new Uint8Array(4);
-  return new Uint8Array([
-    ...signature,
-    ...ihdrLen, ...ihdrBody, 0, 0, 0, 0,
-    ...iendLen, ...iendType,
-  ]);
+function buildTinySvg() {
+  return new TextEncoder().encode(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="6" viewBox="0 0 8 6"><rect width="8" height="6" fill="#e2e8f0"/></svg>',
+  );
 }
 
 async function main() {
@@ -148,14 +131,14 @@ async function main() {
   console.log("3. Upload fixture");
   let assetId;
   try {
-    const pngBytes = buildTinyPng();
+    const svgBytes = buildTinySvg();
     const form = new FormData();
     form.set("projectId", projectId);
     form.set("path", "canary");
     form.set(
       "file",
-      new Blob([pngBytes], { type: "image/png" }),
-      "canary-verification.png",
+      new Blob([svgBytes], { type: "image/svg+xml" }),
+      "canary-verification.svg",
     );
     const res = await api("/v1/assets/upload", { method: "POST", body: form });
     const text = await res.text();
@@ -256,7 +239,7 @@ async function main() {
   // Step 7: Fetch original via delivery worker
   console.log("7. Delivery: original");
   try {
-    const originalUrl = `${DELIVERY_URL}/${CANARY_PROJECT_SLUG}/assets/canary/canary-verification`;
+    const originalUrl = `${DELIVERY_URL}/${CANARY_PROJECT_SLUG}/assets/canary/canary-verification.svg`;
     const res = await fetch(originalUrl, { signal: AbortSignal.timeout(15_000) });
     if (res.ok) {
       const ct = res.headers.get("content-type") ?? "";
@@ -279,7 +262,7 @@ async function main() {
   if (variantId) {
     console.log("8. Delivery: variant");
     try {
-      const variantUrl = `${DELIVERY_URL}/${CANARY_PROJECT_SLUG}/assets/canary/canary-verification/p/${CANARY_PRESET_SLUG}`;
+      const variantUrl = `${DELIVERY_URL}/${CANARY_PROJECT_SLUG}/assets/canary/canary-verification.svg/p/${CANARY_PRESET_SLUG}`;
       const res = await fetch(variantUrl, { signal: AbortSignal.timeout(15_000) });
       if (res.ok) {
         const ct = res.headers.get("content-type") ?? "";
@@ -305,7 +288,7 @@ async function main() {
   // Step 9: Conditional request (If-None-Match)
   console.log("9. Conditional request");
   try {
-    const originalUrl = `${DELIVERY_URL}/${CANARY_PROJECT_SLUG}/assets/canary/canary-verification`;
+    const originalUrl = `${DELIVERY_URL}/${CANARY_PROJECT_SLUG}/assets/canary/canary-verification.svg`;
     const first = await fetch(originalUrl, { signal: AbortSignal.timeout(15_000) });
     const etag = first.headers.get("etag");
     if (first.body) await first.body.cancel();
