@@ -50,7 +50,7 @@ importers:
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.22.0
-        version: 0.22.0(@cloudflare/workers-types@5.20260823.1)(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
+        version: 0.22.0(@cloudflare/workers-types@5.20260823.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
       '@cloudflare/workers-types':
         specifier: ^5.20260823.1
         version: 5.20260823.1
@@ -68,7 +68,7 @@ importers:
         version: link:../../packages/typescript-config
       '@vitest/coverage-istanbul':
         specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
+        version: 4.1.10(vitest@4.1.11)
       miniflare:
         specifier: ^4.20260722.1
         version: 4.20260722.1
@@ -79,8 +79,8 @@ importers:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       wrangler:
         specifier: ^4.125.0
         version: 4.125.0(@cloudflare/workers-types@5.20260823.1)
@@ -144,13 +144,13 @@ importers:
     devDependencies:
       '@analogjs/platform':
         specifier: ^2.6.4
-        version: 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@parcel/watcher@2.6.0)(marked-gfm-heading-id@4.1.4(marked@15.0.12))(marked-highlight@2.2.4(marked@15.0.12))(marked-mangle@1.1.13(marked@15.0.12))(marked@15.0.12)(oxc-parser@0.121.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3))(prismjs@1.30.0)(rolldown@1.2.6)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        version: 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@parcel/watcher@2.6.0)(marked-gfm-heading-id@4.1.4(marked@15.0.12))(marked-highlight@2.2.4(marked@15.0.12))(marked-mangle@1.1.13(marked@15.0.12))(marked@15.0.12)(oxc-parser@0.121.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3))(prismjs@1.30.0)(rolldown@1.2.6)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       '@analogjs/vite-plugin-angular':
         specifier: ^2.6.4
-        version: 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        version: 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       '@angular/build':
         specifier: ^21.2.9
-        version: 21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
+        version: 21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
       '@angular/cli':
         specifier: ^21.2.9
         version: 21.2.19(@types/node@22.15.3)(chokidar@5.0.0)
@@ -180,7 +180,7 @@ importers:
         version: 4.3.3(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       '@vitest/coverage-v8':
         specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
+        version: 4.1.10(vitest@4.1.11)
       jsdom:
         specifier: ^30.0.1
         version: 30.0.1
@@ -194,8 +194,8 @@ importers:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       wrangler:
         specifier: ^4.125.0
         version: 4.125.0(@cloudflare/workers-types@5.20260823.1)
@@ -220,7 +220,7 @@ importers:
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.22.0
-        version: 0.22.0(@cloudflare/workers-types@5.20260823.1)(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
+        version: 0.22.0(@cloudflare/workers-types@5.20260823.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
       '@imageryx/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -232,7 +232,7 @@ importers:
         version: link:../../packages/typescript-config
       '@vitest/coverage-istanbul':
         specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
+        version: 4.1.10(vitest@4.1.11)
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
@@ -240,8 +240,8 @@ importers:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       wrangler:
         specifier: ^4.125.0
         version: 4.125.0(@cloudflare/workers-types@5.20260823.1)
@@ -266,7 +266,7 @@ importers:
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.22.0
-        version: 0.22.0(@cloudflare/workers-types@5.20260823.1)(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
+        version: 0.22.0(@cloudflare/workers-types@5.20260823.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
       '@cloudflare/workers-types':
         specifier: ^5.20260823.1
         version: 5.20260823.1
@@ -281,7 +281,7 @@ importers:
         version: link:../../packages/typescript-config
       '@vitest/coverage-istanbul':
         specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
+        version: 4.1.10(vitest@4.1.11)
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
@@ -289,8 +289,8 @@ importers:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       wrangler:
         specifier: ^4.125.0
         version: 4.125.0(@cloudflare/workers-types@5.20260823.1)
@@ -327,13 +327,13 @@ importers:
     devDependencies:
       '@analogjs/platform':
         specifier: ^2.6.4
-        version: 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@parcel/watcher@2.6.0)(marked-gfm-heading-id@4.1.4(marked@15.0.12))(marked-highlight@2.2.4(marked@15.0.12))(marked-mangle@1.1.13(marked@15.0.12))(marked@15.0.12)(oxc-parser@0.121.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3))(prismjs@1.30.0)(rolldown@1.2.6)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        version: 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@parcel/watcher@2.6.0)(marked-gfm-heading-id@4.1.4(marked@15.0.12))(marked-highlight@2.2.4(marked@15.0.12))(marked-mangle@1.1.13(marked@15.0.12))(marked@15.0.12)(oxc-parser@0.121.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3))(prismjs@1.30.0)(rolldown@1.2.6)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       '@analogjs/vite-plugin-angular':
         specifier: ^2.6.4
-        version: 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        version: 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       '@angular/build':
         specifier: ^21.2.9
-        version: 21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
+        version: 21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
       '@angular/cli':
         specifier: ^21.2.9
         version: 21.2.19(@types/node@22.15.3)(chokidar@5.0.0)
@@ -376,10 +376,10 @@ importers:
     devDependencies:
       '@analogjs/vite-plugin-angular':
         specifier: ^2.6.4
-        version: 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        version: 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       '@angular/build':
         specifier: ^21.2.9
-        version: 21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
+        version: 21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
       '@angular/common':
         specifier: ^21.2.0
         version: 21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2)
@@ -403,7 +403,7 @@ importers:
         version: link:../typescript-config
       '@vitest/coverage-v8':
         specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
+        version: 4.1.10(vitest@4.1.11)
       jsdom:
         specifier: ^30.0.1
         version: 30.0.1
@@ -414,8 +414,8 @@ importers:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
 
   packages/contracts:
     dependencies:
@@ -431,13 +431,13 @@ importers:
         version: link:../typescript-config
       '@vitest/coverage-v8':
         specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
+        version: 4.1.10(vitest@4.1.11)
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
 
   packages/database:
     dependencies:
@@ -465,7 +465,7 @@ importers:
         version: link:../typescript-config
       '@vitest/coverage-v8':
         specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
+        version: 4.1.10(vitest@4.1.11)
       tsx:
         specifier: ^4.23.1
         version: 4.23.1
@@ -473,8 +473,8 @@ importers:
         specifier: ^5.9.2
         version: 5.9.2
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
 
   packages/eslint-config:
     dependencies:
@@ -511,13 +511,13 @@ importers:
         version: link:../typescript-config
       '@vitest/coverage-v8':
         specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
+        version: 4.1.10(vitest@4.1.11)
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
 
   packages/providers:
     dependencies:
@@ -542,13 +542,13 @@ importers:
         version: link:../typescript-config
       '@vitest/coverage-v8':
         specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
+        version: 4.1.10(vitest@4.1.11)
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
 
   packages/sdk:
     dependencies:
@@ -567,13 +567,13 @@ importers:
         version: link:../typescript-config
       '@vitest/coverage-v8':
         specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
+        version: 4.1.10(vitest@4.1.11)
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
 
   packages/test-utils:
     dependencies:
@@ -604,13 +604,13 @@ importers:
         version: link:../typescript-config
       '@vitest/coverage-v8':
         specifier: ^4.1.10
-        version: 4.1.10(vitest@4.1.10)
+        version: 4.1.10(vitest@4.1.11)
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
 
   packages/typescript-config: {}
 
@@ -2156,6 +2156,9 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
+  '@jridgewell/sourcemap-codec@1.6.0':
+    resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
+
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
@@ -3329,11 +3332,11 @@ packages:
       '@vitest/browser':
         optional: true
 
-  '@vitest/expect@4.1.10':
-    resolution: {integrity: sha512-YsCn+qAk1GWjQOWFEsEcL2gNQ0zmVmQu3T03qP6UyjhtmdtwtbuI+DASn/7iQB3HGTXkdBwGddzxPlmiql5vlA==}
+  '@vitest/expect@4.1.11':
+    resolution: {integrity: sha512-VX2x5vNJXET47KAFzwERI+KRMtTTCSWTfSMKsW7JsUsXV4psq++e3DvZpuTDOpHcxytiDs6p2nhVb2tVDiiUYw==}
 
-  '@vitest/mocker@4.1.10':
-    resolution: {integrity: sha512-v0xaezt+DKEmKfaxg133ldzADrwLGd7Ze1MfQQTYfvs8OqZIwbxyxaYURivwV7sWy5fqn3rH5uOrSp07bp44Ow==}
+  '@vitest/mocker@4.1.11':
+    resolution: {integrity: sha512-2XJVD55d1o5AZous5CCGKS74g/riOj9odEt2bQpCVZeblHyHdnMeFl4jl0XjU21stf4mbjUkew2eXQZt65g5CQ==}
     peerDependencies:
       msw: ^2.4.9
       vite: ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -3346,17 +3349,23 @@ packages:
   '@vitest/pretty-format@4.1.10':
     resolution: {integrity: sha512-W1HsjSH4MXQ9YfmmhLAoIYf1HRfekQCGngeIgcei6MP5QQGWUe0gkopdZQaVCFO+JDJMrAJGwa5pRpNpvy4P8Q==}
 
-  '@vitest/runner@4.1.10':
-    resolution: {integrity: sha512-IKI6kpIH+LmpROplyLwBBaCfMgOZOMsygVa6BARD6ahA04VRuJSa6OaVG7kRvSEMD870Vd91rSSw0eegtWyLGg==}
+  '@vitest/pretty-format@4.1.11':
+    resolution: {integrity: sha512-yiZzPbGTS9Sr/JpFl8zHrcIkAofNbFV6k21vIgQN/cY/oxZeXhJv5sc/MBJ5jFKWmWs+oJHw0UXLZjmf931+Vw==}
 
-  '@vitest/snapshot@4.1.10':
-    resolution: {integrity: sha512-xRkfOT1qpTAi/Ti4Y1LtfRc3kEuqxGw59eN2jN9pRWMtS/XDevekhcFSqvQqjUNGksfjMJu3Y+oJ+4Ypn2OaJw==}
+  '@vitest/runner@4.1.11':
+    resolution: {integrity: sha512-LztvUgdwMNJMIkj3hQnnxiC2Xy1zNxq928W/xhjCLaNCzqTZOudjwbQf6v9IntZGPw132i2Lq2rgTRZHD3JHNw==}
 
-  '@vitest/spy@4.1.10':
-    resolution: {integrity: sha512-PLf/Ugvoq5wO/b4rwYCR1h2PSIdXz7wnkQFMiUpLdtM7l6pqVFcQIBEHyT1+l+cj7mNwAfZHzqXqDyjvOuwbDw==}
+  '@vitest/snapshot@4.1.11':
+    resolution: {integrity: sha512-pN7ikn1ON7h8ee4gIAp4AzyK+zBtJPzVbqOgu5LCEh4VaJVbPQcgYQYJIMGQPXVeJJq1fnfazis7a5pFNPahog==}
+
+  '@vitest/spy@4.1.11':
+    resolution: {integrity: sha512-apNa/prQy2qCeywhnixOHPRCgGNhvg7T4Dapfl1GahLp/R+uhBm5cPyFoNVyqsNd2h1nJxL6BqqdIjiABL60YA==}
 
   '@vitest/utils@4.1.10':
     resolution: {integrity: sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA==}
+
+  '@vitest/utils@4.1.11':
+    resolution: {integrity: sha512-zTCVGpyFsGWBhllOyKlTw/vnr6D9qxsfSDyfbyZmTyjHw5N/VuvzHpHoQjm2ZJzn4RJgx5w4r7V0er69CmLgPQ==}
 
   '@voltui/components@1.0.0':
     resolution: {integrity: sha512-n8882GvW29sRuW3wzLu+9IOk+15faH9DMZs22R+SehWZ9GFHOzfxTs68wh2JJbfEeR8bAruAO2PLMTB7hnXVPQ==}
@@ -4034,8 +4043,8 @@ packages:
     resolution: {integrity: sha512-Zf5H2Kxt2xjTvbJvP2ZWLEICxA6j+hAmMzIlypy4xcBg1vKVnx89Wy0GbS+kf5cwCVFFzdCFh2XSCFNULS6csw==}
     engines: {node: '>= 0.4'}
 
-  es-module-lexer@2.3.1:
-    resolution: {integrity: sha512-shc1dbU90Yl/xq1QrC7QRtfcwURZuVRfPhZbDoldJ1cn1gzDvBaBWlv0eFolj5+0znnPJz5TXLxsN77X/12KTA==}
+  es-module-lexer@2.3.2:
+    resolution: {integrity: sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw==}
 
   es-object-atoms@1.1.1:
     resolution: {integrity: sha512-FGgH2h8zKNim9ljj7dankFPcICIK9Cp5bm+c2gQSYePhpaG5+esrLODihIorn+Pe6FGJzWhXQotPv73jTaldXA==}
@@ -4889,8 +4898,8 @@ packages:
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
-  magic-string@1.1.0:
-    resolution: {integrity: sha512-kS3VHe0nEPST2saQV4Rbkchcd3UBRkVTQHo1D3h/ZTwFDhai/mfKkmtPAtD129EOI7K3HlHIsFOt0WrI2/oU9g==}
+  magic-string@1.2.3:
+    resolution: {integrity: sha512-Bpb0W2TbLKOZ7vJnOUnVRGq3WL2p+ISV29M6hYPL1AFCpyKZpdr5ytiXoTSSxRVhg8YW7f65+6gbG8WG6PCa/g==}
 
   magicast@0.5.3:
     resolution: {integrity: sha512-pVKE4UdSQ7DvHzivsCIFx2BJn1mHG6KsyrFcaxFx6tONdneEuThrDx0Cj3AMg58KyN4pzYT+LHOotxDQDjNvkw==}
@@ -5331,10 +5340,6 @@ packages:
   picomatch@2.3.2:
     resolution: {integrity: sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA==}
     engines: {node: '>=8.6'}
-
-  picomatch@4.0.3:
-    resolution: {integrity: sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==}
-    engines: {node: '>=12'}
 
   picomatch@4.0.4:
     resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
@@ -5845,8 +5850,8 @@ packages:
     resolution: {integrity: sha512-uo33abH+Ays0xYaDysoBt494Hb3hsEczMpcC0MwFl773pazORx4fmvKhclhR1wonUbB6vvpRsvVMwnhfqeMc+A==}
     engines: {node: ^16.14.0 || >= 17.3.0}
 
-  tinyexec@1.2.4:
-    resolution: {integrity: sha512-SHf/r48b7vOrjve9PxJo3MN5v5yuyjHvdUcrQffT3WXMUfnGmHDVbC4k3sHJaJTgZCwpUplIaAo5ANtMyp3YHg==}
+  tinyexec@1.3.0:
+    resolution: {integrity: sha512-QKAl9m8gWWGHV8jZcPeym6j+XULi6tOf1mT83WYJ4Lk2ytW/uwAWkrP0uFsdoYMdueVJ0qs26wZ+23xeB4ibNQ==}
     engines: {node: '>=18'}
 
   tinyglobby@0.2.15:
@@ -6222,20 +6227,20 @@ packages:
       vite:
         optional: true
 
-  vitest@4.1.10:
-    resolution: {integrity: sha512-R9jUTe5S4Qb0HCd4TNqpC7oGcrMssMRGXLW80ubjWsW9VH5GF8y1Y0SFLY9AbqSk6nt0PnOx4H4WNJYZ13GUPw==}
+  vitest@4.1.11:
+    resolution: {integrity: sha512-fhACrNXUidIbGSBr5FlbuBkO7VWC1ZyLl0DO4CU2DrQoAPxX84Ysxs+HeGQpii5lZWV1Q4gBZTTu49mF+A6Edw==}
     engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
     hasBin: true
     peerDependencies:
       '@edge-runtime/vm': '*'
       '@opentelemetry/api': ^1.9.0
       '@types/node': ^20.0.0 || ^22.0.0 || >=24.0.0
-      '@vitest/browser-playwright': 4.1.10
-      '@vitest/browser-preview': 4.1.10
-      '@vitest/browser-webdriverio': 4.1.10
-      '@vitest/coverage-istanbul': 4.1.10
-      '@vitest/coverage-v8': 4.1.10
-      '@vitest/ui': 4.1.10
+      '@vitest/browser-playwright': 4.1.11
+      '@vitest/browser-preview': 4.1.11
+      '@vitest/browser-webdriverio': 4.1.11
+      '@vitest/coverage-istanbul': 4.1.11
+      '@vitest/coverage-v8': 4.1.11
+      '@vitest/ui': 4.1.11
       happy-dom: '*'
       jsdom: '*'
       vite: ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -6569,9 +6574,9 @@ snapshots:
     optionalDependencies:
       sharp: 0.35.2
 
-  ? '@analogjs/platform@2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@parcel/watcher@2.6.0)(marked-gfm-heading-id@4.1.4(marked@15.0.12))(marked-highlight@2.2.4(marked@15.0.12))(marked-mangle@1.1.13(marked@15.0.12))(marked@15.0.12)(oxc-parser@0.121.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3))(prismjs@1.30.0)(rolldown@1.2.6)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))'
+  ? '@analogjs/platform@2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@parcel/watcher@2.6.0)(marked-gfm-heading-id@4.1.4(marked@15.0.12))(marked-highlight@2.2.4(marked@15.0.12))(marked-mangle@1.1.13(marked@15.0.12))(marked@15.0.12)(oxc-parser@0.121.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3))(prismjs@1.30.0)(rolldown@1.2.6)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))'
   : dependencies:
-      '@analogjs/vite-plugin-angular': 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+      '@analogjs/vite-plugin-angular': 2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       '@analogjs/vite-plugin-nitro': 2.6.4(@parcel/watcher@2.6.0)(oxc-parser@0.121.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3))(rolldown@1.2.6)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       marked: 15.0.12
       marked-gfm-heading-id: 4.1.4(marked@15.0.12)
@@ -6633,7 +6638,7 @@ snapshots:
       '@angular/router': 21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(rxjs@7.8.2)
       tslib: 2.8.1
 
-  '@analogjs/vite-plugin-angular@2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))':
+  '@analogjs/vite-plugin-angular@2.6.4(@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))':
     dependencies:
       magic-string: 0.30.21
       obug: 2.1.4
@@ -6641,7 +6646,7 @@ snapshots:
       tinyglobby: 0.2.17
       ts-morph: 21.0.1
     optionalDependencies:
-      '@angular/build': 21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
+      '@angular/build': 21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))
       vite: 8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)
     transitivePeerDependencies:
       - '@emnapi/core'
@@ -6788,7 +6793,7 @@ snapshots:
       eslint: 9.39.1(jiti@2.7.0)
       typescript: 5.9.2
 
-  '@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))':
+  '@angular/build@21.2.19(@angular/compiler-cli@21.2.19(@angular/compiler@21.2.19)(typescript@5.9.2))(@angular/compiler@21.2.19)(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@22.15.3)(chokidar@5.0.0)(jiti@2.7.0)(lightningcss@1.33.0)(postcss@8.5.26)(tailwindcss@4.3.3)(terser@5.49.0)(tslib@2.8.1)(tsx@4.23.1)(typescript@5.9.2)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@angular-devkit/architect': 0.2102.19(chokidar@5.0.0)
@@ -6827,7 +6832,7 @@ snapshots:
       lmdb: 3.5.1
       postcss: 8.5.26
       tailwindcss: 4.3.3
-      vitest: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+      vitest: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -7229,14 +7234,14 @@ snapshots:
     optionalDependencies:
       workerd: 1.20260820.1
 
-  '@cloudflare/vitest-pool-workers@0.22.0(@cloudflare/workers-types@5.20260823.1)(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))':
+  '@cloudflare/vitest-pool-workers@0.22.0(@cloudflare/workers-types@5.20260823.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)))':
     dependencies:
-      '@vitest/runner': 4.1.10
-      '@vitest/snapshot': 4.1.10
+      '@vitest/runner': 4.1.11
+      '@vitest/snapshot': 4.1.11
       cjs-module-lexer: 1.2.3
       esbuild: 0.28.1
       miniflare: 5.20260815.0-alpha
-      vitest: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+      vitest: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
       wrangler: 4.124.0(@cloudflare/workers-types@5.20260823.1)
       zod: 4.4.3
     transitivePeerDependencies:
@@ -7915,6 +7920,8 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
+  '@jridgewell/sourcemap-codec@1.6.0': {}
+
   '@jridgewell/trace-mapping@0.3.31':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
@@ -7923,7 +7930,7 @@ snapshots:
   '@jridgewell/trace-mapping@0.3.9':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   '@listr2/prompt-adapter-inquirer@3.0.5(@inquirer/prompts@7.10.1(@types/node@22.15.3))(@types/node@22.15.3)(listr2@9.0.5)':
     dependencies:
@@ -8876,7 +8883,7 @@ snapshots:
     dependencies:
       vite: 7.3.6(@types/node@22.15.3)(jiti@2.7.0)(lightningcss@1.33.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)
 
-  '@vitest/coverage-istanbul@4.1.10(vitest@4.1.10)':
+  '@vitest/coverage-istanbul@4.1.10(vitest@4.1.11)':
     dependencies:
       '@babel/core': 7.29.7
       '@istanbuljs/schema': 0.1.6
@@ -8888,11 +8895,11 @@ snapshots:
       magicast: 0.5.3
       obug: 2.1.4
       tinyrainbow: 3.1.1
-      vitest: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+      vitest: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
     transitivePeerDependencies:
       - supports-color
 
-  '@vitest/coverage-v8@4.1.10(vitest@4.1.10)':
+  '@vitest/coverage-v8@4.1.10(vitest@4.1.11)':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
       '@vitest/utils': 4.1.10
@@ -8904,20 +8911,20 @@ snapshots:
       obug: 2.1.4
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+      vitest: 4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
 
-  '@vitest/expect@4.1.10':
+  '@vitest/expect@4.1.11':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
-      '@vitest/spy': 4.1.10
-      '@vitest/utils': 4.1.10
+      '@vitest/spy': 4.1.11
+      '@vitest/utils': 4.1.11
       chai: 6.2.2
       tinyrainbow: 3.1.1
 
-  '@vitest/mocker@4.1.10(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))':
+  '@vitest/mocker@4.1.11(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))':
     dependencies:
-      '@vitest/spy': 4.1.10
+      '@vitest/spy': 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
@@ -8927,23 +8934,33 @@ snapshots:
     dependencies:
       tinyrainbow: 3.1.1
 
-  '@vitest/runner@4.1.10':
+  '@vitest/pretty-format@4.1.11':
     dependencies:
-      '@vitest/utils': 4.1.10
+      tinyrainbow: 3.1.1
+
+  '@vitest/runner@4.1.11':
+    dependencies:
+      '@vitest/utils': 4.1.11
       pathe: 2.0.3
 
-  '@vitest/snapshot@4.1.10':
+  '@vitest/snapshot@4.1.11':
     dependencies:
-      '@vitest/pretty-format': 4.1.10
-      '@vitest/utils': 4.1.10
+      '@vitest/pretty-format': 4.1.11
+      '@vitest/utils': 4.1.11
       magic-string: 0.30.21
       pathe: 2.0.3
 
-  '@vitest/spy@4.1.10': {}
+  '@vitest/spy@4.1.11': {}
 
   '@vitest/utils@4.1.10':
     dependencies:
       '@vitest/pretty-format': 4.1.10
+      convert-source-map: 2.0.0
+      tinyrainbow: 3.1.1
+
+  '@vitest/utils@4.1.11':
+    dependencies:
+      '@vitest/pretty-format': 4.1.11
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.1
 
@@ -9573,7 +9590,7 @@ snapshots:
 
   es-errors@1.3.0: {}
 
-  es-module-lexer@2.3.1: {}
+  es-module-lexer@2.3.2: {}
 
   es-object-atoms@1.1.1:
     dependencies:
@@ -9713,7 +9730,7 @@ snapshots:
       '@humanfs/node': 0.16.7
       '@humanwhocodes/module-importer': 1.0.1
       '@humanwhocodes/retry': 0.4.3
-      '@types/estree': 1.0.8
+      '@types/estree': 1.0.9
       ajv: 6.12.6
       chalk: 4.1.2
       cross-spawn: 7.0.6
@@ -9763,7 +9780,7 @@ snapshots:
 
   estree-walker@3.0.3:
     dependencies:
-      '@types/estree': 1.0.8
+      '@types/estree': 1.0.9
 
   esutils@2.0.3: {}
 
@@ -10519,11 +10536,11 @@ snapshots:
 
   magic-string@0.30.21:
     dependencies:
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
 
-  magic-string@1.1.0:
+  magic-string@1.2.3:
     dependencies:
-      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   magicast@0.5.3:
     dependencies:
@@ -11131,8 +11148,6 @@ snapshots:
 
   picomatch@2.3.2: {}
 
-  picomatch@4.0.3: {}
-
   picomatch@4.0.4: {}
 
   picomatch@4.0.7: {}
@@ -11733,7 +11748,7 @@ snapshots:
 
   tinyclip@0.1.15: {}
 
-  tinyexec@1.2.4: {}
+  tinyexec@1.3.0: {}
 
   tinyglobby@0.2.15:
     dependencies:
@@ -11865,7 +11880,7 @@ snapshots:
       escape-string-regexp: 5.0.0
       estree-walker: 3.0.3
       local-pkg: 1.2.1
-      magic-string: 1.1.0
+      magic-string: 1.2.3
       mlly: 1.8.2
       pathe: 2.0.3
       picomatch: 4.0.7
@@ -12003,32 +12018,32 @@ snapshots:
     optionalDependencies:
       vite: 8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)
 
-  vitest@4.1.10(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)):
+  vitest@4.1.11(@types/node@22.15.3)(@vitest/coverage-istanbul@4.1.10)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)):
     dependencies:
-      '@vitest/expect': 4.1.10
-      '@vitest/mocker': 4.1.10(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
-      '@vitest/pretty-format': 4.1.10
-      '@vitest/runner': 4.1.10
-      '@vitest/snapshot': 4.1.10
-      '@vitest/spy': 4.1.10
-      '@vitest/utils': 4.1.10
-      es-module-lexer: 2.3.1
+      '@vitest/expect': 4.1.11
+      '@vitest/mocker': 4.1.11(vite@8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1))
+      '@vitest/pretty-format': 4.1.11
+      '@vitest/runner': 4.1.11
+      '@vitest/snapshot': 4.1.11
+      '@vitest/spy': 4.1.11
+      '@vitest/utils': 4.1.11
+      es-module-lexer: 2.3.2
       expect-type: 1.4.0
       magic-string: 0.30.21
       obug: 2.1.4
       pathe: 2.0.3
-      picomatch: 4.0.3
+      picomatch: 4.0.7
       std-env: 4.2.0
       tinybench: 2.9.0
-      tinyexec: 1.2.4
-      tinyglobby: 0.2.15
+      tinyexec: 1.3.0
+      tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
       vite: 8.2.2(@types/node@22.15.3)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.49.0)(tsx@4.23.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.15.3
-      '@vitest/coverage-istanbul': 4.1.10(vitest@4.1.10)
-      '@vitest/coverage-v8': 4.1.10(vitest@4.1.10)
+      '@vitest/coverage-istanbul': 4.1.10(vitest@4.1.11)
+      '@vitest/coverage-v8': 4.1.10(vitest@4.1.11)
       jsdom: 30.0.1
     transitivePeerDependencies:
       - msw
