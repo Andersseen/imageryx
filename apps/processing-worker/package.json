@@ -37,8 +37,8 @@
     "hono": "^4.12.32"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.19.0",
-    "@cloudflare/workers-types": "^5.20260722.1",
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@cloudflare/workers-types": "^5.20260823.1",
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/test-utils": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
@@ -46,6 +46,6 @@
     "typescript": "^5.9.2",
     "vite": "^7.3.6",
     "vitest": "^4.1.10",
-    "wrangler": "^4.115.0"
+    "wrangler": "^4.125.0"
   }
 }
