@@ -124,8 +124,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0(@angular/cdk@21.2.14(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/forms@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(rxjs@7.8.2))(rxjs@7.8.2)(typescript@5.9.2)
       angular-movement:
-        specifier: ^0.7.0
-        version: 0.7.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))
+        specifier: ^0.8.0
+        version: 0.8.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))
       h3:
         specifier: ^1.15.11
         version: 1.15.11
@@ -316,8 +316,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0(@angular/cdk@21.2.14(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(rxjs@7.8.2))(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/forms@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(@angular/platform-browser@21.2.19(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)))(rxjs@7.8.2))(rxjs@7.8.2)(typescript@5.9.2)
       angular-movement:
-        specifier: ^0.7.0
-        version: 0.7.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))
+        specifier: ^0.8.0
+        version: 0.8.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))
       lumen-icons:
         specifier: ^0.2.0
         version: 0.2.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))
@@ -3437,11 +3437,11 @@ packages:
       typescript: '*'
       typescript-eslint: ^8.0.0
 
-  angular-movement@0.7.0:
-    resolution: {integrity: sha512-1r6XF5+eXw9jjSxiEelkwTMsrMT8/3wWLN9UsuKI3A77uJ1NRIwsfuVOUntYlB7Y/lpJeVkAIv2Yfo8Vf10zkA==}
+  angular-movement@0.8.0:
+    resolution: {integrity: sha512-32WjXoJ7PkFjC2cqp8cOJBjPYwBU+p4onRH6uiBpp7TMXg2YSq/ytUelkoWmIA8d+4V7lf6LLo16lOQVtdUBBA==}
     peerDependencies:
-      '@angular/common': ^21.2.0
-      '@angular/core': ^21.2.0
+      '@angular/common': ^21.2.0 || ^22.0.0
+      '@angular/core': ^21.2.0 || ^22.0.0
 
   ansi-colors@4.1.3:
     resolution: {integrity: sha512-/6w/C21Pm1A7aZitlI5Ni/2J6FFQN8i1Cvz3kHABAAbw93v/NlvKdVOqz7CCWz/3iv/JplRSEEZ83XION15ovw==}
@@ -9058,7 +9058,7 @@ snapshots:
       - chokidar
       - supports-color
 
-  angular-movement@0.7.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)):
+  angular-movement@0.8.0(@angular/common@21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2))(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)):
     dependencies:
       '@angular/common': 21.2.19(@angular/core@21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2))(rxjs@7.8.2)
       '@angular/core': 21.2.19(@angular/compiler@21.2.19)(rxjs@7.8.2)
