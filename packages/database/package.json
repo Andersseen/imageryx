@@ -29,7 +29,7 @@
     "miniflare": "^4.20260722.1"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260823.1",
+    "@cloudflare/workers-types": "^5.20260831.1",
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
     "@vitest/coverage-v8": "^4.1.10",
