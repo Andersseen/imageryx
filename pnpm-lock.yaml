@@ -42,8 +42,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/providers
       hono:
-        specifier: ^4.12.32
-        version: 4.12.32
+        specifier: ^4.13.5
+        version: 4.13.5
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -215,8 +215,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/providers
       hono:
-        specifier: ^4.12.32
-        version: 4.12.32
+        specifier: ^4.13.5
+        version: 4.13.5
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.22.0
@@ -261,8 +261,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/providers
       hono:
-        specifier: ^4.12.32
-        version: 4.12.32
+        specifier: ^4.13.5
+        version: 4.13.5
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.22.0
@@ -4379,8 +4379,8 @@ packages:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
 
-  hono@4.12.32:
-    resolution: {integrity: sha512-XcuyW9qE2kJn07PkecMOBd5Vq/hMy7mmGw+idz1yblbg9N17ijJODrvPkn7/dwL3Kulj8LcRJ69DLOWf91dRUg==}
+  hono@4.13.5:
+    resolution: {integrity: sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -7633,9 +7633,9 @@ snapshots:
   '@harperfast/extended-iterable@1.0.3':
     optional: true
 
-  '@hono/node-server@1.19.17(hono@4.12.32)':
+  '@hono/node-server@1.19.17(hono@4.13.5)':
     dependencies:
-      hono: 4.12.32
+      hono: 4.13.5
 
   '@humanfs/core@0.19.1': {}
 
@@ -7985,7 +7985,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.26.0(zod@4.3.6)':
     dependencies:
-      '@hono/node-server': 1.19.17(hono@4.12.32)
+      '@hono/node-server': 1.19.17(hono@4.13.5)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -7995,7 +7995,7 @@ snapshots:
       eventsource-parser: 3.1.0
       express: 5.2.1
       express-rate-limit: 8.6.1(express@5.2.1)
-      hono: 4.12.32
+      hono: 4.13.5
       jose: 6.2.5
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -10040,7 +10040,7 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  hono@4.12.32: {}
+  hono@4.13.5: {}
 
   hookable@5.5.3: {}
 
