@@ -200,6 +200,25 @@ The first real personal deployment. Version target: `0.1.0`.
   (`TRANSFORMATION_PROVIDER=cloudinary` plus real `CLOUDINARY_*` secrets on
   `processing-worker` production) — requires one interactive production
   run to confirm.
+- ✅ Real Cloudflare Images provider, via the Workers Images Binding
+  (`[images] binding = "IMAGES"`, `env.IMAGES.input(...).transform(...).output(...)`)
+  — not the zone-based `cf.image`/`/cdn-cgi/image/` Image Resizing feature,
+  which needs no zone/Pro plan and works directly on R2-fetched bytes. No
+  metadata/EXIF control (confirmed against the real binding types — a real
+  capability gap, not an oversight) and no manual pixel crop or grayscale,
+  same as before. Billed as "Images Transformed": 5,000 free unique
+  transforms/month, then $0.50/1,000. `[images]` binding is declared in both
+  `api-worker` and `processing-worker` wrangler config (dev and production)
+  but `TRANSFORMATION_PROVIDER` stays `cloudinary` in production — switching
+  the primary provider is a deliberate follow-up decision, not automatic.
+  ◻ still needs one interactive production run to confirm the live binding
+  call, same as Cloudinary above.
+- ✅ Real SVG optimization, via a new `BuiltinTransformationProvider` (real,
+  local, deterministic — svgo's browser build, no network, no credentials).
+  `selectTransformationProvider()` always routes `outputFormat: "svg"`
+  presets to it regardless of the configured `TRANSFORMATION_PROVIDER`. Two
+  new system presets ("Web Optimized", "SVG Optimized") and a D1 migration
+  widening `presets.output_format`/`variants.provider` ship with this.
 - ◻ Production verification: authenticated dashboard upload, queued
   processing, Cloudinary variant generation, original and variant served by
   Delivery Worker, private/signed delivery behavior checked. Requires a
@@ -212,8 +231,14 @@ The first real personal deployment. Version target: `0.1.0`.
 - Richer delivery: responsive `srcset` generation, format negotiation
   (Accept header → WebP/AVIF), and image CDN features (focal-point crop,
   auto-quality).
-- Real Cloudflare Images provider as an alternative to Cloudinary for
-  transformation.
+- Preset-editor UI for building a custom `svgOptimize` preset interactively
+  (today the operation exists and the two system presets use it, but the
+  operation-builder form has no dedicated section for it — a custom preset
+  needs `outputFormat: "svg"` selected with no operations, which falls back
+  to the optimizer's own defaults rather than per-preset tuning).
+- Evaluate switching a real deployment's primary `TRANSFORMATION_PROVIDER`
+  from `cloudinary` to `cloudflare` now that the real Images Binding
+  provider exists, to reduce Cloudinary usage/cost.
 
 ## Later
 

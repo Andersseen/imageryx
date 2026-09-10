@@ -122,4 +122,54 @@ describe("validatePresetSemantics", () => {
       }),
     ).not.toThrow();
   });
+
+  it("accepts a svgOptimize operation paired with outputFormat svg", () => {
+    expect(() =>
+      validatePresetSemantics({
+        operations: [{ type: "svgOptimize" }],
+        outputFormat: "svg",
+        quality: null,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a svgOptimize operation whose preset outputFormat is not svg", () => {
+    expect(() =>
+      validatePresetSemantics({
+        operations: [{ type: "svgOptimize" }],
+        outputFormat: "auto",
+        quality: null,
+      }),
+    ).toThrow(InvalidPresetError);
+  });
+
+  it("rejects a raster operation mixed into an outputFormat svg preset", () => {
+    expect(() =>
+      validatePresetSemantics({
+        operations: [{ type: "svgOptimize" }, { type: "quality", value: 80 }],
+        outputFormat: "svg",
+        quality: 80,
+      }),
+    ).toThrow(InvalidPresetError);
+  });
+
+  it("rejects outputFormat svg with a purely raster operation and no svgOptimize", () => {
+    expect(() =>
+      validatePresetSemantics({
+        operations: [{ type: "quality", value: 80 }],
+        outputFormat: "svg",
+        quality: 80,
+      }),
+    ).toThrow(InvalidPresetError);
+  });
+
+  it("accepts outputFormat svg with no operations", () => {
+    expect(() =>
+      validatePresetSemantics({
+        operations: [],
+        outputFormat: "svg",
+        quality: null,
+      }),
+    ).not.toThrow();
+  });
 });

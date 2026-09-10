@@ -2,11 +2,12 @@
  * @imageryx/providers
  *
  * Workers-safe storage and transformation provider interfaces and
- * implementations: `R2StorageProvider` (binding-injected, compiles
- * against the real R2 type but makes no request in this phase),
- * `MockTransformationProvider` (deterministic simulated transforms), and
- * parameter-mapping-only `CloudflareImagesProvider` / `CloudinaryProvider`
- * adapters (no real network calls in this phase).
+ * implementations: `R2StorageProvider` (binding-injected, real R2 calls),
+ * `MockTransformationProvider` (deterministic simulated raster transforms),
+ * `CloudflareImagesProvider` (real, via the Workers Images Binding) and
+ * `CloudinaryProvider` (real, via Cloudinary's upload/eager-transform API),
+ * and `BuiltinTransformationProvider` (real, local, deterministic SVG
+ * optimization — no network, no credentials).
  *
  * `LocalStorageProvider` is Node-only (`node:fs` — cannot run in
  * workerd) and lives behind the `@imageryx/providers/node` subpath
@@ -40,6 +41,7 @@ export * from "./config/provider-config.schema";
 export * from "./storage/r2-storage.provider";
 export * from "./storage/storage-provider";
 
+export * from "./transformations/builtin.provider";
 export * from "./transformations/cloudflare-images.provider";
 export * from "./transformations/cloudinary.provider";
 export * from "./transformations/mock-transformation.provider";

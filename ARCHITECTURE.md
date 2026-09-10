@@ -268,10 +268,10 @@ D1 (SQLite), schema in `packages/database/migrations/0001_initial_schema.sql`,
 (`packages/providers/src/storage/storage-provider.ts` and
 `.../transformations/transformation-provider.ts`) and implements them:
 
-| Interface                | Implementations                                                                                                                                                                                                                                                                   |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `StorageProvider`        | `R2StorageProvider` (real — all three Workers use it against a real, if locally Miniflare-simulated, `R2Bucket` binding as of Phase 3), `LocalStorageProvider` (real, filesystem, Node-only, `/node` subpath — Node tooling/tests only, unreachable from any Worker)              |
-| `TransformationProvider` | `MockTransformationProvider` (real — persists real, visibly-labeled simulated image bytes when `persist: true`), `CloudflareImagesProvider` / `CloudinaryProvider` (real parameter-mapping functions; `transform()` always throws — reachable but inert without real credentials) |
+| Interface                | Implementations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `StorageProvider`        | `R2StorageProvider` (real — all three Workers use it against a real, if locally Miniflare-simulated, `R2Bucket` binding as of Phase 3), `LocalStorageProvider` (real, filesystem, Node-only, `/node` subpath — Node tooling/tests only, unreachable from any Worker)                                                                                                                                                                                                                                                                   |
+| `TransformationProvider` | `MockTransformationProvider` (real — persists real, visibly-labeled simulated image bytes when `persist: true`), `CloudflareImagesProvider` (real — the Workers Images Binding, `env.IMAGES.input(...).transform(...).output(...)`, no credentials), `CloudinaryProvider` (real — uploads/applies/fetches via Cloudinary's API), `BuiltinTransformationProvider` (real, local, deterministic SVG optimization — no network, no credentials; always selected for `outputFormat: "svg"` presets regardless of `TRANSFORMATION_PROVIDER`) |
 
 A `ProviderRegistry` (`packages/providers/src/registry/provider-registry.ts`)
 selects an implementation from validated env config
@@ -373,8 +373,9 @@ flowchart LR
   Delivery --> Providers
   Providers --> R2[(R2 — Miniflare-simulated locally)]
   Providers --> MockTransformation[Mock Transformation]
-  Providers -. mapping only, transform&#40;&#41; throws .-> CloudflareImages[Cloudflare Images]
-  Providers -. mapping only, transform&#40;&#41; throws .-> Cloudinary
+  Providers --> CloudflareImages[Cloudflare Images — Workers Images Binding]
+  Providers --> Cloudinary
+  Providers --> Builtin[Builtin — local SVG optimization]
 ```
 
 ## Upload and processing flow
@@ -424,13 +425,27 @@ sequenceDiagram
     API-->>Client: 202 { variant, jobId }
     Queue-->>Worker: { jobId }
     Worker->>DB: load job + asset + preset by id
-    Worker->>Worker: renderSimulatedVariantSvg(name, preset, dims, format)
-    alt persist: true
-      Worker->>Storage: put(derivedKey, svgBytes)
+    Worker->>Worker: provider.transform(sourceBytes, operations, outputFormat, quality)
+    alt real provider (cloudflare / cloudinary / builtin) — simulated: false
+      alt persist: true
+        Worker->>Storage: put(derivedKey, realBytes)
+      end
+      Worker->>DB: update variant (real checksum/size/mimeType, -> ready), job -> succeeded
+    else mock provider — simulated: true
+      Worker->>Worker: renderSimulatedVariantSvg(name, preset, dims, format)
+      alt persist: true
+        Worker->>Storage: put(derivedKey, svgBytes)
+      end
+      Worker->>DB: update variant (checksum/size, -> ready), job -> succeeded
     end
-    Worker->>DB: update variant (checksum/size, -> ready), job -> succeeded
   end
 ```
+
+`provider` is decided once, at request time, by `selectTransformationProvider()`
+(`@imageryx/image-core`): `outputFormat: "svg"` presets always resolve to
+`builtin` (real, local SVG optimization) regardless of the deployment's
+configured provider; every other preset resolves to the configured
+provider (`cloudflare`/`cloudinary`) or `mock` in local development.
 
 ## Delivery flow
 

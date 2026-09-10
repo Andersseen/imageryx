@@ -66,11 +66,23 @@ const CLOUDINARY_CAPABILITIES: TransformationProviderCapabilities = {
   supportsDynamicDelivery: true,
 };
 
+const BUILTIN_CAPABILITIES: TransformationProviderCapabilities = {
+  provider: "builtin",
+  supportedOperations: ["svgOptimize"],
+  supportedOutputFormats: ["svg"],
+  supportsPersistentOutput: true,
+  supportsRemoteSources: false,
+  supportsDynamicDelivery: false,
+};
+
 const ALL_CAPABILITIES = [
   MOCK_CAPABILITIES,
   CLOUDFLARE_CAPABILITIES,
   CLOUDINARY_CAPABILITIES,
+  BUILTIN_CAPABILITIES,
 ];
+
+const SVG_OPTIMIZE_OP: ImageOperation = { type: "svgOptimize" };
 
 const RESIZE_OP: ImageOperation = {
   type: "resize",
@@ -197,5 +209,68 @@ describe("selectTransformationProvider", () => {
         capabilities: [CLOUDFLARE_CAPABILITIES],
       }),
     ).toThrow(UnsupportedOperationError);
+  });
+
+  it('selects builtin for outputFormat "svg", unconditionally, even with external providers disabled', () => {
+    const result = selectTransformationProvider({
+      operations: [SVG_OPTIMIZE_OP],
+      outputFormat: "svg",
+      requiresPersistentOutput: false,
+      externalProvidersEnabled: false,
+      capabilities: ALL_CAPABILITIES,
+    });
+    expect(result.provider).toBe("builtin");
+  });
+
+  it('selects builtin for outputFormat "svg" even with external providers enabled — never routed to cloudflare/cloudinary', () => {
+    const result = selectTransformationProvider({
+      operations: [SVG_OPTIMIZE_OP],
+      outputFormat: "svg",
+      requiresPersistentOutput: false,
+      externalProvidersEnabled: true,
+      capabilities: ALL_CAPABILITIES,
+    });
+    expect(result.provider).toBe("builtin");
+  });
+
+  it("an explicit preferred provider still short-circuits the svg -> builtin rule", () => {
+    const result = selectTransformationProvider({
+      operations: [SVG_OPTIMIZE_OP],
+      outputFormat: "svg",
+      requiresPersistentOutput: false,
+      preferredProvider: "mock",
+      externalProvidersEnabled: false,
+      capabilities: [
+        {
+          ...MOCK_CAPABILITIES,
+          supportedOutputFormats: [
+            ...MOCK_CAPABILITIES.supportedOutputFormats,
+            "svg",
+          ],
+          supportedOperations: [
+            ...MOCK_CAPABILITIES.supportedOperations,
+            "svgOptimize",
+          ],
+        },
+        BUILTIN_CAPABILITIES,
+      ],
+    });
+    expect(result.provider).toBe("mock");
+  });
+
+  it("throws ProviderUnavailableError for svg output when the builtin provider is not registered", () => {
+    expect(() =>
+      selectTransformationProvider({
+        operations: [SVG_OPTIMIZE_OP],
+        outputFormat: "svg",
+        requiresPersistentOutput: false,
+        externalProvidersEnabled: true,
+        capabilities: [
+          MOCK_CAPABILITIES,
+          CLOUDFLARE_CAPABILITIES,
+          CLOUDINARY_CAPABILITIES,
+        ],
+      }),
+    ).toThrow(ProviderUnavailableError);
   });
 });

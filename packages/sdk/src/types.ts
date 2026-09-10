@@ -3,6 +3,7 @@ import type {
   ImageAsset,
   ImagePreset,
   ImageVariant,
+  OutputImageFormat,
   PaginatedResponse,
   PreviewPresetResponse,
   ProcessingJob,
@@ -57,7 +58,12 @@ export interface AssetDetails extends ImageAsset {
   tags: string[];
   project: { id: string; name: string; slug: string } | null;
   folder: { id: string; name: string; path: string } | null;
-  presets: { id: string; name: string; slug: string }[];
+  presets: {
+    id: string;
+    name: string;
+    slug: string;
+    outputFormat: OutputImageFormat;
+  }[];
   variants: ImageVariant[];
   processingJobs: ProcessingJob[];
   activity: AssetActivityEntry[];

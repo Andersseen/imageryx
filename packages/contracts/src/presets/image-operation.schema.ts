@@ -99,19 +99,37 @@ export const flipOperationSchema = flipOperationShape.refine(
 );
 export type FlipOperation = z.infer<typeof flipOperationShape>;
 
-/** SVG is deliberately excluded: this phase does not generate raster output from vector sources. */
+/**
+ * `"svg"` is the one vector-in/vector-out identity case: it never means
+ * "rasterize a vector source" (image-core's SVG optimizer only ever
+ * produces SVG) and a preset that declares it may only pair with the
+ * `svgOptimize` operation — see `validatePresetSemantics()`.
+ */
 export const outputImageFormatSchema = z.enum([
   "auto",
   "avif",
   "webp",
   "jpeg",
   "png",
+  "svg",
 ]);
 export type OutputImageFormat = z.infer<typeof outputImageFormatSchema>;
 
+/**
+ * The `format` *operation* is a raster-conversion instruction handed to a
+ * raster provider (Cloudflare Images/Cloudinary) — `"svg"` is deliberately
+ * excluded here even though it's a valid preset-level `outputFormat`: no
+ * provider "converts to svg", and requesting svg output happens via the
+ * `svgOptimize` operation instead (see `validatePresetSemantics()`).
+ */
+export const rasterOutputFormatSchema = outputImageFormatSchema.exclude([
+  "svg",
+]);
+export type RasterOutputFormat = z.infer<typeof rasterOutputFormatSchema>;
+
 const formatOperationShape = z.object({
   type: z.literal("format"),
-  format: outputImageFormatSchema,
+  format: rasterOutputFormatSchema,
 });
 export const formatOperationSchema = formatOperationShape;
 export type FormatOperation = z.infer<typeof formatOperationShape>;
@@ -173,6 +191,31 @@ const metadataOperationShape = z.object({
 export const metadataOperationSchema = metadataOperationShape;
 export type MetadataOperation = z.infer<typeof metadataOperationShape>;
 
+/**
+ * Real, deterministic vector optimization (see `@imageryx/image-core`'s
+ * `optimizeSvgSource`) — not a raster operation, and deliberately not
+ * combinable with resize/crop/format/quality/etc. A preset carrying this
+ * operation always has `outputFormat: "svg"` (enforced by
+ * `validatePresetSemantics()`) and is always executed by the local,
+ * provider-independent path, never Cloudflare Images or Cloudinary.
+ */
+export const MIN_SVG_PRECISION = 0;
+export const MAX_SVG_PRECISION = 8;
+
+const svgOptimizeOperationShape = z.object({
+  type: z.literal("svgOptimize"),
+  removeComments: z.boolean().optional(),
+  removeMetadata: z.boolean().optional(),
+  precision: z
+    .number()
+    .int()
+    .min(MIN_SVG_PRECISION)
+    .max(MAX_SVG_PRECISION)
+    .optional(),
+});
+export const svgOptimizeOperationSchema = svgOptimizeOperationShape;
+export type SvgOptimizeOperation = z.infer<typeof svgOptimizeOperationShape>;
+
 export const IMAGE_OPERATION_TYPES = [
   "resize",
   "crop",
@@ -185,6 +228,7 @@ export const IMAGE_OPERATION_TYPES = [
   "sharpen",
   "grayscale",
   "metadata",
+  "svgOptimize",
 ] as const;
 export type ImageOperationType = (typeof IMAGE_OPERATION_TYPES)[number];
 
@@ -201,6 +245,7 @@ export const imageOperationSchema = z
     sharpenOperationShape,
     grayscaleOperationShape,
     metadataOperationShape,
+    svgOptimizeOperationShape,
   ])
   .superRefine((op, ctx) => {
     if (op.type === "resize" && !resizeRequiresDimension(op)) {
@@ -228,4 +273,5 @@ export type ImageOperation =
   | BlurOperation
   | SharpenOperation
   | GrayscaleOperation
-  | MetadataOperation;
+  | MetadataOperation
+  | SvgOptimizeOperation;

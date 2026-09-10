@@ -52,32 +52,47 @@ describe("POST /v1/assets/:assetId/variants", () => {
   });
 
   it("creates a pending variant and a generate-variant job, returning 202", async () => {
-    const response = await SELF.fetch(`https://example.com/v1/assets/${assetId}/variants`, {
-      method: "POST",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ presetId }),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/assets/${assetId}/variants`,
+      {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ presetId }),
+      },
+    );
     expect(response.status).toBe(202);
-    const body = (await response.json()) as { variant: { status: string }; status: string };
+    const body = (await response.json()) as {
+      variant: { status: string };
+      status: string;
+    };
     expect(body.variant.status).toBe("pending");
     expect(body.status).toBe("created");
   });
 
   it("is idempotent: a duplicate request returns the same variant instead of creating a second one", async () => {
-    const first = await SELF.fetch(`https://example.com/v1/assets/${assetId}/variants`, {
-      method: "POST",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ presetId }),
-    });
+    const first = await SELF.fetch(
+      `https://example.com/v1/assets/${assetId}/variants`,
+      {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ presetId }),
+      },
+    );
     const firstBody = (await first.json()) as { variant: { id: string } };
 
-    const second = await SELF.fetch(`https://example.com/v1/assets/${assetId}/variants`, {
-      method: "POST",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ presetId }),
-    });
+    const second = await SELF.fetch(
+      `https://example.com/v1/assets/${assetId}/variants`,
+      {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ presetId }),
+      },
+    );
     expect(second.status).toBe(202);
-    const secondBody = (await second.json()) as { variant: { id: string }; status: string };
+    const secondBody = (await second.json()) as {
+      variant: { id: string };
+      status: string;
+    };
     expect(secondBody.variant.id).toBe(firstBody.variant.id);
     expect(secondBody.status).toBe("pending");
   });
@@ -105,6 +120,41 @@ describe("POST /v1/assets/:assetId/variants", () => {
     const variants = new VariantRepository(env.DB);
     const all = await variants.listByAsset(assetId);
     expect(all).toHaveLength(1);
+  });
+
+  it('routes an outputFormat "svg" preset to the builtin provider even when the deployment is configured for a real external provider', async () => {
+    const envAny = env as unknown as Record<string, string | undefined>;
+    const originalProvider = envAny.TRANSFORMATION_PROVIDER;
+    // Simulates a real deployment (e.g. production, TRANSFORMATION_PROVIDER=cloudinary) rather
+    // than this Worker's "mock" dev default — this is exactly the configuration under which the
+    // svg preset must NOT inherit the configured provider as an implicit preference.
+    envAny.TRANSFORMATION_PROVIDER = "cloudinary";
+    try {
+      const presets = new PresetRepository(env.DB);
+      const svgPreset = await presets.create({
+        projectId,
+        name: "SVG Optimized",
+        slug: "svg-optimized-route-test",
+        operations: [{ type: "svgOptimize" }],
+        outputFormat: "svg",
+      });
+
+      const response = await SELF.fetch(
+        `https://example.com/v1/assets/${assetId}/variants`,
+        {
+          method: "POST",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ presetId: svgPreset.id }),
+        },
+      );
+      expect(response.status).toBe(202);
+      const body = (await response.json()) as {
+        variant: { provider: string };
+      };
+      expect(body.variant.provider).toBe("builtin");
+    } finally {
+      envAny.TRANSFORMATION_PROVIDER = originalProvider;
+    }
   });
 
   it("rejects a variant request for an asset that is not ready", async () => {

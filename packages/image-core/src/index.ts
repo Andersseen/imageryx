@@ -31,6 +31,8 @@ export * from "./metadata/inspect-dimensions";
 export * from "./rendering/placeholder";
 export * from "./rendering/simulated-variant-svg";
 
+export * from "./svg/optimize-svg";
+
 export * from "./presets/hash-preset";
 export * from "./presets/normalize-preset";
 export * from "./presets/validate-transformation";

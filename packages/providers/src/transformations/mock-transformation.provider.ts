@@ -2,9 +2,11 @@ import {
   IMAGE_OPERATION_TYPES,
   type ImageOperation,
   type OutputImageFormat,
+  type RasterOutputFormat,
 } from "@imageryx/contracts";
 import {
   computeSha256Checksum,
+  UnsupportedOperationError,
   validateTransformationChain,
   type TransformationProviderCapabilities,
 } from "@imageryx/image-core";
@@ -18,7 +20,7 @@ import type {
 export class MockTransformationFailureError extends Error {}
 
 const OUTPUT_FORMAT_TO_MIME: Record<
-  Exclude<OutputImageFormat, "auto">,
+  Exclude<RasterOutputFormat, "auto">,
   string
 > = {
   avif: "image/avif",
@@ -29,7 +31,7 @@ const OUTPUT_FORMAT_TO_MIME: Record<
 
 export interface MockTransformationProviderOptions {
   /** What `outputFormat: 'auto'` resolves to. Defaults to `'webp'` — a broadly-supported, real format, so downstream code never has to special-case "auto" once it reaches this point. */
-  autoFormat?: Exclude<OutputImageFormat, "auto">;
+  autoFormat?: Exclude<RasterOutputFormat, "auto">;
 }
 
 export const MOCK_CAPABILITIES: TransformationProviderCapabilities = {
@@ -115,7 +117,7 @@ function deriveDimensions(
 export class MockTransformationProvider implements TransformationProvider {
   readonly name = "mock" as const;
   readonly capabilities = MOCK_CAPABILITIES;
-  private readonly autoFormat: Exclude<OutputImageFormat, "auto">;
+  private readonly autoFormat: Exclude<RasterOutputFormat, "auto">;
 
   constructor(options: MockTransformationProviderOptions = {}) {
     this.autoFormat = options.autoFormat ?? "webp";
@@ -144,6 +146,17 @@ export class MockTransformationProvider implements TransformationProvider {
     if (input.assetSlug.includes("fail")) {
       throw new MockTransformationFailureError(
         `mock provider simulated failure for asset slug "${input.assetSlug}"`,
+      );
+    }
+
+    if (input.outputFormat === "svg") {
+      // Reachable only via an explicit `preferredProvider: "mock"` request — `.supports()`
+      // already excludes "svg" from `MOCK_CAPABILITIES.supportedOutputFormats`, so automatic
+      // selection never reaches here (see provider-selection.ts's unconditional svg -> builtin
+      // rule). Mock renders a fake raster-size placeholder; it does not fabricate SVG content.
+      throw new UnsupportedOperationError(
+        'the mock provider does not produce svg output — use the "builtin" provider',
+        ["format:svg"],
       );
     }
 

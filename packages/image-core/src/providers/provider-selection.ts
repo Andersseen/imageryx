@@ -72,12 +72,21 @@ function findByName(
  * Pure selection: never calls a provider, only decides which one *would*
  * handle the request. Automatic (non-preferred) strategy, in order:
  *
- * 1. External providers disabled (mock mode / local development) -> mock.
- * 2. Cloudflare supports the full operation set -> cloudflare.
- * 3. Cloudflare doesn't, but Cloudinary does -> cloudinary.
- * 4. Nothing supports the full request -> `UnsupportedOperationError`,
+ * 1. `outputFormat === "svg"` -> builtin. Always, unconditionally, in every
+ *    environment (including mock mode) — SVG optimization is real,
+ *    deterministic, provider-independent domain logic, never a network
+ *    call, so there is nothing to gate behind `externalProvidersEnabled`.
+ * 2. External providers disabled (mock mode / local development) -> mock.
+ * 3. Cloudflare supports the full operation set -> cloudflare.
+ * 4. Cloudflare doesn't, but Cloudinary does -> cloudinary.
+ * 5. Nothing supports the full request -> `UnsupportedOperationError`,
  *    listing exactly what's unsupported. Never silently drops an
  *    operation or downgrades to a provider that can't do the job.
+ *
+ * An explicit `preferredProvider` still short-circuits all of this,
+ * including the svg->builtin rule — asking for `mock` (or, once it declares
+ * support, any other registered provider) on an svg-output preset is
+ * honored like any other explicit preference, not silently overridden.
  */
 export function selectTransformationProvider(
   input: ProviderSelectionInput,
@@ -103,6 +112,24 @@ export function selectTransformationProvider(
     return {
       provider: preferred.provider,
       reason: "explicitly preferred provider",
+    };
+  }
+
+  if (input.outputFormat === "svg") {
+    const builtin = findByName(input.capabilities, "builtin");
+    if (!builtin) {
+      throw new ProviderUnavailableError("builtin provider is not registered");
+    }
+    if (!providerSupportsRequest(builtin, input)) {
+      throw new UnsupportedOperationError(
+        "no provider supports all requested operations",
+        unsupportedOperationTypes(input, [builtin]),
+      );
+    }
+    return {
+      provider: "builtin",
+      reason:
+        "svg output is real, deterministic, provider-independent domain logic",
     };
   }
 

@@ -6,8 +6,14 @@ import {
   type SupportedImageExtension,
 } from "@imageryx/contracts";
 
-type GenerateVariantInput = Extract<ProcessingJobInput, { type: "generate-variant" }>;
-type GenerateVariantResult = Extract<ProcessingJobResult, { type: "generate-variant" }>;
+type GenerateVariantInput = Extract<
+  ProcessingJobInput,
+  { type: "generate-variant" }
+>;
+type GenerateVariantResult = Extract<
+  ProcessingJobResult,
+  { type: "generate-variant" }
+>;
 import {
   AssetActivityRepository,
   AssetRepository,
@@ -19,7 +25,10 @@ import {
   computeSha256Checksum,
   renderSimulatedVariantSvg,
 } from "@imageryx/image-core";
-import { createTransformationProvider, readStorageBodyToBytes } from "@imageryx/providers";
+import {
+  createTransformationProvider,
+  readStorageBodyToBytes,
+} from "@imageryx/providers";
 import type { ProcessingDeps } from "../deps";
 import { DeletedAssetError, MissingResourceError } from "../errors";
 
@@ -33,11 +42,16 @@ function extensionFromMimeType(mimeType: string): SupportedImageExtension {
 }
 
 /**
- * Generates a variant for an asset. The `mock` provider renders a real SVG
- * derivative locally; the `cloudinary` provider uploads the source bytes to
- * Cloudinary, applies the mapped transformation, fetches the resulting bytes,
- * and persists them in Imageryx/R2. `cloudflare` still throws because it is
- * not wired up yet. The handler never fakes a completed transformation.
+ * Generates a variant for an asset. `cloudinary` uploads the source bytes to
+ * Cloudinary, applies the mapped transformation, fetches the resulting
+ * bytes, and persists them in Imageryx/R2; `cloudflare` does the same
+ * through the real Workers Images Binding (`env.IMAGES`); `builtin` runs
+ * real, local, deterministic SVG optimization (no network) for
+ * `outputFormat: "svg"` presets. Only the mock placeholder provider's
+ * fabricated `simulated: true` result takes the separate branch below that
+ * renders a labeled stand-in SVG instead of persisting real bytes — every
+ * other provider always returns real bytes here. The handler never fakes a
+ * completed transformation for a non-mock provider.
  */
 export async function handleGenerateVariant(
   deps: ProcessingDeps,
@@ -61,7 +75,10 @@ export async function handleGenerateVariant(
     throw new MissingResourceError(`preset "${input.presetId}" was not found`);
   }
 
-  const variant = await variants.findByAssetAndPresetHash(asset.id, input.presetHash);
+  const variant = await variants.findByAssetAndPresetHash(
+    asset.id,
+    input.presetHash,
+  );
   if (!variant) {
     throw new MissingResourceError(
       `variant for asset "${input.assetId}" and preset hash "${input.presetHash}" was not found`,
@@ -86,6 +103,7 @@ export async function handleGenerateVariant(
 
   const provider = createTransformationProvider(variant.provider, {
     cloudinary: deps.cloudinary,
+    images: deps.images,
   });
 
   try {
@@ -104,7 +122,11 @@ export async function handleGenerateVariant(
 
     if (!transformed.simulated) {
       let storageKey: string | null = null;
-      if (input.persist && transformed.bytes && transformed.bytes.byteLength > 0) {
+      if (
+        input.persist &&
+        transformed.bytes &&
+        transformed.bytes.byteLength > 0
+      ) {
         const extension = extensionFromMimeType(transformed.mimeType);
         storageKey = buildDerivedStorageKey(
           asset.projectId,

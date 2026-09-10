@@ -117,6 +117,33 @@ describe("PresetEditor", () => {
     expect(panel?.textContent).toContain("Cloudinary: supported");
   });
 
+  it('shows the local always-available notice instead of the raster panel for an outputFormat "svg" preset', async () => {
+    configure(
+      createStubApi({
+        projects: [project],
+        presets: [
+          presetFixture("preset-svg", "SVG Optimized", {
+            operations: [{ type: "svgOptimize" }],
+            outputFormat: "svg",
+            quality: null,
+            isSystem: true,
+          }),
+        ],
+      }),
+    );
+    const fixture = await render("preset-svg");
+
+    const svgNotice = fixture.nativeElement.querySelector(
+      '[data-testid="provider-compatibility-svg"]',
+    );
+    expect(svgNotice?.textContent).toContain("runs locally");
+    expect(
+      fixture.nativeElement.querySelector(
+        '[data-testid="provider-compatibility"]',
+      ),
+    ).toBeNull();
+  });
+
   it("loads and displays an existing custom preset for editing", async () => {
     configure(
       createStubApi({

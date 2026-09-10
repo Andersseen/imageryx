@@ -50,7 +50,12 @@ export const SYSTEM_PRESET_DEFINITIONS: readonly SystemPresetDefinition[] = [
     name: "Content",
     slug: "content",
     operations: [
-      { type: "resize", width: 1280, fit: "scale-down", withoutEnlargement: true },
+      {
+        type: "resize",
+        width: 1280,
+        fit: "scale-down",
+        withoutEnlargement: true,
+      },
     ],
     outputFormat: "auto",
     quality: 80,
@@ -89,9 +94,37 @@ export const SYSTEM_PRESET_DEFINITIONS: readonly SystemPresetDefinition[] = [
     name: "Download High",
     slug: "download-high",
     operations: [
-      { type: "resize", width: 3000, fit: "scale-down", withoutEnlargement: true },
+      {
+        type: "resize",
+        width: 3000,
+        fit: "scale-down",
+        withoutEnlargement: true,
+      },
     ],
     outputFormat: "jpeg",
     quality: 92,
+  },
+  {
+    // "Compress" is deliberately not a separate concept: this is just
+    // format + quality + metadata-strip, expressed as a preset like every
+    // other operation chain — never a resize, so it fits any raster asset
+    // regardless of its original dimensions.
+    name: "Web Optimized",
+    slug: "web-optimized",
+    operations: [{ type: "metadata", mode: "strip" }],
+    outputFormat: "auto",
+    quality: 80,
+  },
+  {
+    // Real, deterministic, provider-independent SVG optimization (see
+    // `@imageryx/providers`' `BuiltinTransformationProvider`) — never
+    // routed through Cloudflare Images or Cloudinary.
+    name: "SVG Optimized",
+    slug: "svg-optimized",
+    operations: [
+      { type: "svgOptimize", removeComments: true, removeMetadata: true },
+    ],
+    outputFormat: "svg",
+    quality: null,
   },
 ];

@@ -43,10 +43,10 @@ about it are welcome:
   `@imageryx/image-core`'s `assertSafeProductionSecrets` — so this class of
   mistake fails loudly instead of deploying silently.
 - **SVG delivery headers.** Every response whose `Content-Type` is
-  `image/svg+xml` (originals and, today, *every* simulated variant — see
+  `image/svg+xml` (originals and, today, _every_ simulated variant — see
   "Upload validation" below) gets a restrictive
   `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline';
-  sandbox` in addition to `X-Content-Type-Options: nosniff`, so an embedded
+sandbox` in addition to `X-Content-Type-Options: nosniff`, so an embedded
   `<script>` cannot execute even on a direct top-level navigation to the
   asset URL.
 
@@ -73,10 +73,21 @@ about it are welcome:
   extension, and magic bytes (not just a trusted `Content-Type` header)
   before ever writing to storage, and enforces `MAX_UPLOAD_SIZE_MB`. SVG is
   accepted as an untrusted asset — flagged in `securityWarnings`, never
-  sanitized, never rendered through `innerHTML` anywhere in the dashboard —
-  and, since every simulated variant (`generate-variant`'s mock
-  transformation) is itself rendered as real SVG bytes today, SVG delivery
-  is the common case, not a rare edge case; see the CSP note above.
+  sanitized at upload time, never rendered through `innerHTML` anywhere in
+  the dashboard — and, since every simulated variant (`generate-variant`'s
+  mock transformation) is itself rendered as real SVG bytes today, SVG
+  delivery is the common case, not a rare edge case; see the CSP note
+  above.
+  - **SVG optimization** (`BuiltinTransformationProvider`, real SVG assets
+    through an `outputFormat: "svg"` preset) is a _stricter_ pass than the
+    unsanitized original, not a laxer one: it always runs svgo's
+    `removeScripts` plugin regardless of preset options, stripping
+    `<script>` elements, every event-handler attribute, `<foreignObject>`-
+    embedded executable HTML, and `javascript:` URLs from the _generated
+    variant_. It does not retroactively sanitize the original — that still
+    carries the same `securityWarnings`/CSP posture as before — and it
+    never rasterizes (output is always well-formed SVG, never an image
+    format that would need different validation).
 - **Path handling:** logical asset/folder paths are strictly validated
   against traversal, repeated separators, and encoded tricks
   (`@imageryx/image-core`); physical storage keys are always

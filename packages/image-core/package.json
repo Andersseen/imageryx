@@ -18,7 +18,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@imageryx/contracts": "workspace:*"
+    "@imageryx/contracts": "workspace:*",
+    "svgo": "^4.1.0"
   },
   "devDependencies": {
     "@imageryx/eslint-config": "workspace:*",

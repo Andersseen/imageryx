@@ -35,6 +35,13 @@
       "bucket_name": "imageryx-storage"
     }
   ],
+  // Only exercised when PROCESSING_MODE=inline-local runs a real job (including a
+  // TRANSFORMATION_PROVIDER=cloudflare one) inline instead of via the Queue — see
+  // dispatch-processing.ts. Production always uses PROCESSING_MODE=queue, where
+  // processing-worker's own binding is what actually runs the transform.
+  "images": {
+    "binding": "IMAGES"
+  },
   "queues": {
     "producers": [{ "binding": "PROCESSING_QUEUE", "queue": "imageryx-processing-queue" }]
   },
@@ -81,6 +88,9 @@
           "bucket_name": "imageryx-storage"
         }
       ],
+      "images": {
+        "binding": "IMAGES"
+      },
       "queues": {
         "producers": [{ "binding": "PROCESSING_QUEUE", "queue": "imageryx-processing-queue" }]
       }
