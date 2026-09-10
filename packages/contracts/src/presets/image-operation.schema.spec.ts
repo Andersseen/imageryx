@@ -239,3 +239,29 @@ describe("imageOperationSchema — unknown operation type", () => {
     );
   });
 });
+
+describe("imageOperationSchema — svgOptimize", () => {
+  it("accepts a bare svgOptimize operation with no options", () => {
+    expect(
+      imageOperationSchema.safeParse({ type: "svgOptimize" }).success,
+    ).toBe(true);
+  });
+
+  it("accepts svgOptimize with removeComments/removeMetadata/precision", () => {
+    expect(
+      imageOperationSchema.safeParse({
+        type: "svgOptimize",
+        removeComments: false,
+        removeMetadata: true,
+        precision: 2,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a precision outside 0-8", () => {
+    expect(
+      imageOperationSchema.safeParse({ type: "svgOptimize", precision: 9 })
+        .success,
+    ).toBe(false);
+  });
+});

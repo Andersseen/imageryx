@@ -1,4 +1,4 @@
-import type { R2Bucket } from "@cloudflare/workers-types";
+import type { ImagesBinding, R2Bucket } from "@cloudflare/workers-types";
 import type { TransformationProviderName } from "@imageryx/contracts";
 import { ProviderUnavailableError } from "@imageryx/image-core";
 import {
@@ -9,6 +9,7 @@ import {
 } from "../config/provider-config.schema";
 import { R2StorageProvider } from "../storage/r2-storage.provider";
 import type { StorageProvider } from "../storage/storage-provider";
+import { BuiltinTransformationProvider } from "../transformations/builtin.provider";
 import { CloudflareImagesProvider } from "../transformations/cloudflare-images.provider";
 import { CloudinaryProvider } from "../transformations/cloudinary.provider";
 import { MockTransformationProvider } from "../transformations/mock-transformation.provider";
@@ -25,13 +26,18 @@ export interface CreateStorageProviderOptions {
   r2Bucket?: R2Bucket;
 }
 
-export interface CreateProviderRegistryOptions extends CreateStorageProviderOptions {
+export interface CreateProviderRegistryOptions
+  extends CreateStorageProviderOptions {
   config: ProviderConfig;
+  /** Required only when the Cloudflare transformation provider is selected — a real Worker's `IMAGES` binding, injected by the caller. */
+  images?: ImagesBinding | null;
 }
 
 export interface CreateTransformationProviderOptions {
   /** Cloudinary credentials when creating the Cloudinary provider. */
   cloudinary?: CloudinaryCredentials | null;
+  /** The real `env.IMAGES` Workers binding, when creating the Cloudflare provider. */
+  images?: ImagesBinding | null;
   /** Optional fetch override (useful for tests). */
   fetch?: typeof fetch;
 }
@@ -81,9 +87,11 @@ export function createTransformationProvider(
     case "mock":
       return new MockTransformationProvider();
     case "cloudflare":
-      return new CloudflareImagesProvider();
+      return new CloudflareImagesProvider({ images: options?.images });
     case "cloudinary":
       return createCloudinaryProvider(options);
+    case "builtin":
+      return new BuiltinTransformationProvider();
   }
 }
 
@@ -99,6 +107,7 @@ export function createProviderRegistry(
 ): ProviderRegistry {
   const transformationOptions: CreateTransformationProviderOptions = {
     cloudinary: options.config.cloudinary,
+    images: options.images,
     fetch: globalThis.fetch.bind(globalThis),
   };
   return {

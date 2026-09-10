@@ -25,6 +25,7 @@ import {
   LmnEyeIcon,
 } from "lumen-icons";
 import { describeApiError } from "../../../core/api/api-error";
+import { filterPresetsForAsset } from "../../../core/assets/available-presets";
 import { type AssetWorkspaceService } from "../../../core/assets/asset-workspace.service";
 import { findJobForVariant } from "../../../core/assets/variant-job-link";
 import {
@@ -74,7 +75,8 @@ import { AssetComparison } from "./asset-comparison.component";
         <div class="flex flex-wrap items-end gap-3">
           <span class="flex flex-col gap-1.5 text-sm">
             <span class="text-muted-foreground" aria-hidden="true">Preset</span>
-            <select voltNativeSelect
+            <select
+              voltNativeSelect
               class="min-w-[12rem]"
               (change)="onPresetChange($any($event.target).value)"
               aria-label="Preset to generate a variant from"
@@ -83,7 +85,7 @@ import { AssetComparison } from "./asset-comparison.component";
               <option value="" [selected]="!selectedPresetId()">
                 Select a preset…
               </option>
-              @for (preset of asset().presets; track preset.id) {
+              @for (preset of availablePresets(); track preset.id) {
                 <option
                   [value]="preset.id"
                   [selected]="preset.id === selectedPresetId()"
@@ -268,6 +270,10 @@ export class AssetVariants {
   protected readonly previewState = signal<"idle" | "loading" | "done">("idle");
   protected readonly previewError = signal<string | null>(null);
   protected readonly comparingVariantId = signal<string | null>(null);
+
+  protected readonly availablePresets = computed(() =>
+    filterPresetsForAsset(this.asset().presets, this.asset().mimeType),
+  );
 
   protected readonly variantViews = computed<VariantView[]>(() => {
     const asset = this.asset();

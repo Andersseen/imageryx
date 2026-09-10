@@ -4,6 +4,7 @@ import {
   InvalidProviderConfigError,
   parseProviderConfig,
 } from "../config/provider-config.schema";
+import { BuiltinTransformationProvider } from "../transformations/builtin.provider";
 import { CloudflareImagesProvider } from "../transformations/cloudflare-images.provider";
 import { CloudinaryProvider } from "../transformations/cloudinary.provider";
 import { MockTransformationProvider } from "../transformations/mock-transformation.provider";
@@ -43,6 +44,12 @@ describe("createTransformationProvider", () => {
   it("throws a clear config error when cloudinary is selected without credentials", () => {
     expect(() => createTransformationProvider("cloudinary")).toThrow(
       InvalidProviderConfigError,
+    );
+  });
+
+  it("creates the builtin provider", () => {
+    expect(createTransformationProvider("builtin")).toBeInstanceOf(
+      BuiltinTransformationProvider,
     );
   });
 });

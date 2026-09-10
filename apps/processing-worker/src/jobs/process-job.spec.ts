@@ -35,15 +35,26 @@ describe("processJob", () => {
   let projectId: string;
 
   beforeEach(async () => {
-    const storage = new R2StorageProvider(env.ASSET_STORAGE as unknown as R2Bucket);
-    deps = { db: env.DB, storage, maxAttempts: 3, cloudinary: null };
+    const storage = new R2StorageProvider(
+      env.ASSET_STORAGE as unknown as R2Bucket,
+    );
+    deps = {
+      db: env.DB,
+      storage,
+      maxAttempts: 3,
+      cloudinary: null,
+      images: null,
+    };
     projects = new ProjectRepository(env.DB);
     assets = new AssetRepository(env.DB);
     jobs = new ProcessingJobRepository(env.DB);
     variants = new VariantRepository(env.DB);
     presets = new PresetRepository(env.DB);
 
-    const project = await projects.create({ name: "Test Project", slug: `test-${crypto.randomUUID()}` });
+    const project = await projects.create({
+      name: "Test Project",
+      slug: `test-${crypto.randomUUID()}`,
+    });
     projectId = project.id;
   });
 
@@ -110,7 +121,10 @@ describe("processJob", () => {
     await processJob(deps, job.id);
 
     const outcome = await processJob(deps, job.id);
-    expect(outcome).toEqual({ outcome: "skipped", reason: "already-completed" });
+    expect(outcome).toEqual({
+      outcome: "skipped",
+      reason: "already-completed",
+    });
   });
 
   it("returns skipped for an unknown job ID rather than throwing", async () => {
@@ -147,7 +161,11 @@ describe("processJob", () => {
     });
 
     const outcome = await processJob(deps, job.id);
-    expect(outcome).toEqual({ outcome: "failed", retryable: false, code: "storage_object_not_found" });
+    expect(outcome).toEqual({
+      outcome: "failed",
+      retryable: false,
+      code: "storage_object_not_found",
+    });
 
     const updatedAsset = await assets.findById(asset.id);
     expect(updatedAsset?.processingStatus).toBe("failed");
@@ -213,7 +231,11 @@ describe("processJob", () => {
   it("does not retry a simulated mock-provider failure (asset slug containing 'fail')", async () => {
     const assetId = crypto.randomUUID();
     const storageKey = buildOriginalStorageKey(projectId, assetId, "png");
-    await deps.storage.put({ key: storageKey, body: PNG_BYTES, contentType: "image/png" });
+    await deps.storage.put({
+      key: storageKey,
+      body: PNG_BYTES,
+      contentType: "image/png",
+    });
     const asset = await assets.create(
       {
         projectId,

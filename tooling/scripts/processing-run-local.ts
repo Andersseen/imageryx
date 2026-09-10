@@ -26,8 +26,10 @@ const repoRoot = resolve(here, "../..");
 const wranglerJsoncPath = join(repoRoot, "apps/api-worker/wrangler.jsonc");
 
 async function main(): Promise<void> {
-  const { binding: d1Binding, databaseId } = readApiWorkerD1Config(wranglerJsoncPath);
-  const { binding: r2Binding, bucketName } = readApiWorkerR2Config(wranglerJsoncPath);
+  const { binding: d1Binding, databaseId } =
+    readApiWorkerD1Config(wranglerJsoncPath);
+  const { binding: r2Binding, bucketName } =
+    readApiWorkerR2Config(wranglerJsoncPath);
   const persistRoot = join(repoRoot, ".wrangler-state", "v3");
 
   const mf = new Miniflare({
@@ -46,7 +48,9 @@ async function main(): Promise<void> {
     const storage = new R2StorageProvider(bucket);
 
     const queued = await db
-      .prepare("SELECT id FROM processing_jobs WHERE status = 'queued' ORDER BY created_at ASC")
+      .prepare(
+        "SELECT id FROM processing_jobs WHERE status = 'queued' ORDER BY created_at ASC",
+      )
       .all<{ id: string }>();
 
     if (queued.results.length === 0) {
@@ -59,7 +63,7 @@ async function main(): Promise<void> {
     let failed = 0;
     for (const row of queued.results) {
       const outcome = await processJob(
-        { db, storage, maxAttempts: 3, cloudinary: null },
+        { db, storage, maxAttempts: 3, cloudinary: null, images: null },
         row.id,
       );
       if (outcome.outcome === "completed") completed += 1;
@@ -73,6 +77,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error("processing:run-local failed:", error instanceof Error ? error.message : error);
+  console.error(
+    "processing:run-local failed:",
+    error instanceof Error ? error.message : error,
+  );
   process.exitCode = 1;
 });

@@ -18,11 +18,16 @@ import {
   validatePresetSemantics,
 } from "@imageryx/image-core";
 import {
+  BUILTIN_CAPABILITIES,
   CLOUDFLARE_CAPABILITIES,
   CLOUDINARY_CAPABILITIES,
   MOCK_CAPABILITIES,
 } from "@imageryx/providers";
-import { ConflictError, NotFoundError, ValidationHttpError } from "../lib/errors";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationHttpError,
+} from "../lib/errors";
 
 export interface RequestVariantInput {
   assetId: string;
@@ -43,7 +48,12 @@ export type RequestVariantOutcome =
   | { status: "failed"; variant: ImageVariant; processingJobId: string | null }
   | { status: "created"; variant: ImageVariant; processingJobId: string };
 
-const CAPABILITIES = [MOCK_CAPABILITIES, CLOUDFLARE_CAPABILITIES, CLOUDINARY_CAPABILITIES];
+const CAPABILITIES = [
+  MOCK_CAPABILITIES,
+  CLOUDFLARE_CAPABILITIES,
+  CLOUDINARY_CAPABILITIES,
+  BUILTIN_CAPABILITIES,
+];
 
 /**
  * Idempotent by construction: `variants`'s unique `(asset_id, preset_hash)`
@@ -73,7 +83,9 @@ export async function requestVariant(
   const preset = await presets.findById(input.presetId);
   if (!preset) throw new NotFoundError("preset");
   if (preset.projectId !== asset.projectId) {
-    throw new ValidationHttpError("This preset does not belong to the asset's project.");
+    throw new ValidationHttpError(
+      "This preset does not belong to the asset's project.",
+    );
   }
 
   validatePresetSemantics({
@@ -91,8 +103,18 @@ export async function requestVariant(
   const externalProvidersEnabled = configuredProvider !== "mock";
   const explicitPreferred =
     input.preferredProvider === "auto" ? undefined : input.preferredProvider;
+  // The deployment's configured provider is only an *implicit* preference for raster presets —
+  // for outputFormat "svg" it's left unset so `selectTransformationProvider()`'s own
+  // unconditional svg -> builtin rule can apply. Without this, a deployment configured for
+  // Cloudinary/Cloudflare would force that provider as "preferred" on every request (this
+  // function's whole reason for existing), which short-circuits automatic selection before it
+  // ever reaches the svg rule — defeating it even though nothing ever explicitly asked for
+  // Cloudinary/Cloudflare on an svg-output preset.
   const preferredProvider =
-    explicitPreferred ?? (externalProvidersEnabled ? configuredProvider : undefined);
+    explicitPreferred ??
+    (preset.outputFormat !== "svg" && externalProvidersEnabled
+      ? configuredProvider
+      : undefined);
 
   const selection = selectTransformationProvider({
     operations: preset.operations,
@@ -119,27 +141,52 @@ export async function requestVariant(
       type: "generate-variant",
     });
     const matchingJob = relatedJobs.find(
-      (job) => job.input.type === "generate-variant" && job.input.presetHash === presetHash,
+      (job) =>
+        job.input.type === "generate-variant" &&
+        job.input.presetHash === presetHash,
     );
     if (existing.status === "pending" || existing.status === "processing") {
-      return { status: "pending", variant: existing, processingJobId: matchingJob?.id ?? null };
+      return {
+        status: "pending",
+        variant: existing,
+        processingJobId: matchingJob?.id ?? null,
+      };
     }
     // status === "failed": surfaced as-is; retry goes through POST /v1/processing-jobs/:jobId/retry.
-    return { status: "failed", variant: existing, processingJobId: matchingJob?.id ?? null };
+    return {
+      status: "failed",
+      variant: existing,
+      processingJobId: matchingJob?.id ?? null,
+    };
   }
 
   const assetRef = { id: asset.id, projectId: asset.projectId };
-  const existing = await variants.findByAssetAndPresetHash(asset.id, presetHash);
+  const existing = await variants.findByAssetAndPresetHash(
+    asset.id,
+    presetHash,
+  );
   if (existing) return outcomeForExisting(existing, assetRef);
 
   const service = new VariantPersistenceService(db);
   try {
     const { variantId, processingJobId } = await service.createVariantWithJob(
-      { assetId: asset.id, presetId: preset.id, presetHash, provider: selection.provider, status: "pending" },
+      {
+        assetId: asset.id,
+        presetId: preset.id,
+        presetHash,
+        provider: selection.provider,
+        status: "pending",
+      },
       {
         projectId: asset.projectId,
         type: "generate-variant",
-        input: { type: "generate-variant", assetId: asset.id, presetId: preset.id, presetHash, persist: input.persist },
+        input: {
+          type: "generate-variant",
+          assetId: asset.id,
+          presetId: preset.id,
+          presetHash,
+          persist: input.persist,
+        },
       },
     );
 
@@ -151,7 +198,10 @@ export async function requestVariant(
     // either has committed — `idx_variants_unique_asset_preset_hash` is the real backstop, and the
     // loser must still get the normal idempotent response, not a raw 409 for doing nothing wrong.
     if (error instanceof DuplicateVariantError) {
-      const nowExisting = await variants.findByAssetAndPresetHash(asset.id, presetHash);
+      const nowExisting = await variants.findByAssetAndPresetHash(
+        asset.id,
+        presetHash,
+      );
       if (nowExisting) return outcomeForExisting(nowExisting, assetRef);
     }
     throw error;

@@ -1,4 +1,8 @@
-import type { ImageOperation, OutputImageFormat } from "@imageryx/contracts";
+import type {
+  ImageOperation,
+  OutputImageFormat,
+  RasterOutputFormat,
+} from "@imageryx/contracts";
 import {
   InvalidImagePathError,
   ProviderUnavailableError,
@@ -98,7 +102,7 @@ const GRAVITY_MAP: Record<string, CloudinaryTransformationOptions["gravity"]> =
     "bottom-right": "south_east",
   };
 
-const FORMAT_MAP: Record<Exclude<OutputImageFormat, "auto">, string> = {
+const FORMAT_MAP: Record<Exclude<RasterOutputFormat, "auto">, string> = {
   avif: "avif",
   webp: "webp",
   jpeg: "jpg",
@@ -137,6 +141,13 @@ export function mapOperationsToCloudinaryOptions(
   quality: number | null,
 ): CloudinaryTransformationOptions {
   assertSupported(operations);
+
+  if (outputFormat === "svg") {
+    throw new UnsupportedOperationError(
+      "Cloudinary does not produce svg output",
+      ["format:svg"],
+    );
+  }
 
   const options: CloudinaryTransformationOptions = { effects: [], flags: [] };
 

@@ -78,9 +78,12 @@ There is still **no multi-user auth/teams/billing**. Human dashboard access
 now goes through DevAuth (OAuth 2.1 / OIDC Authorization Code + PKCE) and an
 Imageryx-owned session, while programmatic access remains API-key based.
 Database-backed API keys can be created/revoked, with the legacy static
-`IMAGERYX_API_KEY` kept as a bootstrap compatibility fallback. Cloudinary is
-now implemented as the real transformation provider and covered by an
-optional real-account health check. See
+`IMAGERYX_API_KEY` kept as a bootstrap compatibility fallback. Cloudinary and
+Cloudflare Images (via the Workers Images Binding) are both real
+transformation providers now — Cloudinary covered by an optional
+real-account health check — and SVG optimization runs through a third,
+real, local `BuiltinTransformationProvider` (no network, no credentials).
+See
 [ROADMAP.md](ROADMAP.md) for what's next and [context.md](context.md) for
 the full working context, including the specific decisions and known
 limitations from this phase.
@@ -383,13 +386,13 @@ Issue a signed download token via `POST /v1/assets/:id/download-url`.
 
 All five apps deploy to Cloudflare from CI:
 
-| App               | Deploys to        | Production URL                                             |
-| ----------------- | ----------------- | ---------------------------------------------------------- |
-| web               | Cloudflare Pages  | https://imageryx-web.pages.dev                             |
-| dashboard         | Cloudflare Pages  | https://imageryx-dashboard.pages.dev                       |
-| api-worker        | Cloudflare Workers| https://imageryx-api-worker.andriipap01.workers.dev        |
-| delivery-worker   | Cloudflare Workers| https://imageryx-delivery-worker.andriipap01.workers.dev   |
-| processing-worker | Cloudflare Workers| https://imageryx-processing-worker.andriipap01.workers.dev |
+| App               | Deploys to         | Production URL                                             |
+| ----------------- | ------------------ | ---------------------------------------------------------- |
+| web               | Cloudflare Pages   | https://imageryx-web.pages.dev                             |
+| dashboard         | Cloudflare Pages   | https://imageryx-dashboard.pages.dev                       |
+| api-worker        | Cloudflare Workers | https://imageryx-api-worker.andriipap01.workers.dev        |
+| delivery-worker   | Cloudflare Workers | https://imageryx-delivery-worker.andriipap01.workers.dev   |
+| processing-worker | Cloudflare Workers | https://imageryx-processing-worker.andriipap01.workers.dev |
 
 `.github/workflows/ci.yml` runs `check` (verify structure, lint, typecheck,
 test, build), dashboard E2E, and accessibility smoke checks on every push and
@@ -421,14 +424,14 @@ These steps run once, and none of them can be done from CI.
 [dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens)
 with these permissions on the account that owns the projects:
 
-| Scope   | Permission            | Why                             |
-| ------- | --------------------- | ------------------------------- |
-| Account | Cloudflare Pages: Edit | `web`, `dashboard`             |
-| Account | Workers Scripts: Edit  | the three Workers              |
-| Account | D1: Edit               | `db:migrate:production`         |
-| Account | Workers R2 Storage: Edit | `imageryx-storage` bucket     |
-| Account | Queues: Edit           | `imageryx-processing-queue`     |
-| User    | User Details: Read     | lets Wrangler name the token in CI logs |
+| Scope   | Permission               | Why                                     |
+| ------- | ------------------------ | --------------------------------------- |
+| Account | Cloudflare Pages: Edit   | `web`, `dashboard`                      |
+| Account | Workers Scripts: Edit    | the three Workers                       |
+| Account | D1: Edit                 | `db:migrate:production`                 |
+| Account | Workers R2 Storage: Edit | `imageryx-storage` bucket               |
+| Account | Queues: Edit             | `imageryx-processing-queue`             |
+| User    | User Details: Read       | lets Wrangler name the token in CI logs |
 
 A token missing **Cloudflare Pages: Edit** is the exact cause of
 `A request to the Cloudflare API (/accounts/…/pages/projects/…) failed.
@@ -469,14 +472,14 @@ server-side in its Pages Function (see "Authentication"), so these are set on
 the **Pages project**, not at build time, under **Workers & Pages →
 imageryx-dashboard → Settings → Variables and Secrets** (Production):
 
-| Variable                 | Value                                                 |
-| ------------------------ | ----------------------------------------------------- |
-| `API_URL`                | `https://imageryx-api-worker.andriipap01.workers.dev` |
-| `IMAGERYX_API_KEY`       | same value as api-worker's secret                     |
-| `SESSION_SECRET`         | `openssl rand -hex 32`                                |
-| `DEV_AUTH_URL`           | the DevAuth issuer origin                             |
-| `DEV_AUTH_CLIENT_ID`     | from DevAuth                                          |
-| `DEV_AUTH_CLIENT_SECRET` | from DevAuth                                          |
+| Variable                 | Value                                                      |
+| ------------------------ | ---------------------------------------------------------- |
+| `API_URL`                | `https://imageryx-api-worker.andriipap01.workers.dev`      |
+| `IMAGERYX_API_KEY`       | same value as api-worker's secret                          |
+| `SESSION_SECRET`         | `openssl rand -hex 32`                                     |
+| `DEV_AUTH_URL`           | the DevAuth issuer origin                                  |
+| `DEV_AUTH_CLIENT_ID`     | from DevAuth                                               |
+| `DEV_AUTH_CLIENT_SECRET` | from DevAuth                                               |
 | `DEV_AUTH_REDIRECT_URI`  | `https://imageryx-dashboard.pages.dev/proxy/auth/callback` |
 
 `DEV_AUTH_REDIRECT_URI` must be registered byte-for-byte with DevAuth — it is
@@ -516,7 +519,7 @@ What's still open: this is a single shared key, not per-user credentials
 (see "Current limitations").
 
 The dashboard's server-side proxy, which keeps that key out of browser code,
-*does* run in production. It builds under the `cloudflare-pages` Nitro preset
+_does_ run in production. It builds under the `cloudflare-pages` Nitro preset
 (`apps/dashboard/vite.config.ts`), which emits `dist/analog/public/_worker.js`
 with the `/proxy` routes compiled in, and that directory is what the deploy
 script uploads. Under the default `node-server` preset it did not: the deploy
@@ -648,25 +651,30 @@ Storage and transformation backends are selected by env var, validated by
 `@imageryx/providers`' Zod schema (`parseProviderConfig`) — an invalid or
 incomplete combination fails fast rather than at first use:
 
-| Var                                                                      | Local default    | Notes                                                                                                                                                                                                           |
-| ------------------------------------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `STORAGE_PROVIDER`                                                       | `r2`             | `r2` is the only value any Worker uses locally — a real Miniflare-simulated R2 bucket, zero credentials required. `local` (filesystem) still exists for Node-only tooling/tests, not reachable from a Worker.   |
-| `TRANSFORMATION_PROVIDER`                                                | `mock`           | `mock` (real, deterministic, persists real simulated-image bytes), `cloudflare` or `cloudinary` (mapping-only — `transform()` always throws, reachable but inert unless explicitly configured with credentials) |
-| `ADVANCED_TRANSFORMATION_PROVIDER`                                       | unset            | Optional secondary provider (e.g. Cloudinary alongside a Cloudflare primary)                                                                                                                                    |
-| `PROCESSING_MODE`                                                        | `queue`          | `queue` (real Cloudflare Queue, locally simulated) or `inline-local` (runs the same job function inside `waitUntil`, no Queue message) — see context.md                                                         |
-| `DOWNLOAD_SIGNING_SECRET`                                                | dev-only default | HMAC key for signed private-download tokens — must be a real secret in any non-local environment                                                                                                                |
-| `LOCAL_STORAGE_PATH`                                                     | `.local/storage` | Only read by Node-only tooling/tests now, never by a Worker                                                                                                                                                     |
-| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | unset            | Required only when Cloudinary is configured as either transformation provider                                                                                                                                   |
+| Var                                                                      | Local default    | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------ | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `STORAGE_PROVIDER`                                                       | `r2`             | `r2` is the only value any Worker uses locally — a real Miniflare-simulated R2 bucket, zero credentials required. `local` (filesystem) still exists for Node-only tooling/tests, not reachable from a Worker.                                                                                                                                                                                                                                                                                                              |
+| `TRANSFORMATION_PROVIDER`                                                | `mock`           | `mock` (real, deterministic, persists real simulated-image bytes), `cloudflare` (real, via the Workers Images Binding — `[images] binding = "IMAGES"` in wrangler config, no credentials needed) or `cloudinary` (real, uploads/applies/fetches via Cloudinary's API, needs `CLOUDINARY_*` below). `builtin` is not set here — it's never the configured/primary provider, only ever auto-selected for `outputFormat: "svg"` presets (real, local, deterministic SVG optimization, no network) regardless of this setting. |
+| `ADVANCED_TRANSFORMATION_PROVIDER`                                       | unset            | Optional secondary provider (e.g. Cloudinary alongside a Cloudflare primary)                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `PROCESSING_MODE`                                                        | `queue`          | `queue` (real Cloudflare Queue, locally simulated) or `inline-local` (runs the same job function inside `waitUntil`, no Queue message) — see context.md                                                                                                                                                                                                                                                                                                                                                                    |
+| `DOWNLOAD_SIGNING_SECRET`                                                | dev-only default | HMAC key for signed private-download tokens — must be a real secret in any non-local environment                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `LOCAL_STORAGE_PATH`                                                     | `.local/storage` | Only read by Node-only tooling/tests now, never by a Worker                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | unset            | Required only when Cloudinary is configured as either transformation provider                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ## Current limitations
 
-- No real network calls to Cloudflare Images, Cloudinary, or a real
-  (non-Miniflare) R2 bucket — `CloudflareImagesProvider`/`CloudinaryProvider`'s
-  `transform()` always throws; only `MockTransformationProvider` performs
-  real (simulated) transformation work, producing real SVG image bytes,
-  never fake JSON pretending to be an image. Every "simulated" label in the
-  dashboard (variant badges, before/after comparison, preset preview)
-  reflects this real provider state, not a guess.
+- `CloudflareImagesProvider` and `CloudinaryProvider` both make real network
+  calls today (the Workers Images Binding and Cloudinary's upload/eager-
+  transform API, respectively) — only `MockTransformationProvider` remains a
+  deliberate stand-in, producing real SVG image bytes labeled "Simulated
+  transformation," never fake JSON pretending to be an image. Every
+  "simulated" label in the dashboard (variant badges, before/after
+  comparison, preset preview) reflects this real provider state, not a
+  guess. `BuiltinTransformationProvider` (SVG optimization) is also real —
+  local and deterministic, so it has nothing to simulate.
+- Real production verification is still needed for a live (non-Miniflare) R2
+  bucket and a live Cloudflare Images binding call, the same way Cloudinary's
+  live path was verified (see ROADMAP.md).
 - `@imageryx/image-core` still has no decode/resize/crop/encode pixel
   pipeline for _real_ transformation — variant generation is a real,
   visibly-labeled simulation, not a real resize.

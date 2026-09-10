@@ -51,3 +51,7 @@ export class StorageObjectNotFoundError extends ImageryxDomainError {
 export class InvalidStateTransitionError extends ImageryxDomainError {
   readonly code = "invalid_state_transition";
 }
+
+export class SvgOptimizationError extends ImageryxDomainError {
+  readonly code = "svg_optimization_failed";
+}

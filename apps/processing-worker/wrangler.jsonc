@@ -30,6 +30,14 @@
       "bucket_name": "imageryx-storage"
     }
   ],
+  // Real Cloudflare Images transformation provider (env.IMAGES.input(...).transform(...).output(...)
+  // — not the zone-based cf.image/`/cdn-cgi/image/` Image Resizing feature). No credentials or
+  // account setup needed beyond this binding; billed as "Images Transformed"
+  // (5,000 free unique transforms/month, then $0.50/1,000). Declaring the binding does not by
+  // itself select this provider — that's still TRANSFORMATION_PROVIDER below.
+  "images": {
+    "binding": "IMAGES"
+  },
   "queues": {
     "consumers": [
       {
@@ -76,6 +84,9 @@
           "bucket_name": "imageryx-storage"
         }
       ],
+      "images": {
+        "binding": "IMAGES"
+      },
       "queues": {
         "producers": [{ "binding": "PROCESSING_QUEUE", "queue": "imageryx-processing-queue" }],
         "consumers": [

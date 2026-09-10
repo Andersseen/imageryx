@@ -75,6 +75,19 @@ function normalizeOperation(operation: ImageOperation): ImageOperation {
       return { type: "grayscale", enabled: true };
     case "metadata":
       return { type: "metadata", mode: operation.mode };
+    case "svgOptimize":
+      return {
+        type: "svgOptimize",
+        ...(operation.removeComments !== undefined
+          ? { removeComments: operation.removeComments }
+          : {}),
+        ...(operation.removeMetadata !== undefined
+          ? { removeMetadata: operation.removeMetadata }
+          : {}),
+        ...(operation.precision !== undefined
+          ? { precision: operation.precision }
+          : {}),
+      };
   }
 }
 

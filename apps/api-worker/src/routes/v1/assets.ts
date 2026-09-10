@@ -325,6 +325,7 @@ assetsRoute.get("/:assetId", async (c) => {
       id: preset.id,
       name: preset.name,
       slug: preset.slug,
+      outputFormat: preset.outputFormat,
     })),
     variants,
     processingJobs: jobs,
@@ -637,7 +638,8 @@ assetsRoute.post("/:assetId/variants", async (c) => {
     presetId: body.presetId,
     persist: body.persist,
     preferredProvider: body.preferredProvider,
-    configuredProvider: c.env.TRANSFORMATION_PROVIDER as TransformationProviderName,
+    configuredProvider: c.env
+      .TRANSFORMATION_PROVIDER as TransformationProviderName,
   });
 
   if (outcome.status === "created") {

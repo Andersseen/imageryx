@@ -93,4 +93,23 @@ export function validatePresetSemantics(preset: PresetSemanticsInput): void {
       'a "quality" operation must match the preset\'s quality, or be omitted',
     );
   }
+
+  const hasSvgOptimize = preset.operations.some(
+    (operation) => operation.type === "svgOptimize",
+  );
+  if (hasSvgOptimize && preset.outputFormat !== "svg") {
+    throw new InvalidPresetError(
+      'a "svgOptimize" operation requires the preset\'s outputFormat to be "svg"',
+    );
+  }
+  if (preset.outputFormat === "svg") {
+    const hasRasterOperation = preset.operations.some(
+      (operation) => operation.type !== "svgOptimize",
+    );
+    if (hasRasterOperation) {
+      throw new InvalidPresetError(
+        'a preset with outputFormat "svg" may only contain a "svgOptimize" operation — vector output cannot be combined with raster operations',
+      );
+    }
+  }
 }

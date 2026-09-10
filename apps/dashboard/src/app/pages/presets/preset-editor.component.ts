@@ -10,6 +10,7 @@ import {
   untracked,
 } from "@angular/core";
 import { Router, RouterLink } from "@angular/router";
+import type { OutputImageFormat } from "@imageryx/contracts";
 import type { ImagePreset, PreviewPresetResponse } from "@imageryx/sdk";
 import {
   VoltBadge,
@@ -45,7 +46,7 @@ interface BasicFields {
   name: string;
   slug: string;
   description: string;
-  outputFormat: "auto" | "avif" | "webp" | "jpeg" | "png";
+  outputFormat: OutputImageFormat;
   quality: number | null;
 }
 
@@ -132,7 +133,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
             <h2 class="text-sm font-semibold">Basics</h2>
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="flex flex-col gap-1.5">
-                <span class="text-sm font-medium text-foreground leading-none">Name</span>
+                <span class="text-sm font-medium text-foreground leading-none"
+                  >Name</span
+                >
                 <volt-input
                   id="preset-name"
                   [value]="basics().name"
@@ -142,7 +145,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                 />
               </label>
               <label class="flex flex-col gap-1.5">
-                <span class="text-sm font-medium text-foreground leading-none">Slug</span>
+                <span class="text-sm font-medium text-foreground leading-none"
+                  >Slug</span
+                >
                 <volt-input
                   id="preset-slug"
                   [value]="basics().slug"
@@ -158,7 +163,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
               </label>
             </div>
             <label class="flex flex-col gap-1.5">
-              <span class="text-sm font-medium text-foreground leading-none">Description</span>
+              <span class="text-sm font-medium text-foreground leading-none"
+                >Description</span
+              >
               <volt-textarea
                 id="preset-description"
                 [rows]="2"
@@ -186,7 +193,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
             @if (ops().resizeEnabled) {
               <div class="grid gap-4 sm:grid-cols-2">
                 <label class="flex flex-col gap-1.5">
-                  <span class="text-sm font-medium text-foreground leading-none">Width</span>
+                  <span class="text-sm font-medium text-foreground leading-none"
+                    >Width</span
+                  >
                   <volt-input
                     id="resize-width"
                     type="number"
@@ -196,7 +205,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   />
                 </label>
                 <label class="flex flex-col gap-1.5">
-                  <span class="text-sm font-medium text-foreground leading-none">Height</span>
+                  <span class="text-sm font-medium text-foreground leading-none"
+                    >Height</span
+                  >
                   <volt-input
                     id="resize-height"
                     type="number"
@@ -206,8 +217,11 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   />
                 </label>
                 <label class="flex flex-col gap-1.5">
-                  <span class="text-sm font-medium text-foreground leading-none">Fit</span>
-                  <select voltNativeSelect
+                  <span class="text-sm font-medium text-foreground leading-none"
+                    >Fit</span
+                  >
+                  <select
+                    voltNativeSelect
                     id="resize-fit"
                     [disabled]="isSystem()"
                     (change)="patchOps({ fit: $any($event.target).value })"
@@ -220,8 +234,11 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   </select>
                 </label>
                 <label class="flex flex-col gap-1.5">
-                  <span class="text-sm font-medium text-foreground leading-none">Position</span>
-                  <select voltNativeSelect
+                  <span class="text-sm font-medium text-foreground leading-none"
+                    >Position</span
+                  >
+                  <select
+                    voltNativeSelect
                     id="resize-position"
                     [disabled]="isSystem()"
                     (change)="
@@ -273,7 +290,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
             @if (ops().cropEnabled) {
               <div class="grid gap-4 sm:grid-cols-4">
                 <label class="flex flex-col gap-1.5">
-                  <span class="text-sm font-medium text-foreground leading-none">X</span>
+                  <span class="text-sm font-medium text-foreground leading-none"
+                    >X</span
+                  >
                   <volt-input
                     id="crop-x"
                     type="number"
@@ -283,7 +302,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   />
                 </label>
                 <label class="flex flex-col gap-1.5">
-                  <span class="text-sm font-medium text-foreground leading-none">Y</span>
+                  <span class="text-sm font-medium text-foreground leading-none"
+                    >Y</span
+                  >
                   <volt-input
                     id="crop-y"
                     type="number"
@@ -293,7 +314,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   />
                 </label>
                 <label class="flex flex-col gap-1.5">
-                  <span class="text-sm font-medium text-foreground leading-none">Width</span>
+                  <span class="text-sm font-medium text-foreground leading-none"
+                    >Width</span
+                  >
                   <volt-input
                     id="crop-width"
                     type="number"
@@ -305,7 +328,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   />
                 </label>
                 <label class="flex flex-col gap-1.5">
-                  <span class="text-sm font-medium text-foreground leading-none">Height</span>
+                  <span class="text-sm font-medium text-foreground leading-none"
+                    >Height</span
+                  >
                   <volt-input
                     id="crop-height"
                     type="number"
@@ -326,8 +351,11 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
             <h2 class="text-sm font-semibold">Output</h2>
             <div class="grid gap-4 sm:grid-cols-2">
               <label class="flex flex-col gap-1.5">
-                <span class="text-sm font-medium text-foreground leading-none">Format</span>
-                <select voltNativeSelect
+                <span class="text-sm font-medium text-foreground leading-none"
+                  >Format</span
+                >
+                <select
+                  voltNativeSelect
                   id="output-format"
                   [disabled]="isSystem()"
                   (change)="
@@ -377,8 +405,11 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
             </label>
 
             <label class="flex flex-col gap-1.5">
-              <span class="text-sm font-medium text-foreground leading-none">Metadata</span>
-              <select voltNativeSelect
+              <span class="text-sm font-medium text-foreground leading-none"
+                >Metadata</span
+              >
+              <select
+                voltNativeSelect
                 id="output-metadata"
                 [disabled]="isSystem()"
                 (change)="patchOps({ metadataMode: $any($event.target).value })"
@@ -407,7 +438,9 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
           >
             <h2 class="text-sm font-semibold">Effects</h2>
             <div class="flex flex-col gap-1.5">
-              <span class="text-sm font-medium text-foreground leading-none">Rotate</span>
+              <span class="text-sm font-medium text-foreground leading-none"
+                >Rotate</span
+              >
               <span class="flex items-center gap-2">
                 <label class="flex items-center">
                   <span class="sr-only">Enable rotate</span>
@@ -418,7 +451,8 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
                   />
                 </label>
                 @if (ops().rotateEnabled) {
-                  <select voltNativeSelect
+                  <select
+                    voltNativeSelect
                     id="effect-rotate"
                     [disabled]="isSystem()"
                     (change)="
@@ -545,30 +579,45 @@ const DEFAULT_BASIC_FIELDS: BasicFields = {
             class="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
           >
             <h2 class="text-sm font-semibold">Provider compatibility</h2>
-            <ul
-              class="flex flex-col gap-1.5 text-sm"
-              data-testid="provider-compatibility"
-            >
-              @for (entry of compatibility(); track entry.provider) {
-                <li class="flex items-center gap-2">
-                  @if (entry.supported) {
-                    <lmn-check-circle [size]="14" tone="success" />
-                  } @else {
-                    <lmn-exclamation-circle [size]="14" tone="destructive" />
-                  }
-                  <span class="font-medium">{{ entry.label }}:</span>
-                  <span class="text-muted-foreground">
+            @if (isSvgOutput()) {
+              <p
+                class="flex items-center gap-2 text-sm"
+                data-testid="provider-compatibility-svg"
+              >
+                <lmn-check-circle [size]="14" tone="success" />
+                <span
+                  >SVG optimization runs locally — real, deterministic, no
+                  network call, always available regardless of the configured
+                  Cloudflare/Cloudinary provider.</span
+                >
+              </p>
+            } @else {
+              <ul
+                class="flex flex-col gap-1.5 text-sm"
+                data-testid="provider-compatibility"
+              >
+                @for (entry of compatibility(); track entry.provider) {
+                  <li class="flex items-center gap-2">
                     @if (entry.supported) {
-                      supported
-                    } @else if (entry.unsupportedOperations.length > 0) {
-                      unsupported: {{ entry.unsupportedOperations.join(", ") }}
+                      <lmn-check-circle [size]="14" tone="success" />
                     } @else {
-                      output format unsupported
+                      <lmn-exclamation-circle [size]="14" tone="destructive" />
                     }
-                  </span>
-                </li>
-              }
-            </ul>
+                    <span class="font-medium">{{ entry.label }}:</span>
+                    <span class="text-muted-foreground">
+                      @if (entry.supported) {
+                        supported
+                      } @else if (entry.unsupportedOperations.length > 0) {
+                        unsupported:
+                        {{ entry.unsupportedOperations.join(", ") }}
+                      } @else {
+                        output format unsupported
+                      }
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
           </section>
 
           <section
@@ -698,6 +747,7 @@ export class PresetEditor {
     "webp",
     "jpeg",
     "png",
+    "svg",
   ] as const;
   protected readonly rotationOptions = [90, 180, 270] as const;
   protected readonly String = String;
@@ -712,6 +762,17 @@ export class PresetEditor {
 
   protected readonly builtOperations = computed(() =>
     buildPresetOperations(this.ops()),
+  );
+  /**
+   * `outputFormat: "svg"` presets run through the "builtin" provider —
+   * real, local, deterministic SVG optimization, never Cloudflare Images
+   * or Cloudinary (see `provider-selection.ts`'s unconditional svg rule).
+   * The raster compatibility panel below is meaningless for them (every
+   * raster provider would correctly, but confusingly, show "unsupported"),
+   * so the template shows a dedicated always-available notice instead.
+   */
+  protected readonly isSvgOutput = computed(
+    () => this.basics().outputFormat === "svg",
   );
   protected readonly compatibility = computed(() =>
     computeProviderCompatibility(

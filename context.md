@@ -1397,3 +1397,127 @@ Tracked in each placeholder package's own README, but summarized here:
   (`LmnSearchIcon`, selector `lmn-search`, etc.) with `size`/`tone`/
   `variant`/`animate` inputs — import only the specific icons used, not a
   barrel of everything, to keep the bundle lean.
+
+## Image optimization consolidation (compression, format, SVG)
+
+Cross-repo work: DevFlare's `image-compressor`/`svg-optimizer` tool pages
+duplicated capabilities that belong here. This phase moved the underlying
+capability into the real preset/provider architecture and removed the
+DevFlare duplicates (`bg-remover` deliberately stays there — separate
+decision). Read this before touching `selectTransformationProvider()`,
+`CloudflareImagesProvider`, or anything SVG.
+
+- **`CloudflareImagesProvider` was scaffolded against the wrong Cloudflare
+  API.** Its mapping functions targeted `cf.image`/`/cdn-cgi/image/`
+  (zone-based Image Resizing — needs a Cloudflare-proxied zone/Pro plan,
+  awkward for "transform an R2 buffer inside a Worker"). The right fit,
+  confirmed against current Cloudflare docs and the real
+  `@cloudflare/workers-types` `ImagesBinding`/`ImageTransform`/
+  `ImageOutputOptions` types (not assumed): the **Workers Images Binding**
+  (`[images] binding = "IMAGES"` → `env.IMAGES.input(stream).transform(...).output(...)`).
+  It accepts a stream directly (R2 bytes work unmodified), needs no
+  zone/Pro plan, and is billed as "Images Transformed" (5,000 free unique
+  transforms/month, then $0.50/1,000). The binding's real types also
+  revealed the mapping had one over-claimed capability: **there is no
+  metadata/EXIF control anywhere in the binding's API** —
+  `CLOUDFLARE_CAPABILITIES.supportedOperations` no longer lists
+  `"metadata"` (a preset needing it now correctly falls through to
+  Cloudinary). PNG output _is_ supported (`ImageOutputOptions.format`
+  includes `"image/png"`) — an earlier doc-summary pass suggested it
+  might not be; the real type definition settled it.
+- **`transform`/`output` are two separate calls in the real binding**,
+  not one flat parameter object the way the old `cf.image` URL API was.
+  `mapOperationsToCloudflareOptions()` now returns
+  `{ transform: ImageTransform, output: { format, quality, background? } }`
+  instead of one flat object — a real shape change, not a rename, and
+  every provider-mapping test needed updating for it.
+- **`outputFormat: "svg"` is real, but only via a fourth provider,
+  `BuiltinTransformationProvider` (name `"builtin"`, deliberately not
+  `"local"`** — `storageProviderNameSchema` already uses `"local"` for
+  Node-only dev tooling that can't run in workerd, the _opposite_ of what
+  this provider is: real production behavior in every environment,
+  including workerd). It wraps `optimizeSvgSource()`
+  (`@imageryx/image-core`), which imports **`svgo/browser`, not svgo's
+  default entry point** — the default (`svgo-node.js`) unconditionally
+  imports `fs/promises`/`os`/`path` for its CLI config-loading path and
+  fails to resolve in workerd; `svgo/browser` is svgo's own pre-bundled,
+  dependency-free build (the same one SVGOMG ships to run fully
+  client-side), verified with zero Node built-in imports before relying
+  on it, and further verified with a real `vitest-pool-workers` spec
+  (`apps/processing-worker/test/svg-optimize.workerd.spec.ts`) that
+  actually runs it inside workerd, not just Node.
+- **`preset-default` alone does not strip `<script>`/event handlers** —
+  `removeScripts` is a real, separate plugin, not part of the default
+  preset, and is added unconditionally in `optimizeSvgSource()` regardless
+  of caller options, since SVG is treated as untrusted input throughout
+  this codebase. It also strips `<foreignObject>`-embedded executable
+  HTML and neutralizes `javascript:` URLs on `<a>` elements. `<title>` is
+  never touched by `preset-default`, and `removeDesc` only strips empty or
+  known-editor-boilerplate `<desc>` by default — real accessibility
+  content in either survives, unlike DevFlare's naive regex minifier,
+  which blindly stripped both.
+- **Provider selection has a real, load-bearing ordering bug it would
+  have hit in production if not caught by an integration test.**
+  `requestVariant()` (`generate-variant.service.ts`) turns the
+  deployment's _configured_ provider into an _implicit preferred
+  provider_ whenever external providers are enabled (`preferredProvider =
+  explicitPreferred ?? (externalProvidersEnabled ? configuredProvider :
+  undefined)`), so that a real deployment's `TRANSFORMATION_PROVIDER`
+  setting is honored on every request without every caller having to
+  repeat it. But `selectTransformationProvider()` checks an explicit
+  `preferredProvider` _before_ its own unconditional
+  `outputFormat === "svg" -> builtin` rule — so without a fix,
+  `requestVariant()`'s implicit preference would silently defeat the svg
+  rule on every deployment configured for Cloudinary/Cloudflare (i.e.
+  every real deployment, not "mock" dev). Fixed by only computing that
+  implicit preference for non-svg presets
+  (`preset.outputFormat !== "svg" && externalProvidersEnabled ?
+  configuredProvider : undefined`), leaving svg presets to reach the
+  unconditional rule. Found by
+  `apps/api-worker/test/integration/upload-to-delivery.spec.ts`'s new
+  SVG scenario, which deliberately passes `configuredProvider:
+"cloudinary"` and asserts the selected provider is still `"builtin"` —
+  it failed on the first run, which is exactly why that test exists.
+  `BUILTIN_CAPABILITIES` also had to be added to that file's own
+  `CAPABILITIES` list and to `@imageryx/providers`' barrel export
+  (`builtin.provider` wasn't exported at all before this) — both easy to
+  miss since nothing failed loudly until the integration test exercised
+  the real request path end to end.
+- **`presets.output_format` and `variants.provider` both have SQLite
+  `CHECK` constraints** that needed widening (`"svg"`, `"builtin"`) —
+  SQLite has no `ALTER TABLE` for changing a `CHECK` constraint, so
+  migration `0002_widen_output_format_and_provider.sql` rebuilds both
+  tables. Ordering matters: `variants.preset_id REFERENCES presets (id)
+ON DELETE CASCADE`, and SQLite's documented `DROP TABLE` behavior with
+  foreign keys enabled performs an implicit cascading `DELETE` first — so
+  dropping `presets` while that foreign key was still live would have
+  wiped every row in `variants`. The migration rebuilds `variants` first
+  with the foreign key temporarily removed, then `presets`, then
+  `variants` again with the foreign key restored — deliberately not
+  relying on `PRAGMA foreign_keys = OFF` for safety, since that pragma is
+  a documented no-op inside a transaction and D1 migrations may run
+  inside one. Verified empirically against a real local D1 seeded with
+  data before/after the migration (no data loss, cascade-on-delete still
+  works, new values accepted, invalid values/orphan FKs still rejected),
+  and independently reviewed by the `d1-migration-reviewer` agent.
+- **Two new system presets**: "Web Optimized" (`{ type: "metadata", mode:
+"strip" }`, `outputFormat: "auto"`, `quality: 80` — deliberately no
+  resize, since "compress" is just format+quality+metadata-strip, not a
+  separate concept) and "SVG Optimized" (`{ type: "svgOptimize" }`,
+  `outputFormat: "svg"`).
+- **The asset workspace's preset dropdown now filters by asset/preset
+  format compatibility** (`filterPresetsForAsset()`,
+  `apps/dashboard/src/app/core/assets/available-presets.ts`) — an SVG
+  asset only sees `outputFormat: "svg"` presets and vice versa, so
+  "Optimize SVG" surfaces naturally through the existing preset dropdown
+  rather than a dedicated button, and a raster asset never sees a preset
+  it couldn't use. This needed `AssetDetails.presets` (SDK type) and the
+  `GET /v1/assets/:id` route to start including each preset's
+  `outputFormat` — it previously only sent `{id, name, slug}`.
+- **Not done, deliberately deferred**: a dedicated `svgOptimize`
+  operation-builder UI section in the preset editor (a custom svg preset
+  today needs `outputFormat: "svg"` picked with no operations, which
+  falls back to the optimizer's own defaults rather than per-preset
+  tuning — functionally correct, just not customizable through the UI
+  yet); browser-side pre-upload compression; redesigning delivery around
+  Cloudflare Images' on-demand URLs.
