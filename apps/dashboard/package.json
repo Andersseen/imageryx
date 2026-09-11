@@ -46,7 +46,7 @@
     "@angular/cli": "^21.2.9",
     "@angular/compiler": "^21.2.0",
     "@angular/compiler-cli": "^21.2.0",
-    "@axe-core/playwright": "^4.12.1",
+    "@axe-core/playwright": "^4.13.0",
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/test-utils": "workspace:^",
     "@imageryx/typescript-config": "workspace:*",
