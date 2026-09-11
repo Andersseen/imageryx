@@ -1,5 +1,5 @@
 import type { ImagePreset } from "@imageryx/contracts";
-import type { D1Client } from "../client";
+import type { DatabaseClient } from "../client";
 import { SYSTEM_PRESET_DEFINITIONS } from "../presets/system-presets";
 import {
   PresetRepository,
@@ -17,7 +17,7 @@ import {
 export class PresetPersistenceService {
   private readonly presets: PresetRepository;
 
-  constructor(db: D1Client) {
+  constructor(db: DatabaseClient) {
     this.presets = new PresetRepository(db);
   }
 
@@ -26,10 +26,15 @@ export class PresetPersistenceService {
   }
 
   /** Idempotent: skips any system preset slug that already exists for the project (mirrors the seed script's own re-run safety). */
-  async createSystemPresetsForProject(projectId: string): Promise<ImagePreset[]> {
+  async createSystemPresetsForProject(
+    projectId: string,
+  ): Promise<ImagePreset[]> {
     const created: ImagePreset[] = [];
     for (const definition of SYSTEM_PRESET_DEFINITIONS) {
-      const existing = await this.presets.findBySlug(projectId, definition.slug);
+      const existing = await this.presets.findBySlug(
+        projectId,
+        definition.slug,
+      );
       if (existing) continue;
       created.push(
         await this.presets.create({

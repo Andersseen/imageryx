@@ -7,6 +7,7 @@ import {
 import { buildOriginalStorageKey, hashPreset } from "@imageryx/image-core";
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
+import { testDb } from "./helpers";
 
 const PNG_BYTES = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49,
@@ -22,22 +23,27 @@ describe("delivery route", () => {
   let projectId: string;
 
   beforeEach(async () => {
-    projects = new ProjectRepository(env.DB);
-    assets = new AssetRepository(env.DB);
-    presets = new PresetRepository(env.DB);
-    variants = new VariantRepository(env.DB);
+    projects = new ProjectRepository(testDb());
+    assets = new AssetRepository(testDb());
+    presets = new PresetRepository(testDb());
+    variants = new VariantRepository(testDb());
 
     projectSlug = `delivery-${crypto.randomUUID()}`;
-    const project = await projects.create({ name: "Delivery Test", slug: projectSlug });
+    const project = await projects.create({
+      name: "Delivery Test",
+      slug: projectSlug,
+    });
     projectId = project.id;
   });
 
-  async function createAsset(overrides: {
-    slug?: string;
-    path?: string;
-    visibility?: "public" | "private";
-    deleted?: boolean;
-  } = {}) {
+  async function createAsset(
+    overrides: {
+      slug?: string;
+      path?: string;
+      visibility?: "public" | "private";
+      deleted?: boolean;
+    } = {},
+  ) {
     const assetId = crypto.randomUUID();
     const storageKey = buildOriginalStorageKey(projectId, assetId, "png");
     await env.ASSET_STORAGE.put(storageKey, PNG_BYTES);
@@ -71,11 +77,15 @@ describe("delivery route", () => {
 
   it("serves a public original with correct headers", async () => {
     const asset = await createAsset();
-    const response = await SELF.fetch(`https://example.com/${projectSlug}/assets/${asset.path}`);
+    const response = await SELF.fetch(
+      `https://example.com/${projectSlug}/assets/${asset.path}`,
+    );
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("image/png");
-    expect(response.headers.get("Content-Length")).toBe(String(PNG_BYTES.byteLength));
+    expect(response.headers.get("Content-Length")).toBe(
+      String(PNG_BYTES.byteLength),
+    );
     expect(response.headers.get("ETag")).toBe(`"${asset.checksum}"`);
     expect(response.headers.get("Cache-Control")).toContain("public");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
@@ -86,31 +96,42 @@ describe("delivery route", () => {
 
   it("returns 304 when If-None-Match matches the current ETag", async () => {
     const asset = await createAsset();
-    const response = await SELF.fetch(`https://example.com/${projectSlug}/assets/${asset.path}`, {
-      headers: { "If-None-Match": `"${asset.checksum}"` },
-    });
+    const response = await SELF.fetch(
+      `https://example.com/${projectSlug}/assets/${asset.path}`,
+      {
+        headers: { "If-None-Match": `"${asset.checksum}"` },
+      },
+    );
     expect(response.status).toBe(304);
   });
 
   it("returns 404 for a private asset without revealing its existence", async () => {
     const asset = await createAsset({ visibility: "private", slug: "secret" });
-    const response = await SELF.fetch(`https://example.com/${projectSlug}/assets/${asset.path}`);
+    const response = await SELF.fetch(
+      `https://example.com/${projectSlug}/assets/${asset.path}`,
+    );
     expect(response.status).toBe(404);
   });
 
   it("returns 404 for a soft-deleted asset", async () => {
     const asset = await createAsset({ slug: "gone", deleted: true });
-    const response = await SELF.fetch(`https://example.com/${projectSlug}/assets/${asset.path}`);
+    const response = await SELF.fetch(
+      `https://example.com/${projectSlug}/assets/${asset.path}`,
+    );
     expect(response.status).toBe(404);
   });
 
   it("returns 404 for an unknown project", async () => {
-    const response = await SELF.fetch("https://example.com/no-such-project/assets/anything");
+    const response = await SELF.fetch(
+      "https://example.com/no-such-project/assets/anything",
+    );
     expect(response.status).toBe(404);
   });
 
   it("returns 404 for an unknown asset path", async () => {
-    const response = await SELF.fetch(`https://example.com/${projectSlug}/assets/does-not-exist`);
+    const response = await SELF.fetch(
+      `https://example.com/${projectSlug}/assets/does-not-exist`,
+    );
     expect(response.status).toBe(404);
   });
 
@@ -153,7 +174,9 @@ describe("delivery route", () => {
       outputFormat: preset.outputFormat,
       quality: preset.quality,
     });
-    const variantBytes = new TextEncoder().encode("<svg xmlns='http://www.w3.org/2000/svg'/>");
+    const variantBytes = new TextEncoder().encode(
+      "<svg xmlns='http://www.w3.org/2000/svg'/>",
+    );
     const variantKey = `derived/${projectId}/${asset.id}/${presetHash}.svg`;
     await env.ASSET_STORAGE.put(variantKey, variantBytes);
     const variant = await variants.create({

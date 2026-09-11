@@ -6,7 +6,7 @@ import {
 } from "@imageryx/database";
 import { env, SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { authHeaders } from "./helpers";
+import { authHeaders, testDb } from "./helpers";
 
 describe("POST /v1/assets/:assetId/variants", () => {
   let projectId: string;
@@ -14,14 +14,14 @@ describe("POST /v1/assets/:assetId/variants", () => {
   let presetId: string;
 
   beforeEach(async () => {
-    const projects = new ProjectRepository(env.DB);
+    const projects = new ProjectRepository(testDb());
     const project = await projects.create({
       name: "Variants Test",
       slug: `variants-test-${crypto.randomUUID()}`,
     });
     projectId = project.id;
 
-    const assets = new AssetRepository(env.DB);
+    const assets = new AssetRepository(testDb());
     const asset = await assets.create({
       projectId,
       name: "Ready Asset",
@@ -40,7 +40,7 @@ describe("POST /v1/assets/:assetId/variants", () => {
     });
     assetId = asset.id;
 
-    const presets = new PresetRepository(env.DB);
+    const presets = new PresetRepository(testDb());
     const preset = await presets.create({
       projectId,
       name: "Thumb",
@@ -117,7 +117,7 @@ describe("POST /v1/assets/:assetId/variants", () => {
     }[];
     expect(bodies[0]!.variant.id).toBe(bodies[1]!.variant.id);
 
-    const variants = new VariantRepository(env.DB);
+    const variants = new VariantRepository(testDb());
     const all = await variants.listByAsset(assetId);
     expect(all).toHaveLength(1);
   });
@@ -130,7 +130,7 @@ describe("POST /v1/assets/:assetId/variants", () => {
     // svg preset must NOT inherit the configured provider as an implicit preference.
     envAny.TRANSFORMATION_PROVIDER = "cloudinary";
     try {
-      const presets = new PresetRepository(env.DB);
+      const presets = new PresetRepository(testDb());
       const svgPreset = await presets.create({
         projectId,
         name: "SVG Optimized",
@@ -158,7 +158,7 @@ describe("POST /v1/assets/:assetId/variants", () => {
   });
 
   it("rejects a variant request for an asset that is not ready", async () => {
-    const assets = new AssetRepository(env.DB);
+    const assets = new AssetRepository(testDb());
     const pendingAsset = await assets.create({
       projectId,
       name: "Pending Asset",

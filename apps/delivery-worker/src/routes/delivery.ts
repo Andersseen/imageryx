@@ -1,3 +1,4 @@
+import { createD1DatabaseClient } from "@imageryx/database";
 import { Hono } from "hono";
 import { getStorageProvider } from "../lib/env";
 import { parseDeliveryPath } from "../lib/path";
@@ -19,17 +20,40 @@ deliveryRoute.get("/:projectSlug/assets/:rest{.+}", async (c) => {
   const { assetPath, presetSlug } = parseDeliveryPath(c.req.param("rest"));
 
   if (assetPath.length === 0) {
-    return c.json({ error: { code: "asset_not_found", message: "Not Found", requestId: c.get("requestId") } }, 404);
+    return c.json(
+      {
+        error: {
+          code: "asset_not_found",
+          message: "Not Found",
+          requestId: c.get("requestId"),
+        },
+      },
+      404,
+    );
   }
 
   const outcome = await resolveDelivery(
-    { db: c.env.DB, storage: getStorageProvider(c.env) },
-    { projectSlug, assetPath, presetSlug, ifNoneMatch: c.req.header("If-None-Match") ?? null },
+    {
+      db: createD1DatabaseClient(c.env.DB),
+      storage: getStorageProvider(c.env),
+    },
+    {
+      projectSlug,
+      assetPath,
+      presetSlug,
+      ifNoneMatch: c.req.header("If-None-Match") ?? null,
+    },
   );
 
   if (outcome.kind === "error") {
     return c.json(
-      { error: { code: outcome.code, message: "Not Found", requestId: c.get("requestId") } },
+      {
+        error: {
+          code: outcome.code,
+          message: "Not Found",
+          requestId: c.get("requestId"),
+        },
+      },
       outcome.status,
     );
   }

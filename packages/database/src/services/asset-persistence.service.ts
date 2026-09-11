@@ -1,5 +1,5 @@
 import type { ImageAsset } from "@imageryx/contracts";
-import type { D1Client } from "../client";
+import type { DatabaseClient, DatabaseStatement } from "../client";
 import { generateId, nowIso } from "../ids";
 import { AssetActivityRepository } from "../repositories/asset-activity.repository";
 import {
@@ -17,7 +17,7 @@ export class AssetPersistenceService {
   private readonly assets: AssetRepository;
   private readonly activity: AssetActivityRepository;
 
-  constructor(private readonly db: D1Client) {
+  constructor(private readonly db: DatabaseClient) {
     this.assets = new AssetRepository(db);
     this.activity = new AssetActivityRepository(db);
   }
@@ -73,12 +73,13 @@ export class AssetPersistenceService {
     const activityId = generateId();
     const timestamp = nowIso();
 
+    const softDeleteStatement: DatabaseStatement = {
+      sql: "UPDATE assets SET deleted_at = ?, updated_at = ? WHERE id = ?",
+      params: [timestamp, timestamp, assetId],
+    };
+
     await this.db.batch([
-      this.db
-        .prepare(
-          "UPDATE assets SET deleted_at = ?, updated_at = ? WHERE id = ?",
-        )
-        .bind(timestamp, timestamp, assetId),
+      softDeleteStatement,
       this.activity.buildInsertStatement(
         activityId,
         { assetId, projectId, event: "asset.soft_deleted" },

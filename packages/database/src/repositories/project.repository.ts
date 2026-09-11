@@ -1,5 +1,5 @@
 import { type Project, projectSchema } from "@imageryx/contracts";
-import type { D1Client } from "../client";
+import type { DatabaseClient } from "../client";
 import { generateId, nowIso } from "../ids";
 
 interface ProjectRow {
@@ -56,13 +56,13 @@ function escapeLikePattern(value: string): string {
 }
 
 export class ProjectRepository {
-  constructor(private readonly db: D1Client) {}
+  constructor(private readonly db: DatabaseClient) {}
 
   async list(): Promise<Project[]> {
-    const result = await this.db
-      .prepare("SELECT * FROM projects ORDER BY created_at ASC")
-      .all<ProjectRow>();
-    return result.results.map(mapRow);
+    const results = await this.db.query<ProjectRow>(
+      "SELECT * FROM projects ORDER BY created_at ASC",
+    );
+    return results.map(mapRow);
   }
 
   async listFiltered(
@@ -75,61 +75,58 @@ export class ProjectRepository {
       const escaped = escapeLikePattern(filter.search);
       params.push(`%${escaped}%`, `%${escaped}%`);
     }
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const where =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     const sortColumn = PROJECT_SORT_COLUMNS[filter.sortField];
     const direction = filter.sortDirection === "asc" ? "ASC" : "DESC";
     const offset = (filter.page - 1) * filter.pageSize;
 
     const [rows, countRow] = await Promise.all([
-      this.db
-        .prepare(
-          `SELECT * FROM projects ${where} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`,
-        )
-        .bind(...params, filter.pageSize, offset)
-        .all<ProjectRow>(),
-      this.db
-        .prepare(`SELECT COUNT(*) as total FROM projects ${where}`)
-        .bind(...params)
-        .first<{ total: number }>(),
+      this.db.query<ProjectRow>(
+        `SELECT * FROM projects ${where} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`,
+        [...params, filter.pageSize, offset],
+      ),
+      this.db.queryOne<{ total: number }>(
+        `SELECT COUNT(*) as total FROM projects ${where}`,
+        params,
+      ),
     ]);
 
-    return { items: rows.results.map(mapRow), total: countRow?.total ?? 0 };
+    return { items: rows.map(mapRow), total: countRow?.total ?? 0 };
   }
 
   async findByIds(ids: readonly string[]): Promise<Project[]> {
     if (ids.length === 0) return [];
     const placeholders = ids.map(() => "?").join(", ");
-    const result = await this.db
-      .prepare(`SELECT * FROM projects WHERE id IN (${placeholders})`)
-      .bind(...ids)
-      .all<ProjectRow>();
-    return result.results.map(mapRow);
+    const results = await this.db.query<ProjectRow>(
+      `SELECT * FROM projects WHERE id IN (${placeholders})`,
+      ids,
+    );
+    return results.map(mapRow);
   }
 
   async findById(id: string): Promise<Project | null> {
-    const row = await this.db
-      .prepare("SELECT * FROM projects WHERE id = ?")
-      .bind(id)
-      .first<ProjectRow>();
+    const row = await this.db.queryOne<ProjectRow>(
+      "SELECT * FROM projects WHERE id = ?",
+      [id],
+    );
     return row ? mapRow(row) : null;
   }
 
   async findBySlug(slug: string): Promise<Project | null> {
-    const row = await this.db
-      .prepare("SELECT * FROM projects WHERE slug = ?")
-      .bind(slug)
-      .first<ProjectRow>();
+    const row = await this.db.queryOne<ProjectRow>(
+      "SELECT * FROM projects WHERE slug = ?",
+      [slug],
+    );
     return row ? mapRow(row) : null;
   }
 
   async create(input: CreateProjectRow): Promise<Project> {
     const id = generateId();
     const timestamp = nowIso();
-    await this.db
-      .prepare(
-        "INSERT INTO projects (id, name, slug, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
+    await this.db.execute(
+      "INSERT INTO projects (id, name, slug, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [
         id,
         input.name,
         input.slug,
@@ -137,8 +134,8 @@ export class ProjectRepository {
         input.isDefault ? 1 : 0,
         timestamp,
         timestamp,
-      )
-      .run();
+      ],
+    );
 
     return {
       id,
@@ -163,17 +160,15 @@ export class ProjectRepository {
         : existing.description;
     const isDefault = input.isDefault ?? existing.isDefault;
 
-    await this.db
-      .prepare(
-        "UPDATE projects SET name = ?, description = ?, is_default = ?, updated_at = ? WHERE id = ?",
-      )
-      .bind(name, description, isDefault ? 1 : 0, timestamp, id)
-      .run();
+    await this.db.execute(
+      "UPDATE projects SET name = ?, description = ?, is_default = ?, updated_at = ? WHERE id = ?",
+      [name, description, isDefault ? 1 : 0, timestamp, id],
+    );
 
     return { ...existing, name, description, isDefault, updatedAt: timestamp };
   }
 
   async delete(id: string): Promise<void> {
-    await this.db.prepare("DELETE FROM projects WHERE id = ?").bind(id).run();
+    await this.db.execute("DELETE FROM projects WHERE id = ?", [id]);
   }
 }

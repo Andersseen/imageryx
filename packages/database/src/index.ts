@@ -11,6 +11,7 @@
  */
 
 export * from "./client";
+export * from "./d1-database-client";
 export * from "./ids";
 
 export * from "./presets/system-presets";
@@ -26,5 +27,6 @@ export * from "./repositories/tag.repository";
 export * from "./repositories/variant.repository";
 
 export * from "./services/asset-persistence.service";
+export * from "./services/folder-persistence.service";
 export * from "./services/preset-persistence.service";
 export * from "./services/variant-persistence.service";

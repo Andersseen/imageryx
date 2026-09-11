@@ -4,9 +4,13 @@ import {
   ProjectRepository,
   VariantRepository,
 } from "@imageryx/database";
-import { buildOriginalStorageKey, createSignedToken } from "@imageryx/image-core";
+import {
+  buildOriginalStorageKey,
+  createSignedToken,
+} from "@imageryx/image-core";
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { testDb } from "./helpers";
 
 const PNG_BYTES = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49,
@@ -14,9 +18,12 @@ const PNG_BYTES = new Uint8Array([
 ]);
 
 async function createAsset(downloadOriginalEnabled: boolean) {
-  const projects = new ProjectRepository(env.DB);
-  const project = await projects.create({ name: "Download Test", slug: `dl-${crypto.randomUUID()}` });
-  const assets = new AssetRepository(env.DB);
+  const projects = new ProjectRepository(testDb());
+  const project = await projects.create({
+    name: "Download Test",
+    slug: `dl-${crypto.randomUUID()}`,
+  });
+  const assets = new AssetRepository(testDb());
   const assetId = crypto.randomUUID();
   const storageKey = buildOriginalStorageKey(project.id, assetId, "png");
   await env.ASSET_STORAGE.put(storageKey, PNG_BYTES);
@@ -45,14 +52,21 @@ describe("GET /download/:token", () => {
   it("streams the original with an attachment Content-Disposition for a valid token", async () => {
     const asset = await createAsset(true);
     const token = await createSignedToken(
-      { assetId: asset.id, variant: "original", exp: Math.floor(Date.now() / 1000) + 900, nonce: "n" },
+      {
+        assetId: asset.id,
+        variant: "original",
+        exp: Math.floor(Date.now() / 1000) + 900,
+        nonce: "n",
+      },
       env.DOWNLOAD_SIGNING_SECRET,
     );
 
     const response = await SELF.fetch(`https://example.com/download/${token}`);
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Disposition")).toContain("attachment");
-    expect(response.headers.get("Content-Disposition")).toContain(asset.originalFilename);
+    expect(response.headers.get("Content-Disposition")).toContain(
+      asset.originalFilename,
+    );
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     const body = new Uint8Array(await response.arrayBuffer());
     expect(body).toEqual(PNG_BYTES);
@@ -61,7 +75,12 @@ describe("GET /download/:token", () => {
   it("rejects an expired token", async () => {
     const asset = await createAsset(true);
     const token = await createSignedToken(
-      { assetId: asset.id, variant: "original", exp: Math.floor(Date.now() / 1000) - 10, nonce: "n" },
+      {
+        assetId: asset.id,
+        variant: "original",
+        exp: Math.floor(Date.now() / 1000) - 10,
+        nonce: "n",
+      },
       env.DOWNLOAD_SIGNING_SECRET,
     );
 
@@ -72,25 +91,39 @@ describe("GET /download/:token", () => {
   it("rejects a tampered token", async () => {
     const asset = await createAsset(true);
     const token = await createSignedToken(
-      { assetId: asset.id, variant: "original", exp: Math.floor(Date.now() / 1000) + 900, nonce: "n" },
+      {
+        assetId: asset.id,
+        variant: "original",
+        exp: Math.floor(Date.now() / 1000) + 900,
+        nonce: "n",
+      },
       env.DOWNLOAD_SIGNING_SECRET,
     );
     const [payload] = token.split(".");
     const tampered = `${payload}.tampered-signature`;
 
-    const response = await SELF.fetch(`https://example.com/download/${tampered}`);
+    const response = await SELF.fetch(
+      `https://example.com/download/${tampered}`,
+    );
     expect(response.status).toBe(400);
   });
 
   it("rejects a malformed token", async () => {
-    const response = await SELF.fetch("https://example.com/download/not-a-real-token");
+    const response = await SELF.fetch(
+      "https://example.com/download/not-a-real-token",
+    );
     expect(response.status).toBe(400);
   });
 
   it("refuses to serve the original when downloads are disabled for the asset", async () => {
     const asset = await createAsset(false);
     const token = await createSignedToken(
-      { assetId: asset.id, variant: "original", exp: Math.floor(Date.now() / 1000) + 900, nonce: "n" },
+      {
+        assetId: asset.id,
+        variant: "original",
+        exp: Math.floor(Date.now() / 1000) + 900,
+        nonce: "n",
+      },
       env.DOWNLOAD_SIGNING_SECRET,
     );
 
@@ -101,7 +134,12 @@ describe("GET /download/:token", () => {
   it("rejects a token whose payload was tampered with, even though the signature still parses", async () => {
     const asset = await createAsset(true);
     const token = await createSignedToken(
-      { assetId: asset.id, variant: "original", exp: Math.floor(Date.now() / 1000) + 900, nonce: "n" },
+      {
+        assetId: asset.id,
+        variant: "original",
+        exp: Math.floor(Date.now() / 1000) + 900,
+        nonce: "n",
+      },
       env.DOWNLOAD_SIGNING_SECRET,
     );
     // Flips one character in the base64url payload segment — the signature no longer matches, so
@@ -110,7 +148,9 @@ describe("GET /download/:token", () => {
     const flipped = payload!.at(-1) === "A" ? "B" : "A";
     const tamperedPayload = payload!.slice(0, -1) + flipped;
 
-    const response = await SELF.fetch(`https://example.com/download/${tamperedPayload}.${signature}`);
+    const response = await SELF.fetch(
+      `https://example.com/download/${tamperedPayload}.${signature}`,
+    );
     expect(response.status).toBe(400);
   });
 
@@ -133,7 +173,7 @@ describe("GET /download/:token", () => {
   it("returns 404 for a real variant that belongs to a different asset", async () => {
     const asset = await createAsset(true);
     const otherAsset = await createAsset(true);
-    const presets = new PresetRepository(env.DB);
+    const presets = new PresetRepository(testDb());
     const otherPreset = await presets.create({
       projectId: otherAsset.projectId,
       name: "Other Asset Preset",
@@ -142,7 +182,7 @@ describe("GET /download/:token", () => {
       outputFormat: "auto",
       quality: 75,
     });
-    const variants = new VariantRepository(env.DB);
+    const variants = new VariantRepository(testDb());
     const otherVariant = await variants.create({
       assetId: otherAsset.id,
       presetId: otherPreset.id,
@@ -154,7 +194,12 @@ describe("GET /download/:token", () => {
     // A token minted for `asset` but naming a variant that actually belongs to `otherAsset` must
     // never resolve — the delivery layer checks variant ownership, not just variant existence.
     const token = await createSignedToken(
-      { assetId: asset.id, variant: otherVariant.id, exp: Math.floor(Date.now() / 1000) + 900, nonce: "n" },
+      {
+        assetId: asset.id,
+        variant: otherVariant.id,
+        exp: Math.floor(Date.now() / 1000) + 900,
+        nonce: "n",
+      },
       env.DOWNLOAD_SIGNING_SECRET,
     );
 

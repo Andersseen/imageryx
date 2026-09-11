@@ -1,3 +1,4 @@
+import { createD1DatabaseClient } from "@imageryx/database";
 import { Hono } from "hono";
 import { getStorageProvider } from "../lib/env";
 import { resolveSignedDownload } from "../lib/signed-download";
@@ -11,7 +12,7 @@ export const downloadRoute = new Hono<{
 downloadRoute.get("/:token", async (c) => {
   const outcome = await resolveSignedDownload(
     {
-      db: c.env.DB,
+      db: createD1DatabaseClient(c.env.DB),
       storage: getStorageProvider(c.env),
       signingSecret: c.env.DOWNLOAD_SIGNING_SECRET,
     },
@@ -20,7 +21,13 @@ downloadRoute.get("/:token", async (c) => {
 
   if (outcome.kind === "error") {
     return c.json(
-      { error: { code: outcome.code, message: "Not Found", requestId: c.get("requestId") } },
+      {
+        error: {
+          code: outcome.code,
+          message: "Not Found",
+          requestId: c.get("requestId"),
+        },
+      },
       outcome.status,
     );
   }

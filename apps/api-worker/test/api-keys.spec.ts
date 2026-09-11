@@ -1,8 +1,8 @@
 import { ApiKeyRepository } from "@imageryx/database";
 import { createApiKey, hashApiKey } from "@imageryx/image-core";
-import { env, SELF } from "cloudflare:test";
+import { SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { authHeaders } from "./helpers";
+import { authHeaders, testDb } from "./helpers";
 
 describe("database-backed API keys", () => {
   it("creates a key, returns it once, and stores only its hash", async () => {
@@ -23,7 +23,7 @@ describe("database-backed API keys", () => {
     expect(body.prefix).toBe(body.key.slice(0, 16));
     expect(body.name).toBe("CI");
 
-    const stored = await new ApiKeyRepository(env.DB).findActiveByPrefix(
+    const stored = await new ApiKeyRepository(testDb()).findActiveByPrefix(
       body.prefix,
     );
     expect(stored?.hashedSecret).toMatch(/^[a-f0-9]{64}$/);
@@ -41,7 +41,7 @@ describe("database-backed API keys", () => {
 
   it("accepts a stored key and updates last_used_at", async () => {
     const generated = createApiKey("dev");
-    const record = await new ApiKeyRepository(env.DB).create({
+    const record = await new ApiKeyRepository(testDb()).create({
       name: "SDK",
       prefix: generated.prefix,
       hashedSecret: await hashApiKey(generated.key),
@@ -52,7 +52,7 @@ describe("database-backed API keys", () => {
     });
 
     expect(response.status).toBe(200);
-    const used = await new ApiKeyRepository(env.DB).findActiveByPrefix(
+    const used = await new ApiKeyRepository(testDb()).findActiveByPrefix(
       record.prefix,
     );
     expect(used?.lastUsedAt).toBeTruthy();
@@ -60,7 +60,7 @@ describe("database-backed API keys", () => {
 
   it("rejects invalid and revoked database keys", async () => {
     const generated = createApiKey("dev");
-    const repository = new ApiKeyRepository(env.DB);
+    const repository = new ApiKeyRepository(testDb());
     const record = await repository.create({
       name: "Revoked",
       prefix: generated.prefix,

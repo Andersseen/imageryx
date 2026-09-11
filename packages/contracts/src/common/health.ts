@@ -10,7 +10,8 @@ export type ServiceName =
   | "dashboard"
   | "api-worker"
   | "delivery-worker"
-  | "processing-worker";
+  | "processing-worker"
+  | "self-hosted";
 
 export interface HealthCheckResponse {
   service: ServiceName;

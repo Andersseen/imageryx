@@ -134,6 +134,48 @@ jobs:
           path: apps/dashboard/playwright-report
           retention-days: 7
 
+  self-hosted:
+    name: Self-hosted portability (Node + SQLite)
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_PATH: .local/self-hosted/imageryx.db
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # No external services: no Cloudflare/AWS/Cloudinary credentials, no Docker — proves the
+      # backend runs on plain Node + a local SQLite file, which is the entire point of this job.
+      - name: Build the Node runtime
+        run: pnpm build:self-hosted
+
+      - name: Apply migrations to a fresh SQLite database
+        run: pnpm db:migrate:self-hosted
+
+      - name: SQLite migration status
+        run: pnpm db:status:self-hosted
+
+      # Runs the D1 and SQLite repository parity suite (packages/database) — same command the
+      # main `check` job uses, kept here too so a self-host-only regression fails this focused
+      # job's name rather than only the generic one.
+      - name: Repository contract tests (D1 + SQLite parity)
+        run: pnpm --filter @imageryx/database run test
+
+      # Boots the real Node runtime over real HTTP and drives it — no database mocks.
+      - name: Node runtime integration test
+        run: pnpm test:self-hosted
+
   # ---------------------------------------------------------------------------
   # Deploy — runs only for a push to main, which is what a PR merge produces.
   #

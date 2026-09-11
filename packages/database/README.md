@@ -33,3 +33,24 @@ database, not mocks.
 
 No production API routes consume these repositories yet — that's Phase
 3's upload/asset CRUD routes on `api-worker`.
+
+## Self-host Phase A: runtime-independent execution
+
+Repositories/services are now written against a `DatabaseClient` interface
+(`src/client.ts`), not `D1Database` directly. Two adapters implement it:
+
+- `createD1DatabaseClient` (main barrel) — Cloudflare, unchanged behavior.
+- `createSqliteDatabaseClient` (`@imageryx/database/node` subpath,
+  Node-only — `node:sqlite`, never reachable from a Worker bundle) —
+  backs `apps/self-hosted`.
+
+Both run the same `migrations/*.sql` files. `src/testing/` now exposes
+`createSqliteTestDatabase()` alongside the existing D1 harness, and
+`describeRepositoryContract()` (`src/testing/repository-contract.ts`) runs
+one shared assertion suite against both — see
+`repository-contract.d1.spec.ts` / `repository-contract.sqlite.spec.ts`.
+`@imageryx/database/node` also has the self-host migration runner
+(`pnpm migrate:self-hosted` / `status:self-hosted` / `reset:self-hosted`
+from this package, or the root `pnpm db:*:self-hosted` aliases). See the
+root README's "Self-hosting" section and context.md's "Self-host Phase A
+decisions and limitations" for the full detail.

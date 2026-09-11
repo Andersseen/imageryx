@@ -46,7 +46,20 @@ pnpm test:integration  # touching the upload -> processing -> delivery pipeline
 pnpm test:e2e          # touching apps/dashboard (needs `pnpm e2e:install` once)
 pnpm test:a11y         # touching apps/dashboard templates/styles (same install)
 pnpm test:coverage     # touching a lot of one package — check you didn't drop its threshold
+pnpm test:self-hosted  # touching packages/database's repository layer or apps/self-hosted
 ```
+
+Any change to `packages/database`'s repositories/services must keep passing
+against **both** backends — the shared D1/SQLite parity suite
+(`describeRepositoryContract`, run by `packages/database`'s own `pnpm test`)
+already covers this, but also run `pnpm test:self-hosted` if you touched
+anything reachable from `apps/api-worker/src/portable.ts` (`projectsRoute`,
+`error-handler.ts`, `params.ts`, `log-activity.ts`, `lib/env.ts`) — those
+files must never reference the ambient Cloudflare `Env` type directly (see
+context.md's "Self-host Phase A decisions and limitations" for why, and the
+established fix: an explicit structural bindings interface, or a generic
+`Context`/`Hono` type parameter, never a fake ambient `Env` declared in the
+consuming package).
 
 Please run `pnpm test:e2e` for any dashboard change, and **especially** any
 change that adds a new route. This project has repeatedly shipped dashboard

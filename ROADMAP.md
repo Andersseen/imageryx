@@ -248,7 +248,30 @@ The first real personal deployment. Version target: `0.1.0`.
   notifications on processing events.
 - 0.5 Self-hosting — package-level distribution of the Workers/dashboard,
   a setup wizard, and a clean split between "this repo's own deployment"
-  and "a deployment anyone can stand up."
+  and "a deployment anyone can stand up." Staged, not one milestone —
+  the overall self-host milestone is **not** complete after Phase A:
+
+  ```text
+  Self-hosting
+
+  A — Runtime portability + SQLite       ✅ (this PR)
+  B — Filesystem + Sharp + local jobs
+  C — S3-compatible storage
+  D — Docker + auth + distribution
+  ```
+
+  **A (done):** `@imageryx/database`'s repositories run against a
+  runtime-independent `DatabaseClient` (D1 or SQLite via Node's built-in
+  `node:sqlite`), the same migrations apply to both, a shared D1/SQLite
+  parity test suite proves equivalent behavior, and a minimal
+  `apps/self-hosted` Node runtime boots real project CRUD through the same
+  route `api-worker` uses in production. Image storage, processing,
+  transformation, and self-host distribution are explicitly out of scope
+  for this stage — see README.md's "Self-hosting" section and context.md's
+  "Self-host Phase A decisions and limitations."
+  **B, C, D (not started):** local filesystem storage + real (Sharp-based)
+  image processing; S3-compatible object storage; Docker packaging, local
+  authentication, and a real setup/distribution flow.
 
 ## Future
 

@@ -5,8 +5,8 @@ import {
   hashApiKey,
 } from "@imageryx/image-core";
 import { createMiddleware } from "hono/factory";
+import type { AppVariables } from "../lib/app-variables";
 import { UnauthorizedError } from "../lib/errors";
-import type { RequestIdVariables } from "./request-id";
 
 const BEARER_PREFIX = "Bearer ";
 
@@ -20,7 +20,7 @@ const BEARER_PREFIX = "Bearer ";
  */
 export const requireApiKey = createMiddleware<{
   Bindings: Env;
-  Variables: RequestIdVariables;
+  Variables: AppVariables;
 }>(async (c, next) => {
   const header = c.req.header("Authorization");
   const token = header?.startsWith(BEARER_PREFIX)
@@ -35,7 +35,7 @@ export const requireApiKey = createMiddleware<{
 
   const prefix = extractApiKeyPrefix(token);
   if (prefix) {
-    const repository = new ApiKeyRepository(c.env.DB);
+    const repository = new ApiKeyRepository(c.get("db"));
     const apiKey = await repository.findActiveByPrefix(prefix);
     if (
       apiKey &&

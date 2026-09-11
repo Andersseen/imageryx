@@ -1,13 +1,13 @@
 import { ProcessingJobRepository, ProjectRepository } from "@imageryx/database";
-import { env, SELF } from "cloudflare:test";
+import { SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { authHeaders } from "./helpers";
+import { authHeaders, testDb } from "./helpers";
 
 describe("processing jobs", () => {
   let projectId: string;
 
   beforeEach(async () => {
-    const projects = new ProjectRepository(env.DB);
+    const projects = new ProjectRepository(testDb());
     const project = await projects.create({
       name: "Jobs Test",
       slug: `jobs-test-${crypto.randomUUID()}`,
@@ -16,7 +16,7 @@ describe("processing jobs", () => {
   });
 
   it("lists jobs scoped to a project", async () => {
-    const jobs = new ProcessingJobRepository(env.DB);
+    const jobs = new ProcessingJobRepository(testDb());
     const job = await jobs.create({
       projectId,
       type: "inspect-metadata",
@@ -32,7 +32,7 @@ describe("processing jobs", () => {
   });
 
   it("retries a failed job", async () => {
-    const jobs = new ProcessingJobRepository(env.DB);
+    const jobs = new ProcessingJobRepository(testDb());
     const job = await jobs.create({
       projectId,
       type: "inspect-metadata",
@@ -45,13 +45,16 @@ describe("processing jobs", () => {
       { method: "POST", headers: authHeaders() },
     );
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { status: string; errorCode: string | null };
+    const body = (await response.json()) as {
+      status: string;
+      errorCode: string | null;
+    };
     expect(body.status).toBe("queued");
     expect(body.errorCode).toBeNull();
   });
 
   it("refuses to retry a job that is not failed", async () => {
-    const jobs = new ProcessingJobRepository(env.DB);
+    const jobs = new ProcessingJobRepository(testDb());
     const job = await jobs.create({
       projectId,
       type: "inspect-metadata",
@@ -66,7 +69,7 @@ describe("processing jobs", () => {
   });
 
   it("cancels a queued job", async () => {
-    const jobs = new ProcessingJobRepository(env.DB);
+    const jobs = new ProcessingJobRepository(testDb());
     const job = await jobs.create({
       projectId,
       type: "inspect-metadata",
@@ -83,7 +86,7 @@ describe("processing jobs", () => {
   });
 
   it("refuses to cancel a job that is already processing", async () => {
-    const jobs = new ProcessingJobRepository(env.DB);
+    const jobs = new ProcessingJobRepository(testDb());
     const job = await jobs.create({
       projectId,
       type: "inspect-metadata",

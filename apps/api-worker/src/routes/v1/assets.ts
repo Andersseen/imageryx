@@ -41,13 +41,13 @@ import {
 } from "../../lib/errors";
 import { buildPaginatedResponse } from "../../lib/pagination";
 import { param } from "../../lib/params";
-import type { RequestIdVariables } from "../../middleware/request-id";
+import type { AppVariables } from "../../lib/app-variables";
 import { requestVariant } from "../../services/generate-variant.service";
 import { uploadAsset } from "../../services/upload-asset.service";
 
 export const assetsRoute = new Hono<{
   Bindings: Env;
-  Variables: RequestIdVariables;
+  Variables: AppVariables;
 }>();
 
 const SUPPORTED_MIME_TYPES = new Set<string>([
@@ -194,7 +194,7 @@ assetsRoute.post("/upload", async (c) => {
   const bytes = new Uint8Array(await file.arrayBuffer());
 
   const result = await uploadAsset(
-    { db: c.env.DB, storage: getStorageProvider(c.env), maxUploadSizeBytes },
+    { db: c.get("db"), storage: getStorageProvider(c.env), maxUploadSizeBytes },
     {
       projectId,
       folderId,
@@ -238,20 +238,20 @@ assetsRoute.get("/", async (c) => {
     throw new ValidationHttpError("projectId is a required query parameter.");
 
   const filter = parseAssetFilter(c, projectId);
-  const assets = new AssetRepository(c.env.DB);
+  const assets = new AssetRepository(c.get("db"));
   const [items, total] = await Promise.all([
     assets.list(filter),
     assets.count(filter),
   ]);
 
   const ids = items.map((asset) => asset.id);
-  const variants = new VariantRepository(c.env.DB);
+  const variants = new VariantRepository(c.get("db"));
   const [tagsByAsset, readyVariantsByAsset, readyPresetSlugsByAsset, folders] =
     await Promise.all([
-      new TagRepository(c.env.DB).listForAssets(ids),
+      new TagRepository(c.get("db")).listForAssets(ids),
       variants.countReadyByAssetIds(ids),
       variants.listReadyPresetSlugsByAssetIds(ids),
-      new FolderRepository(c.env.DB).listByIds([
+      new FolderRepository(c.get("db")).listByIds([
         ...new Set(
           items
             .map((asset) => asset.folderId)
@@ -289,24 +289,24 @@ assetsRoute.get("/", async (c) => {
 
 assetsRoute.get("/:assetId", async (c) => {
   const assetId = param(c, "assetId");
-  const asset = await new AssetRepository(c.env.DB).findById(assetId);
+  const asset = await new AssetRepository(c.get("db")).findById(assetId);
   if (!asset) throw new NotFoundError("asset");
 
   const [project, folder, tags, presets, variants, jobs, activity, duplicates] =
     await Promise.all([
-      new ProjectRepository(c.env.DB).findById(asset.projectId),
+      new ProjectRepository(c.get("db")).findById(asset.projectId),
       asset.folderId
-        ? new FolderRepository(c.env.DB).findById(asset.folderId)
+        ? new FolderRepository(c.get("db")).findById(asset.folderId)
         : Promise.resolve(null),
-      new TagRepository(c.env.DB).listAssetTags(asset.id),
-      new PresetRepository(c.env.DB).listByProject(asset.projectId),
-      new VariantRepository(c.env.DB).listByAsset(asset.id),
-      new ProcessingJobRepository(c.env.DB).list({
+      new TagRepository(c.get("db")).listAssetTags(asset.id),
+      new PresetRepository(c.get("db")).listByProject(asset.projectId),
+      new VariantRepository(c.get("db")).listByAsset(asset.id),
+      new ProcessingJobRepository(c.get("db")).list({
         projectId: asset.projectId,
         assetId: asset.id,
       }),
-      new AssetActivityRepository(c.env.DB).listByAsset(asset.id),
-      new AssetRepository(c.env.DB).listByChecksum(
+      new AssetActivityRepository(c.get("db")).listByAsset(asset.id),
+      new AssetRepository(c.get("db")).listByChecksum(
         asset.projectId,
         asset.checksum,
       ),
@@ -364,7 +364,7 @@ assetsRoute.patch("/:assetId", async (c) => {
   const assetId = param(c, "assetId");
   const body = updateAssetBodySchema.parse(await c.req.json());
 
-  const assets = new AssetRepository(c.env.DB);
+  const assets = new AssetRepository(c.get("db"));
   const existing = await assets.findById(assetId);
   if (!existing) throw new NotFoundError("asset");
   if (existing.deletedAt)
@@ -398,7 +398,7 @@ assetsRoute.patch("/:assetId", async (c) => {
     downloadOriginalEnabled: body.downloadOriginalEnabled,
   });
 
-  await new AssetActivityRepository(c.env.DB).record({
+  await new AssetActivityRepository(c.get("db")).record({
     assetId,
     projectId: existing.projectId,
     event: "asset.updated",
@@ -419,7 +419,7 @@ assetsRoute.post("/:assetId/move", async (c) => {
     id: assetId,
   });
 
-  const assets = new AssetRepository(c.env.DB);
+  const assets = new AssetRepository(c.get("db"));
   const existing = await assets.findById(assetId);
   if (!existing) throw new NotFoundError("asset");
   if (existing.deletedAt)
@@ -427,7 +427,7 @@ assetsRoute.post("/:assetId/move", async (c) => {
 
   let folder = null;
   if (body.folderId) {
-    folder = await new FolderRepository(c.env.DB).findById(body.folderId);
+    folder = await new FolderRepository(c.get("db")).findById(body.folderId);
     if (!folder || folder.projectId !== existing.projectId) {
       throw new ValidationHttpError(
         "folderId must reference a folder within the asset's own project.",
@@ -449,7 +449,7 @@ assetsRoute.post("/:assetId/move", async (c) => {
     path: nextPath,
   });
 
-  await new AssetActivityRepository(c.env.DB).record({
+  await new AssetActivityRepository(c.get("db")).record({
     assetId,
     projectId: existing.projectId,
     event: "asset.moved",
@@ -469,11 +469,11 @@ assetsRoute.put("/:assetId/tags", async (c) => {
   const assetId = param(c, "assetId");
   const body = replaceTagsBodySchema.parse(await c.req.json());
 
-  const assets = new AssetRepository(c.env.DB);
+  const assets = new AssetRepository(c.get("db"));
   const existing = await assets.findById(assetId);
   if (!existing) throw new NotFoundError("asset");
 
-  const tagsRepo = new TagRepository(c.env.DB);
+  const tagsRepo = new TagRepository(c.get("db"));
   const tagIds = await Promise.all(
     body.tags.map(
       async (name) =>
@@ -482,7 +482,7 @@ assetsRoute.put("/:assetId/tags", async (c) => {
   );
   await tagsRepo.setAssetTags(assetId, tagIds);
 
-  await new AssetActivityRepository(c.env.DB).record({
+  await new AssetActivityRepository(c.get("db")).record({
     assetId,
     projectId: existing.projectId,
     event: "asset.tags_changed",
@@ -499,10 +499,10 @@ assetsRoute.put("/:assetId/tags", async (c) => {
 
 assetsRoute.get("/:assetId/activity", async (c) => {
   const assetId = param(c, "assetId");
-  const existing = await new AssetRepository(c.env.DB).findById(assetId);
+  const existing = await new AssetRepository(c.get("db")).findById(assetId);
   if (!existing) throw new NotFoundError("asset");
 
-  const activity = await new AssetActivityRepository(c.env.DB).listByAsset(
+  const activity = await new AssetActivityRepository(c.get("db")).listByAsset(
     assetId,
   );
   return c.json({ items: activity });
@@ -510,10 +510,12 @@ assetsRoute.get("/:assetId/activity", async (c) => {
 
 assetsRoute.get("/:assetId/variants", async (c) => {
   const assetId = param(c, "assetId");
-  const existing = await new AssetRepository(c.env.DB).findById(assetId);
+  const existing = await new AssetRepository(c.get("db")).findById(assetId);
   if (!existing) throw new NotFoundError("asset");
 
-  const variants = await new VariantRepository(c.env.DB).listByAsset(assetId);
+  const variants = await new VariantRepository(c.get("db")).listByAsset(
+    assetId,
+  );
   return c.json({ items: variants });
 });
 
@@ -523,18 +525,20 @@ assetsRoute.get("/:assetId/variants", async (c) => {
 
 assetsRoute.get("/:assetId/delivery", async (c) => {
   const assetId = param(c, "assetId");
-  const asset = await new AssetRepository(c.env.DB).findById(assetId);
+  const asset = await new AssetRepository(c.get("db")).findById(assetId);
   if (!asset) throw new NotFoundError("asset");
 
-  const project = await new ProjectRepository(c.env.DB).findById(
+  const project = await new ProjectRepository(c.get("db")).findById(
     asset.projectId,
   );
   if (!project) throw new NotFoundError("project");
 
-  const presets = await new PresetRepository(c.env.DB).listByProject(
+  const presets = await new PresetRepository(c.get("db")).listByProject(
     asset.projectId,
   );
-  const variants = await new VariantRepository(c.env.DB).listByAsset(asset.id);
+  const variants = await new VariantRepository(c.get("db")).listByAsset(
+    asset.id,
+  );
   const readyPresetIds = new Set(
     variants.filter((v) => v.status === "ready").map((v) => v.presetId),
   );
@@ -568,7 +572,7 @@ assetsRoute.post("/:assetId/download-url", async (c) => {
     id: assetId,
   });
 
-  const asset = await new AssetRepository(c.env.DB).findById(assetId);
+  const asset = await new AssetRepository(c.get("db")).findById(assetId);
   if (!asset) throw new NotFoundError("asset");
   if (asset.deletedAt)
     throw new ConflictError("asset_deleted", "This asset has been deleted.");
@@ -581,7 +585,7 @@ assetsRoute.post("/:assetId/download-url", async (c) => {
       );
     }
   } else {
-    const variant = await new VariantRepository(c.env.DB).findById(
+    const variant = await new VariantRepository(c.get("db")).findById(
       body.variant,
     );
     if (!variant || variant.assetId !== assetId)
@@ -605,7 +609,7 @@ assetsRoute.post("/:assetId/download-url", async (c) => {
     c.env.DOWNLOAD_SIGNING_SECRET,
   );
 
-  await new AssetActivityRepository(c.env.DB).record({
+  await new AssetActivityRepository(c.get("db")).record({
     assetId,
     projectId: asset.projectId,
     event: "download.url_created",
@@ -630,10 +634,10 @@ assetsRoute.post("/:assetId/variants", async (c) => {
     assetId,
   });
 
-  const asset = await new AssetRepository(c.env.DB).findById(assetId);
+  const asset = await new AssetRepository(c.get("db")).findById(assetId);
   if (!asset) throw new NotFoundError("asset");
 
-  const outcome = await requestVariant(c.env.DB, {
+  const outcome = await requestVariant(c.get("db"), {
     assetId,
     presetId: body.presetId,
     persist: body.persist,
@@ -648,7 +652,7 @@ assetsRoute.post("/:assetId/variants", async (c) => {
       c.executionCtx.waitUntil.bind(c.executionCtx),
       outcome.processingJobId,
     );
-    await new AssetActivityRepository(c.env.DB).record({
+    await new AssetActivityRepository(c.get("db")).record({
       assetId,
       projectId: asset.projectId,
       event: "variant.requested",
@@ -687,7 +691,7 @@ assetsRoute.post("/:assetId/variants", async (c) => {
 
 assetsRoute.delete("/:assetId", async (c) => {
   const assetId = param(c, "assetId");
-  const assets = new AssetRepository(c.env.DB);
+  const assets = new AssetRepository(c.get("db"));
   const existing = await assets.findById(assetId);
   if (!existing) throw new NotFoundError("asset");
   if (existing.deletedAt)
@@ -697,7 +701,7 @@ assetsRoute.delete("/:assetId", async (c) => {
     );
 
   await assets.softDelete(assetId);
-  await new AssetActivityRepository(c.env.DB).record({
+  await new AssetActivityRepository(c.get("db")).record({
     assetId,
     projectId: existing.projectId,
     event: "asset.deleted",
@@ -708,13 +712,13 @@ assetsRoute.delete("/:assetId", async (c) => {
 
 assetsRoute.post("/:assetId/restore", async (c) => {
   const assetId = param(c, "assetId");
-  const assets = new AssetRepository(c.env.DB);
+  const assets = new AssetRepository(c.get("db"));
   const existing = await assets.findById(assetId);
   if (!existing) throw new NotFoundError("asset");
   if (!existing.deletedAt)
     throw new ConflictError("asset_not_deleted", "This asset is not deleted.");
 
-  const project = await new ProjectRepository(c.env.DB).findById(
+  const project = await new ProjectRepository(c.get("db")).findById(
     existing.projectId,
   );
   if (!project) {
@@ -724,7 +728,7 @@ assetsRoute.post("/:assetId/restore", async (c) => {
     );
   }
   if (existing.folderId) {
-    const folder = await new FolderRepository(c.env.DB).findById(
+    const folder = await new FolderRepository(c.get("db")).findById(
       existing.folderId,
     );
     if (!folder) {
@@ -745,7 +749,7 @@ assetsRoute.post("/:assetId/restore", async (c) => {
   }
 
   await assets.restore(assetId);
-  await new AssetActivityRepository(c.env.DB).record({
+  await new AssetActivityRepository(c.get("db")).record({
     assetId,
     projectId: existing.projectId,
     event: "asset.restored",

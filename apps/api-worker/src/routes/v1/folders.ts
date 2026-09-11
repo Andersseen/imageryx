@@ -1,17 +1,31 @@
-import { type Folder, folderNameSchema, folderSlugSchema } from "@imageryx/contracts";
-import { AssetRepository, FolderRepository, ProjectRepository } from "@imageryx/database";
+import {
+  type Folder,
+  folderNameSchema,
+  folderSlugSchema,
+} from "@imageryx/contracts";
+import {
+  AssetRepository,
+  FolderPersistenceService,
+  FolderRepository,
+  ProjectRepository,
+  type DatabaseClient,
+} from "@imageryx/database";
 import { joinLogicalPath } from "@imageryx/image-core";
 import { Hono } from "hono";
 import { z } from "zod";
-import { ConflictError, NotFoundError, ValidationHttpError } from "../../lib/errors";
+import type { AppVariables } from "../../lib/app-variables";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationHttpError,
+} from "../../lib/errors";
 import { logActivity } from "../../lib/log-activity";
 import { param } from "../../lib/params";
 import { slugify } from "../../lib/slugify";
-import type { RequestIdVariables } from "../../middleware/request-id";
 
 const MAX_FOLDER_DEPTH = 12;
 
-type AppEnv = { Bindings: Env; Variables: RequestIdVariables };
+type AppEnv = { Variables: AppVariables };
 
 export interface FolderTreeNode extends Folder {
   children: FolderTreeNode[];
@@ -34,7 +48,10 @@ function buildTree(folders: Folder[]): FolderTreeNode[] {
   return roots;
 }
 
-async function assertProjectExists(db: Env["DB"], projectId: string): Promise<void> {
+async function assertProjectExists(
+  db: DatabaseClient,
+  projectId: string,
+): Promise<void> {
   const project = await new ProjectRepository(db).findById(projectId);
   if (!project) throw new NotFoundError("project");
 }
@@ -44,12 +61,17 @@ export const foldersForProjectRoute = new Hono<AppEnv>();
 
 foldersForProjectRoute.get("/", async (c) => {
   const projectId = param(c, "projectId");
-  await assertProjectExists(c.env.DB, projectId);
+  await assertProjectExists(c.get("db"), projectId);
 
-  const folders = await new FolderRepository(c.env.DB).listByProject(projectId);
+  const folders = await new FolderRepository(c.get("db")).listByProject(
+    projectId,
+  );
   const includeTree = c.req.query("tree") === "true";
 
-  return c.json({ items: folders, ...(includeTree ? { tree: buildTree(folders) } : {}) });
+  return c.json({
+    items: folders,
+    ...(includeTree ? { tree: buildTree(folders) } : {}),
+  });
 });
 
 const createFolderBodySchema = z.object({
@@ -60,16 +82,18 @@ const createFolderBodySchema = z.object({
 
 foldersForProjectRoute.post("/", async (c) => {
   const projectId = param(c, "projectId");
-  await assertProjectExists(c.env.DB, projectId);
+  await assertProjectExists(c.get("db"), projectId);
 
   const body = createFolderBodySchema.parse(await c.req.json());
-  const folders = new FolderRepository(c.env.DB);
+  const folders = new FolderRepository(c.get("db"));
 
   let parent = null;
   if (body.parentId) {
     parent = await folders.findById(body.parentId);
     if (!parent || parent.projectId !== projectId) {
-      throw new ValidationHttpError("parentId does not reference a folder in this project.");
+      throw new ValidationHttpError(
+        "parentId does not reference a folder in this project.",
+      );
     }
   }
 
@@ -98,7 +122,11 @@ foldersForProjectRoute.post("/", async (c) => {
     path,
   });
 
-  logActivity(c, "folder.created", { projectId, folderId: folder.id, path: folder.path });
+  logActivity(c, "folder.created", {
+    projectId,
+    folderId: folder.id,
+    path: folder.path,
+  });
 
   return c.json(folder, 201);
 });
@@ -107,7 +135,9 @@ foldersForProjectRoute.post("/", async (c) => {
 export const foldersRoute = new Hono<AppEnv>();
 
 foldersRoute.get("/:folderId", async (c) => {
-  const folder = await new FolderRepository(c.env.DB).findById(param(c, "folderId"));
+  const folder = await new FolderRepository(c.get("db")).findById(
+    param(c, "folderId"),
+  );
   if (!folder) throw new NotFoundError("folder");
   return c.json(folder);
 });
@@ -124,7 +154,7 @@ const updateFolderBodySchema = z
 foldersRoute.patch("/:folderId", async (c) => {
   const folderId = param(c, "folderId");
   const body = updateFolderBodySchema.parse(await c.req.json());
-  const folders = new FolderRepository(c.env.DB);
+  const folders = new FolderRepository(c.get("db"));
 
   const existing = await folders.findById(folderId);
   if (!existing) throw new NotFoundError("folder");
@@ -143,19 +173,33 @@ foldersRoute.patch("/:folderId", async (c) => {
     if (body.parentId) {
       const targetParent = await folders.findById(body.parentId);
       if (!targetParent || targetParent.projectId !== existing.projectId) {
-        throw new ValidationHttpError("parentId does not reference a folder in this project.");
+        throw new ValidationHttpError(
+          "parentId does not reference a folder in this project.",
+        );
       }
-      if (targetParent.path === existing.path || targetParent.path.startsWith(`${existing.path}/`)) {
-        throw new ValidationHttpError("A folder cannot be moved into itself or one of its descendants.");
+      if (
+        targetParent.path === existing.path ||
+        targetParent.path.startsWith(`${existing.path}/`)
+      ) {
+        throw new ValidationHttpError(
+          "A folder cannot be moved into itself or one of its descendants.",
+        );
       }
-      const depth = joinLogicalPath(targetParent.path, existing.slug).split("/").length;
+      const depth = joinLogicalPath(targetParent.path, existing.slug).split(
+        "/",
+      ).length;
       if (depth > MAX_FOLDER_DEPTH) {
         throw new ValidationHttpError(
           `Folder nesting exceeds the maximum depth of ${MAX_FOLDER_DEPTH}.`,
         );
       }
     }
-    const moved = await folders.move(folderId, body.parentId);
+    // Cascades the path rewrite to descendant folders *and* descendant assets in one atomic
+    // batch — `FolderRepository.move()` alone only cascades to descendant folders, leaving
+    // `assets.path` stale (see context.md's "Folder move" note).
+    const moved = await new FolderPersistenceService(
+      c.get("db"),
+    ).moveFolderWithDescendants(folderId, body.parentId);
     if (moved) updated = moved;
   }
 
@@ -166,13 +210,13 @@ foldersRoute.patch("/:folderId", async (c) => {
 
 foldersRoute.delete("/:folderId", async (c) => {
   const folderId = param(c, "folderId");
-  const folders = new FolderRepository(c.env.DB);
+  const folders = new FolderRepository(c.get("db"));
   const existing = await folders.findById(folderId);
   if (!existing) throw new NotFoundError("folder");
 
   const [children, activeAssetCount] = await Promise.all([
     folders.listByParent(existing.projectId, folderId),
-    new AssetRepository(c.env.DB).count({
+    new AssetRepository(c.get("db")).count({
       projectId: existing.projectId,
       folderId,
       deleted: "active",

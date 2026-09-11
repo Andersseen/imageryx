@@ -1,7 +1,14 @@
-import { PresetRepository, ProcessingJobRepository } from "@imageryx/database";
+import {
+  PresetRepository,
+  ProcessingJobRepository,
+  type DatabaseClient,
+} from "@imageryx/database";
 
 /** Small per-project scan (JSON `input` isn't indexable) — pending job counts are small in this phase, so this stays a single bulk query plus an in-memory filter rather than N queries. */
-export async function hasJobsDependingOnPreset(db: Env["DB"], presetId: string): Promise<boolean> {
+export async function hasJobsDependingOnPreset(
+  db: DatabaseClient,
+  presetId: string,
+): Promise<boolean> {
   const preset = await new PresetRepository(db).findById(presetId);
   if (!preset) return false;
 

@@ -1,20 +1,32 @@
 import type { ImageAsset } from "@imageryx/contracts";
-import { AssetRepository, PresetRepository, ProjectRepository, VariantRepository, type D1Client } from "@imageryx/database";
+import {
+  AssetRepository,
+  PresetRepository,
+  ProjectRepository,
+  VariantRepository,
+  type DatabaseClient,
+} from "@imageryx/database";
 import { hashPreset } from "@imageryx/image-core";
 import type { StorageProvider } from "@imageryx/providers";
 import { withSvgSecurityHeaders } from "./svg-headers";
 
 export interface DeliveryDeps {
-  db: D1Client;
+  db: DatabaseClient;
   storage: StorageProvider;
 }
 
 export type DeliveryOutcome =
-  | { kind: "ok"; status: 200; headers: Record<string, string>; body: ReadableStream<Uint8Array> }
+  | {
+      kind: "ok";
+      status: 200;
+      headers: Record<string, string>;
+      body: ReadableStream<Uint8Array>;
+    }
   | { kind: "not-modified"; status: 304; headers: Record<string, string> }
   | { kind: "error"; status: 404; code: string };
 
-const ORIGINAL_CACHE_CONTROL = "public, max-age=3600, stale-while-revalidate=86400";
+const ORIGINAL_CACHE_CONTROL =
+  "public, max-age=3600, stale-while-revalidate=86400";
 const VARIANT_CACHE_CONTROL = "public, max-age=31536000, immutable";
 
 function notFound(code: string): DeliveryOutcome {
@@ -40,10 +52,15 @@ export async function resolveDelivery(
   deps: DeliveryDeps,
   input: ResolveDeliveryInput,
 ): Promise<DeliveryOutcome> {
-  const project = await new ProjectRepository(deps.db).findBySlug(input.projectSlug);
+  const project = await new ProjectRepository(deps.db).findBySlug(
+    input.projectSlug,
+  );
   if (!project) return notFound("project_not_found");
 
-  const asset = await new AssetRepository(deps.db).findByPublicPath(project.id, input.assetPath);
+  const asset = await new AssetRepository(deps.db).findByPublicPath(
+    project.id,
+    input.assetPath,
+  );
   if (!asset) return notFound("asset_not_found");
   if (asset.visibility !== "public") return notFound("asset_not_found");
 
@@ -51,7 +68,10 @@ export async function resolveDelivery(
     return streamOriginal(deps, asset, input.ifNoneMatch);
   }
 
-  const preset = await new PresetRepository(deps.db).findBySlug(project.id, input.presetSlug);
+  const preset = await new PresetRepository(deps.db).findBySlug(
+    project.id,
+    input.presetSlug,
+  );
   if (!preset) return notFound("preset_not_found");
 
   const presetHash = await hashPreset({
@@ -59,7 +79,10 @@ export async function resolveDelivery(
     outputFormat: preset.outputFormat,
     quality: preset.quality,
   });
-  const variant = await new VariantRepository(deps.db).findByAssetAndPresetHash(asset.id, presetHash);
+  const variant = await new VariantRepository(deps.db).findByAssetAndPresetHash(
+    asset.id,
+    presetHash,
+  );
   if (!variant || variant.status !== "ready" || !variant.storageKey) {
     return notFound("variant_not_ready");
   }
@@ -82,7 +105,11 @@ export async function resolveDelivery(
   }
 
   if (input.ifNoneMatch && input.ifNoneMatch === headers["ETag"]) {
-    return { kind: "not-modified", status: 304, headers: pick(headers, ["ETag", "Cache-Control"]) };
+    return {
+      kind: "not-modified",
+      status: 304,
+      headers: pick(headers, ["ETag", "Cache-Control"]),
+    };
   }
 
   return { kind: "ok", status: 200, headers, body: object.body };
@@ -122,7 +149,10 @@ async function streamOriginal(
   };
 }
 
-function pick<T extends Record<string, string>>(source: T, keys: (keyof T)[]): Record<string, string> {
+function pick<T extends Record<string, string>>(
+  source: T,
+  keys: (keyof T)[],
+): Record<string, string> {
   const result: Record<string, string> = {};
   for (const key of keys) {
     const value = source[key];

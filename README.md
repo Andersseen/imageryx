@@ -110,6 +110,7 @@ apps/
   api-worker/          Public API entry point (Hono)          → :8787
   delivery-worker/     Asset delivery edge (Hono)              → :8788
   processing-worker/   Queue consumer for transformation jobs  → :8789
+  self-hosted/         Minimal Node + SQLite runtime proof     → :8790
 
 packages/
   contracts/           Domain Zod schemas + inferred types, by domain
@@ -166,8 +167,20 @@ pnpm test:a11y        # Playwright + axe-core: an accessibility smoke scan of 5 
 pnpm test:coverage    # Per-package coverage against the thresholds in each vitest.config.ts
 pnpm e2e:install      # One-time: download the Chromium build Playwright uses
 pnpm check            # lint + typecheck + test + build, in dependency order (fast gate)
-pnpm check:full       # check, then test:integration, test:e2e, test:a11y, test:coverage — strictly
-                      # sequential (slow, complete gate)
+pnpm check:full       # check, then test:integration, test:e2e, test:a11y, test:coverage,
+                      # test:self-hosted — strictly sequential (slow, complete gate)
+```
+
+Self-hosted (Node + SQLite) runtime commands — see "Self-hosting" below:
+
+```bash
+pnpm db:migrate:self-hosted   # applies migrations to .local/self-hosted/imageryx.db
+pnpm db:status:self-hosted    # reports which migrations are applied
+pnpm db:reset:self-hosted     # DESTRUCTIVE — deletes the local self-hosted SQLite file
+pnpm dev:self-hosted          # tsx --watch, port 8790
+pnpm build:self-hosted        # typecheck the runtime (no bundling step in this phase)
+pnpm start:self-hosted        # runs the runtime once (no --watch)
+pnpm test:self-hosted         # boots the real runtime over real HTTP, no database mocks
 ```
 
 `pnpm check` is the fast gate: lint + typecheck + test + build, fanned out
@@ -593,6 +606,50 @@ the browser, since the dashboard proxies through its own server (see
 same lower-level pipeline directly against the SDK, useful when iterating
 on the SDK itself rather than the dashboard UI.
 
+## Self-hosting
+
+**Self-host runtime foundation is now available: the shared backend can run
+on Node with SQLite. Image storage, processing, transformations and
+self-host distribution are still implemented in later milestones.** This is
+not the complete self-hosted product — it proves the architecture, using
+the same `DatabaseClient` abstraction, the same migrations, and the real
+`/v1/projects` route `api-worker` uses in production, now running against
+`node:sqlite` instead of D1.
+
+```text
+                     Imageryx domain
+                           │
+                     repositories
+                           │
+                  DatabaseClient
+                    ┌─────┴─────┐
+                    │           │
+                   D1        SQLite
+                    │           │
+               Cloudflare      Node
+```
+
+```bash
+pnpm db:migrate:self-hosted
+pnpm dev:self-hosted    # http://localhost:8790
+curl http://localhost:8790/health
+curl http://localhost:8790/health/ready
+curl -X POST http://localhost:8790/v1/projects -H 'content-type: application/json' \
+  -d '{"name":"Local","slug":"local"}'
+```
+
+`DATABASE_PATH` defaults to `.local/self-hosted/imageryx.db` (repo-root
+relative; git-ignored) for local development — a real self-host deployment
+sets an absolute path instead (e.g. `DATABASE_PATH=/data/imageryx.db`).
+`node:sqlite` (Node's own built-in SQLite module, not a native-binding
+package like `better-sqlite3`) needs no separate install step and no native
+compilation. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full portability
+model and context.md's "Self-host Phase A" section for exact limitations —
+in short: only project CRUD is mounted (no asset upload, processing, or
+storage — those need the filesystem/Sharp/local-job-runner work in the next
+self-host milestone), and the runtime is deliberately unauthenticated in
+this phase.
+
 ## Diagnostic endpoints
 
 `api-worker` exposes four read-only, Bearer-auth-protected routes
@@ -703,6 +760,11 @@ incomplete combination fails fast rather than at first use:
   selector with a documented root-cause writeup, not fixed — see the
   comment above `KNOWN_COLOR_CONTRAST_EXCLUSIONS` in
   `apps/dashboard/e2e/accessibility.spec.ts`.
+- Self-hosting (see "Self-hosting" above) is runtime portability only —
+  `apps/self-hosted` mounts real project CRUD against real SQLite, nothing
+  more. No self-hosted upload, image processing, filesystem storage, local
+  auth, or distribution packaging yet; see ROADMAP.md's staged
+  self-hosting plan (A/B/C/D) for what's next.
 
 See context.md's "Phase 3 decisions and limitations", "Phase 4A decisions
 and limitations", and "Phase 4B decisions and limitations" sections for the

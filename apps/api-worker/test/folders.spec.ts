@@ -1,13 +1,17 @@
-import { AssetRepository, FolderRepository, ProjectRepository } from "@imageryx/database";
-import { env, SELF } from "cloudflare:test";
+import {
+  AssetRepository,
+  FolderRepository,
+  ProjectRepository,
+} from "@imageryx/database";
+import { SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { authHeaders } from "./helpers";
+import { authHeaders, testDb } from "./helpers";
 
 describe("folders", () => {
   let projectId: string;
 
   beforeEach(async () => {
-    const projects = new ProjectRepository(env.DB);
+    const projects = new ProjectRepository(testDb());
     const project = await projects.create({
       name: "Folder Test",
       slug: `folder-test-${crypto.randomUUID()}`,
@@ -71,7 +75,7 @@ describe("folders", () => {
   });
 
   it("rejects moving a folder into its own descendant", async () => {
-    const folders = new FolderRepository(env.DB);
+    const folders = new FolderRepository(testDb());
     const parent = await folders.create({
       projectId,
       parentId: null,
@@ -87,16 +91,19 @@ describe("folders", () => {
       path: "parent/child",
     });
 
-    const response = await SELF.fetch(`https://example.com/v1/folders/${parent.id}`, {
-      method: "PATCH",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ parentId: child.id }),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/folders/${parent.id}`,
+      {
+        method: "PATCH",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ parentId: child.id }),
+      },
+    );
     expect(response.status).toBe(400);
   });
 
   it("returns a flat list and, on request, a tree", async () => {
-    const folders = new FolderRepository(env.DB);
+    const folders = new FolderRepository(testDb());
     const parent = await folders.create({
       projectId,
       parentId: null,
@@ -116,14 +123,17 @@ describe("folders", () => {
       `https://example.com/v1/projects/${projectId}/folders?tree=true`,
       { headers: authHeaders() },
     );
-    const body = (await response.json()) as { items: unknown[]; tree: { children: unknown[] }[] };
+    const body = (await response.json()) as {
+      items: unknown[];
+      tree: { children: unknown[] }[];
+    };
     expect(body.items).toHaveLength(2);
     expect(body.tree).toHaveLength(1);
     expect(body.tree[0]?.children).toHaveLength(1);
   });
 
   it("rejects deleting a folder with active children or assets", async () => {
-    const folders = new FolderRepository(env.DB);
+    const folders = new FolderRepository(testDb());
     const folder = await folders.create({
       projectId,
       parentId: null,
@@ -131,7 +141,7 @@ describe("folders", () => {
       slug: "not-empty",
       path: "not-empty",
     });
-    const assets = new AssetRepository(env.DB);
+    const assets = new AssetRepository(testDb());
     await assets.create({
       projectId,
       folderId: folder.id,
@@ -148,10 +158,13 @@ describe("folders", () => {
       processingStatus: "ready",
     });
 
-    const response = await SELF.fetch(`https://example.com/v1/folders/${folder.id}`, {
-      method: "DELETE",
-      headers: authHeaders(),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/folders/${folder.id}`,
+      {
+        method: "DELETE",
+        headers: authHeaders(),
+      },
+    );
     expect(response.status).toBe(409);
   });
 });

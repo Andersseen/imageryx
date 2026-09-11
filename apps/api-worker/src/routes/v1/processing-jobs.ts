@@ -1,15 +1,25 @@
-import type { ProcessingJobStatus, ProcessingJobType } from "@imageryx/contracts";
-import { AssetActivityRepository, ProcessingJobRepository } from "@imageryx/database";
+import type {
+  ProcessingJobStatus,
+  ProcessingJobType,
+} from "@imageryx/contracts";
+import {
+  AssetActivityRepository,
+  ProcessingJobRepository,
+} from "@imageryx/database";
 import { Hono } from "hono";
+import type { AppVariables } from "../../lib/app-variables";
 import { dispatchProcessingJob } from "../../lib/dispatch-processing";
-import { ConflictError, NotFoundError, ValidationHttpError } from "../../lib/errors";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationHttpError,
+} from "../../lib/errors";
 import { buildPaginatedResponse } from "../../lib/pagination";
 import { param } from "../../lib/params";
-import type { RequestIdVariables } from "../../middleware/request-id";
 
 export const processingJobsRoute = new Hono<{
   Bindings: Env;
-  Variables: RequestIdVariables;
+  Variables: AppVariables;
 }>();
 
 const SUPPORTED_TYPES = new Set<string>([
@@ -31,34 +41,47 @@ const SUPPORTED_STATUSES = new Set<string>([
 
 processingJobsRoute.get("/", async (c) => {
   const projectId = c.req.query("projectId");
-  if (!projectId) throw new ValidationHttpError("projectId is a required query parameter.");
+  if (!projectId)
+    throw new ValidationHttpError("projectId is a required query parameter.");
 
   const page = Math.max(1, Number(c.req.query("page") ?? "1") || 1);
-  const pageSize = Math.min(100, Math.max(1, Number(c.req.query("pageSize") ?? "24") || 24));
+  const pageSize = Math.min(
+    100,
+    Math.max(1, Number(c.req.query("pageSize") ?? "24") || 24),
+  );
   const assetId = c.req.query("assetId") || undefined;
   const typeRaw = c.req.query("type");
-  const type = typeRaw && SUPPORTED_TYPES.has(typeRaw) ? (typeRaw as ProcessingJobType) : undefined;
+  const type =
+    typeRaw && SUPPORTED_TYPES.has(typeRaw)
+      ? (typeRaw as ProcessingJobType)
+      : undefined;
   const statusRaw = c.req.query("status");
   const status =
-    statusRaw && SUPPORTED_STATUSES.has(statusRaw) ? (statusRaw as ProcessingJobStatus) : undefined;
+    statusRaw && SUPPORTED_STATUSES.has(statusRaw)
+      ? (statusRaw as ProcessingJobStatus)
+      : undefined;
 
-  const jobs = new ProcessingJobRepository(c.env.DB);
-  const all = await jobs.list({ projectId, assetId, type, status });
-  const start = (page - 1) * pageSize;
-  const items = all.slice(start, start + pageSize);
+  const jobs = new ProcessingJobRepository(c.get("db"));
+  const { items, total } = await jobs.listPaginated(
+    { projectId, assetId, type, status },
+    page,
+    pageSize,
+  );
 
-  return c.json(buildPaginatedResponse(items, page, pageSize, all.length));
+  return c.json(buildPaginatedResponse(items, page, pageSize, total));
 });
 
 processingJobsRoute.get("/:jobId", async (c) => {
-  const job = await new ProcessingJobRepository(c.env.DB).findById(param(c, "jobId"));
+  const job = await new ProcessingJobRepository(c.get("db")).findById(
+    param(c, "jobId"),
+  );
   if (!job) throw new NotFoundError("processing_job");
   return c.json(job);
 });
 
 processingJobsRoute.post("/:jobId/retry", async (c) => {
   const jobId = param(c, "jobId");
-  const jobs = new ProcessingJobRepository(c.env.DB);
+  const jobs = new ProcessingJobRepository(c.get("db"));
   const job = await jobs.findById(jobId);
   if (!job) throw new NotFoundError("processing_job");
   if (job.status !== "failed") {
@@ -75,10 +98,14 @@ processingJobsRoute.post("/:jobId/retry", async (c) => {
     failedAt: null,
   });
 
-  await dispatchProcessingJob(c.env, c.executionCtx.waitUntil.bind(c.executionCtx), jobId);
+  await dispatchProcessingJob(
+    c.env,
+    c.executionCtx.waitUntil.bind(c.executionCtx),
+    jobId,
+  );
 
   if (job.assetId) {
-    await new AssetActivityRepository(c.env.DB).record({
+    await new AssetActivityRepository(c.get("db")).record({
       assetId: job.assetId,
       projectId: job.projectId,
       event: "processing.retried",
@@ -91,7 +118,7 @@ processingJobsRoute.post("/:jobId/retry", async (c) => {
 
 processingJobsRoute.post("/:jobId/cancel", async (c) => {
   const jobId = param(c, "jobId");
-  const jobs = new ProcessingJobRepository(c.env.DB);
+  const jobs = new ProcessingJobRepository(c.get("db"));
   const job = await jobs.findById(jobId);
   if (!job) throw new NotFoundError("processing_job");
   if (job.status !== "queued") {

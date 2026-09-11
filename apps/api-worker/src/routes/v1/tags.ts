@@ -5,19 +5,19 @@ import { z } from "zod";
 import { NotFoundError } from "../../lib/errors";
 import { logActivity } from "../../lib/log-activity";
 import { param } from "../../lib/params";
-import type { RequestIdVariables } from "../../middleware/request-id";
+import type { AppVariables } from "../../lib/app-variables";
 
-type AppEnv = { Bindings: Env; Variables: RequestIdVariables };
+type AppEnv = { Variables: AppVariables };
 
 /** Mounted at `/v1/projects/:projectId/tags` — project-scoped list and idempotent create. */
 export const tagsForProjectRoute = new Hono<AppEnv>();
 
 tagsForProjectRoute.get("/", async (c) => {
   const projectId = param(c, "projectId");
-  const project = await new ProjectRepository(c.env.DB).findById(projectId);
+  const project = await new ProjectRepository(c.get("db")).findById(projectId);
   if (!project) throw new NotFoundError("project");
 
-  const tags = await new TagRepository(c.env.DB).listByProject(projectId);
+  const tags = await new TagRepository(c.get("db")).listByProject(projectId);
   return c.json({ items: tags });
 });
 
@@ -25,11 +25,14 @@ const createTagBodySchema = z.object({ name: tagSchema });
 
 tagsForProjectRoute.post("/", async (c) => {
   const projectId = param(c, "projectId");
-  const project = await new ProjectRepository(c.env.DB).findById(projectId);
+  const project = await new ProjectRepository(c.get("db")).findById(projectId);
   if (!project) throw new NotFoundError("project");
 
   const body = createTagBodySchema.parse(await c.req.json());
-  const tag = await new TagRepository(c.env.DB).findOrCreate(projectId, body.name);
+  const tag = await new TagRepository(c.get("db")).findOrCreate(
+    projectId,
+    body.name,
+  );
   logActivity(c, "tag.created", { projectId, tagId: tag.id, name: tag.name });
 
   return c.json(tag, 201);
@@ -43,7 +46,7 @@ const updateTagBodySchema = z.object({ name: tagSchema });
 tagsRoute.patch("/:tagId", async (c) => {
   const tagId = param(c, "tagId");
   const body = updateTagBodySchema.parse(await c.req.json());
-  const tags = new TagRepository(c.env.DB);
+  const tags = new TagRepository(c.get("db"));
 
   const existing = await tags.findById(tagId);
   if (!existing) throw new NotFoundError("tag");
@@ -56,7 +59,7 @@ tagsRoute.patch("/:tagId", async (c) => {
 
 tagsRoute.delete("/:tagId", async (c) => {
   const tagId = param(c, "tagId");
-  const tags = new TagRepository(c.env.DB);
+  const tags = new TagRepository(c.get("db"));
   const existing = await tags.findById(tagId);
   if (!existing) throw new NotFoundError("tag");
 

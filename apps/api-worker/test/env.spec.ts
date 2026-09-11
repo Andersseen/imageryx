@@ -2,8 +2,8 @@ import { ProjectRepository } from "@imageryx/database";
 import { createDecodableImageFixture } from "@imageryx/test-utils";
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { getStorageProvider } from "../src/lib/env";
-import { authHeaders } from "./helpers";
+import { getStorageProvider, type ApiWorkerEnvBindings } from "../src/lib/env";
+import { authHeaders, testDb } from "./helpers";
 
 /**
  * Regression cover for the production-only upload failure: this Worker's
@@ -17,22 +17,26 @@ import { authHeaders } from "./helpers";
  */
 describe("getStorageProvider", () => {
   it("builds a storage provider with a cloudinary transformation provider and no cloudinary credentials", () => {
+    // Deliberately includes fields `ApiWorkerEnvBindings` doesn't declare (transformation-provider
+    // config) to prove `getStorageProvider` ignores them entirely — see the regression note above.
+    const envWithIrrelevantTransformationConfig = {
+      ...env,
+      STORAGE_PROVIDER: "r2",
+      TRANSFORMATION_PROVIDER: "cloudinary",
+      CLOUDINARY_CLOUD_NAME: undefined,
+      CLOUDINARY_API_KEY: undefined,
+      CLOUDINARY_API_SECRET: undefined,
+    } as unknown as ApiWorkerEnvBindings;
+
     expect(() =>
-      getStorageProvider({
-        ...env,
-        STORAGE_PROVIDER: "r2",
-        TRANSFORMATION_PROVIDER: "cloudinary",
-        CLOUDINARY_CLOUD_NAME: undefined,
-        CLOUDINARY_API_KEY: undefined,
-        CLOUDINARY_API_SECRET: undefined,
-      }),
+      getStorageProvider(envWithIrrelevantTransformationConfig),
     ).not.toThrow();
   });
 });
 
 describe("upload under the production provider configuration", () => {
   it("accepts an upload when TRANSFORMATION_PROVIDER=cloudinary without cloudinary credentials", async () => {
-    const project = await new ProjectRepository(env.DB).create({
+    const project = await new ProjectRepository(testDb()).create({
       name: "Production Config",
       slug: `production-config-${crypto.randomUUID()}`,
     });

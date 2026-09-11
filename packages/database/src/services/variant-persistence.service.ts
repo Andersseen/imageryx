@@ -1,5 +1,5 @@
 import { DuplicateVariantError } from "@imageryx/image-core";
-import type { D1Client } from "../client";
+import type { DatabaseClient } from "../client";
 import { generateId, nowIso } from "../ids";
 import {
   ProcessingJobRepository,
@@ -27,7 +27,7 @@ export class VariantPersistenceService {
   private readonly variants: VariantRepository;
   private readonly processingJobs: ProcessingJobRepository;
 
-  constructor(private readonly db: D1Client) {
+  constructor(private readonly db: DatabaseClient) {
     this.variants = new VariantRepository(db);
     this.processingJobs = new ProcessingJobRepository(db);
   }

@@ -3,7 +3,7 @@ import {
   type ImageAsset,
   assetSchema,
 } from "@imageryx/contracts";
-import type { D1Client } from "../client";
+import type { DatabaseClient, DatabaseStatement } from "../client";
 import { generateId, nowIso } from "../ids";
 
 interface AssetRow {
@@ -203,7 +203,7 @@ function escapeLikePattern(value: string): string {
 }
 
 export class AssetRepository {
-  constructor(private readonly db: D1Client) {}
+  constructor(private readonly db: DatabaseClient) {}
 
   async list(filters: AssetFilter): Promise<ImageAsset[]> {
     const where = buildWhereClause(filters);
@@ -211,30 +211,28 @@ export class AssetRepository {
     const direction = filters.sortDirection === "asc" ? "ASC" : "DESC";
     const offset = (filters.page - 1) * filters.pageSize;
 
-    const result = await this.db
-      .prepare(
-        `SELECT assets.* FROM assets WHERE ${where.sql} ORDER BY assets.${sortColumn} ${direction} LIMIT ? OFFSET ?`,
-      )
-      .bind(...where.params, filters.pageSize, offset)
-      .all<AssetRow>();
+    const results = await this.db.query<AssetRow>(
+      `SELECT assets.* FROM assets WHERE ${where.sql} ORDER BY assets.${sortColumn} ${direction} LIMIT ? OFFSET ?`,
+      [...where.params, filters.pageSize, offset],
+    );
 
-    return result.results.map(mapRow);
+    return results.map(mapRow);
   }
 
   async count(filters: AssetFilter): Promise<number> {
     const where = buildWhereClause(filters);
-    const row = await this.db
-      .prepare(`SELECT COUNT(*) as total FROM assets WHERE ${where.sql}`)
-      .bind(...where.params)
-      .first<{ total: number }>();
+    const row = await this.db.queryOne<{ total: number }>(
+      `SELECT COUNT(*) as total FROM assets WHERE ${where.sql}`,
+      where.params,
+    );
     return row?.total ?? 0;
   }
 
   async findById(id: string): Promise<ImageAsset | null> {
-    const row = await this.db
-      .prepare("SELECT * FROM assets WHERE id = ?")
-      .bind(id)
-      .first<AssetRow>();
+    const row = await this.db.queryOne<AssetRow>(
+      "SELECT * FROM assets WHERE id = ?",
+      [id],
+    );
     return row ? mapRow(row) : null;
   }
 
@@ -242,12 +240,10 @@ export class AssetRepository {
     projectId: string,
     path: string,
   ): Promise<ImageAsset | null> {
-    const row = await this.db
-      .prepare(
-        "SELECT * FROM assets WHERE project_id = ? AND path = ? AND deleted_at IS NULL",
-      )
-      .bind(projectId, path)
-      .first<AssetRow>();
+    const row = await this.db.queryOne<AssetRow>(
+      "SELECT * FROM assets WHERE project_id = ? AND path = ? AND deleted_at IS NULL",
+      [projectId, path],
+    );
     return row ? mapRow(row) : null;
   }
 
@@ -255,12 +251,10 @@ export class AssetRepository {
     projectId: string,
     checksum: string,
   ): Promise<ImageAsset | null> {
-    const row = await this.db
-      .prepare(
-        "SELECT * FROM assets WHERE project_id = ? AND checksum = ? AND deleted_at IS NULL",
-      )
-      .bind(projectId, checksum)
-      .first<AssetRow>();
+    const row = await this.db.queryOne<AssetRow>(
+      "SELECT * FROM assets WHERE project_id = ? AND checksum = ? AND deleted_at IS NULL",
+      [projectId, checksum],
+    );
     return row ? mapRow(row) : null;
   }
 
@@ -269,23 +263,48 @@ export class AssetRepository {
     projectId: string,
     checksum: string,
   ): Promise<ImageAsset[]> {
-    const result = await this.db
-      .prepare(
-        "SELECT * FROM assets WHERE project_id = ? AND checksum = ? AND deleted_at IS NULL",
-      )
-      .bind(projectId, checksum)
-      .all<AssetRow>();
-    return result.results.map(mapRow);
+    const results = await this.db.query<AssetRow>(
+      "SELECT * FROM assets WHERE project_id = ? AND checksum = ? AND deleted_at IS NULL",
+      [projectId, checksum],
+    );
+    return results.map(mapRow);
   }
 
   async listByIds(ids: readonly string[]): Promise<ImageAsset[]> {
     if (ids.length === 0) return [];
     const placeholders = ids.map(() => "?").join(", ");
-    const result = await this.db
-      .prepare(`SELECT * FROM assets WHERE id IN (${placeholders})`)
-      .bind(...ids)
-      .all<AssetRow>();
-    return result.results.map(mapRow);
+    const results = await this.db.query<AssetRow>(
+      `SELECT * FROM assets WHERE id IN (${placeholders})`,
+      ids,
+    );
+    return results.map(mapRow);
+  }
+
+  /** Every active asset directly inside any of the given folders — used to cascade a folder-path rewrite to its descendant assets (`FolderPersistenceService.moveFolderWithDescendants`). Deliberately active-only: a soft-deleted asset's stale path is never surfaced through delivery anyway. */
+  async listActiveByFolderIds(
+    folderIds: readonly string[],
+  ): Promise<ImageAsset[]> {
+    if (folderIds.length === 0) return [];
+    const placeholders = folderIds.map(() => "?").join(", ");
+    const results = await this.db.query<AssetRow>(
+      `SELECT * FROM assets WHERE folder_id IN (${placeholders}) AND deleted_at IS NULL`,
+      folderIds,
+    );
+    return results.map(mapRow);
+  }
+
+  /** Active assets at any of the given paths — used to detect a destination-path collision before a folder-move cascade writes anything. */
+  async findActiveByPaths(
+    projectId: string,
+    paths: readonly string[],
+  ): Promise<ImageAsset[]> {
+    if (paths.length === 0) return [];
+    const placeholders = paths.map(() => "?").join(", ");
+    const results = await this.db.query<AssetRow>(
+      `SELECT * FROM assets WHERE project_id = ? AND deleted_at IS NULL AND path IN (${placeholders})`,
+      [projectId, ...paths],
+    );
+    return results.map(mapRow);
   }
 
   /** One grouped query instead of one COUNT/SUM per project — used by the project list endpoint. Active (non-deleted) assets only. */
@@ -295,16 +314,21 @@ export class AssetRepository {
     const map = new Map<string, { count: number; totalBytes: number }>();
     if (projectIds.length === 0) return map;
     const placeholders = projectIds.map(() => "?").join(", ");
-    const result = await this.db
-      .prepare(
-        `SELECT project_id, COUNT(*) as count, COALESCE(SUM(size_bytes), 0) as total_bytes
+    const results = await this.db.query<{
+      project_id: string;
+      count: number;
+      total_bytes: number;
+    }>(
+      `SELECT project_id, COUNT(*) as count, COALESCE(SUM(size_bytes), 0) as total_bytes
          FROM assets WHERE project_id IN (${placeholders}) AND deleted_at IS NULL
          GROUP BY project_id`,
-      )
-      .bind(...projectIds)
-      .all<{ project_id: string; count: number; total_bytes: number }>();
-    for (const row of result.results) {
-      map.set(row.project_id, { count: row.count, totalBytes: row.total_bytes });
+      projectIds,
+    );
+    for (const row of results) {
+      map.set(row.project_id, {
+        count: row.count,
+        totalBytes: row.total_bytes,
+      });
     }
     return map;
   }
@@ -316,16 +340,18 @@ export class AssetRepository {
    * unexecuted statement in one batch. `create()` below is the normal
    * single-table convenience wrapper around this.
    */
-  buildInsertStatement(id: string, input: CreateAssetRow, timestamp: string) {
-    return this.db
-      .prepare(
-        `INSERT INTO assets (
+  buildInsertStatement(
+    id: string,
+    input: CreateAssetRow,
+    timestamp: string,
+  ): DatabaseStatement {
+    return {
+      sql: `INSERT INTO assets (
           id, project_id, folder_id, name, slug, path, storage_key, original_filename, mime_type, extension,
           width, height, aspect_ratio, size_bytes, checksum, has_alpha, dominant_color, placeholder,
           visibility, processing_status, download_original_enabled, created_at, updated_at, deleted_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
+      params: [
         id,
         input.projectId,
         input.folderId ?? null,
@@ -354,13 +380,30 @@ export class AssetRepository {
         timestamp,
         timestamp,
         null,
-      );
+      ],
+    };
+  }
+
+  /** Unexecuted `UPDATE ... SET path = ?` statement — the asset-side counterpart to `FolderRepository.buildMoveStatements`, combined in one batch by `FolderPersistenceService.moveFolderWithDescendants`. */
+  buildUpdatePathStatement(
+    id: string,
+    path: string,
+    timestamp: string,
+  ): DatabaseStatement {
+    return {
+      sql: "UPDATE assets SET path = ?, updated_at = ? WHERE id = ?",
+      params: [path, timestamp, id],
+    };
   }
 
   /** `id`, when provided, lets a caller pre-generate the asset ID (e.g. to build its physical storage key before writing the object) so the stored bytes and the row agree on the same ID. */
-  async create(input: CreateAssetRow, id: string = generateId()): Promise<ImageAsset> {
+  async create(
+    input: CreateAssetRow,
+    id: string = generateId(),
+  ): Promise<ImageAsset> {
     const timestamp = nowIso();
-    await this.buildInsertStatement(id, input, timestamp).run();
+    const statement = this.buildInsertStatement(id, input, timestamp);
+    await this.db.execute(statement.sql, statement.params);
 
     const created = await this.findById(id);
     if (!created) throw new Error("failed to read back newly created asset");
@@ -400,13 +443,11 @@ export class AssetRepository {
           : existing.placeholder,
     };
 
-    await this.db
-      .prepare(
-        `UPDATE assets SET name = ?, slug = ?, path = ?, folder_id = ?, visibility = ?, processing_status = ?, download_original_enabled = ?,
+    await this.db.execute(
+      `UPDATE assets SET name = ?, slug = ?, path = ?, folder_id = ?, visibility = ?, processing_status = ?, download_original_enabled = ?,
           width = ?, height = ?, aspect_ratio = ?, has_alpha = ?, dominant_color = ?, placeholder = ?, updated_at = ?
         WHERE id = ?`,
-      )
-      .bind(
+      [
         merged.name,
         merged.slug,
         merged.path,
@@ -422,27 +463,25 @@ export class AssetRepository {
         merged.placeholder,
         timestamp,
         id,
-      )
-      .run();
+      ],
+    );
 
     return { ...existing, ...merged, updatedAt: timestamp };
   }
 
   async softDelete(id: string): Promise<void> {
     const timestamp = nowIso();
-    await this.db
-      .prepare("UPDATE assets SET deleted_at = ?, updated_at = ? WHERE id = ?")
-      .bind(timestamp, timestamp, id)
-      .run();
+    await this.db.execute(
+      "UPDATE assets SET deleted_at = ?, updated_at = ? WHERE id = ?",
+      [timestamp, timestamp, id],
+    );
   }
 
   async restore(id: string): Promise<void> {
     const timestamp = nowIso();
-    await this.db
-      .prepare(
-        "UPDATE assets SET deleted_at = NULL, updated_at = ? WHERE id = ?",
-      )
-      .bind(timestamp, id)
-      .run();
+    await this.db.execute(
+      "UPDATE assets SET deleted_at = NULL, updated_at = ? WHERE id = ?",
+      [timestamp, id],
+    );
   }
 }

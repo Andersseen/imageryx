@@ -13,6 +13,7 @@ const SERVICE_NAMES: readonly ServiceName[] = [
   "api-worker",
   "delivery-worker",
   "processing-worker",
+  "self-hosted",
 ];
 
 const STATUSES = ["healthy", "degraded", "down"];

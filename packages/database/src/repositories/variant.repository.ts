@@ -1,6 +1,6 @@
 import { type ImageVariant, variantSchema } from "@imageryx/contracts";
 import { DuplicateVariantError } from "@imageryx/image-core";
-import type { D1Client } from "../client";
+import type { DatabaseClient, DatabaseStatement } from "../client";
 import { generateId, nowIso } from "../ids";
 
 interface VariantRow {
@@ -63,23 +63,21 @@ export interface UpdateVariantRow {
 const UNIQUE_CONSTRAINT_ERROR_PATTERN = /UNIQUE constraint failed/i;
 
 export class VariantRepository {
-  constructor(private readonly db: D1Client) {}
+  constructor(private readonly db: DatabaseClient) {}
 
   async listByAsset(assetId: string): Promise<ImageVariant[]> {
-    const result = await this.db
-      .prepare(
-        "SELECT * FROM variants WHERE asset_id = ? ORDER BY created_at ASC",
-      )
-      .bind(assetId)
-      .all<VariantRow>();
-    return result.results.map(mapRow);
+    const results = await this.db.query<VariantRow>(
+      "SELECT * FROM variants WHERE asset_id = ? ORDER BY created_at ASC",
+      [assetId],
+    );
+    return results.map(mapRow);
   }
 
   async findById(id: string): Promise<ImageVariant | null> {
-    const row = await this.db
-      .prepare("SELECT * FROM variants WHERE id = ?")
-      .bind(id)
-      .first<VariantRow>();
+    const row = await this.db.queryOne<VariantRow>(
+      "SELECT * FROM variants WHERE id = ?",
+      [id],
+    );
     return row ? mapRow(row) : null;
   }
 
@@ -87,10 +85,10 @@ export class VariantRepository {
     assetId: string,
     presetHash: string,
   ): Promise<ImageVariant | null> {
-    const row = await this.db
-      .prepare("SELECT * FROM variants WHERE asset_id = ? AND preset_hash = ?")
-      .bind(assetId, presetHash)
-      .first<VariantRow>();
+    const row = await this.db.queryOne<VariantRow>(
+      "SELECT * FROM variants WHERE asset_id = ? AND preset_hash = ?",
+      [assetId, presetHash],
+    );
     return row ? mapRow(row) : null;
   }
 
@@ -100,13 +98,11 @@ export class VariantRepository {
     const map = new Map<string, number>();
     if (assetIds.length === 0) return map;
     const placeholders = assetIds.map(() => "?").join(", ");
-    const result = await this.db
-      .prepare(
-        `SELECT asset_id, COUNT(*) as count FROM variants WHERE asset_id IN (${placeholders}) AND status = 'ready' GROUP BY asset_id`,
-      )
-      .bind(...assetIds)
-      .all<{ asset_id: string; count: number }>();
-    for (const row of result.results) map.set(row.asset_id, row.count);
+    const results = await this.db.query<{ asset_id: string; count: number }>(
+      `SELECT asset_id, COUNT(*) as count FROM variants WHERE asset_id IN (${placeholders}) AND status = 'ready' GROUP BY asset_id`,
+      assetIds,
+    );
+    for (const row of results) map.set(row.asset_id, row.count);
     return map;
   }
 
@@ -123,16 +119,14 @@ export class VariantRepository {
     const map = new Map<string, string[]>();
     if (assetIds.length === 0) return map;
     const placeholders = assetIds.map(() => "?").join(", ");
-    const result = await this.db
-      .prepare(
-        `SELECT v.asset_id, p.slug FROM variants v
+    const results = await this.db.query<{ asset_id: string; slug: string }>(
+      `SELECT v.asset_id, p.slug FROM variants v
          JOIN presets p ON p.id = v.preset_id
          WHERE v.asset_id IN (${placeholders}) AND v.status = 'ready'
          ORDER BY p.slug ASC`,
-      )
-      .bind(...assetIds)
-      .all<{ asset_id: string; slug: string }>();
-    for (const row of result.results) {
+      assetIds,
+    );
+    for (const row of results) {
       const existing = map.get(row.asset_id);
       if (existing) existing.push(row.slug);
       else map.set(row.asset_id, [row.slug]);
@@ -141,12 +135,14 @@ export class VariantRepository {
   }
 
   /** Unexecuted counterpart to `create()`, for combining with another repository's statement in a `db.batch()` call (e.g. `VariantPersistenceService`). */
-  buildInsertStatement(id: string, input: CreateVariantRow, timestamp: string) {
-    return this.db
-      .prepare(
-        "INSERT INTO variants (id, asset_id, preset_id, preset_hash, provider, storage_key, delivery_url, mime_type, width, height, size_bytes, checksum, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ?, ?, ?)",
-      )
-      .bind(
+  buildInsertStatement(
+    id: string,
+    input: CreateVariantRow,
+    timestamp: string,
+  ): DatabaseStatement {
+    return {
+      sql: "INSERT INTO variants (id, asset_id, preset_id, preset_hash, provider, storage_key, delivery_url, mime_type, width, height, size_bytes, checksum, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ?, ?, ?)",
+      params: [
         id,
         input.assetId,
         input.presetId,
@@ -155,7 +151,8 @@ export class VariantRepository {
         input.status,
         timestamp,
         timestamp,
-      );
+      ],
+    };
   }
 
   /** Relies on `idx_variants_unique_asset_preset_hash` to make a duplicate impossible, and translates the raw constraint failure into a typed domain error. */
@@ -163,7 +160,8 @@ export class VariantRepository {
     const id = generateId();
     const timestamp = nowIso();
     try {
-      await this.buildInsertStatement(id, input, timestamp).run();
+      const statement = this.buildInsertStatement(id, input, timestamp);
+      await this.db.execute(statement.sql, statement.params);
     } catch (error) {
       if (
         error instanceof Error &&
@@ -221,11 +219,9 @@ export class VariantRepository {
         input.checksum !== undefined ? input.checksum : existing.checksum,
     };
 
-    await this.db
-      .prepare(
-        "UPDATE variants SET status = ?, storage_key = ?, delivery_url = ?, mime_type = ?, width = ?, height = ?, size_bytes = ?, checksum = ?, updated_at = ? WHERE id = ?",
-      )
-      .bind(
+    await this.db.execute(
+      "UPDATE variants SET status = ?, storage_key = ?, delivery_url = ?, mime_type = ?, width = ?, height = ?, size_bytes = ?, checksum = ?, updated_at = ? WHERE id = ?",
+      [
         merged.status,
         merged.storageKey,
         merged.deliveryUrl,
@@ -236,8 +232,8 @@ export class VariantRepository {
         merged.checksum,
         timestamp,
         id,
-      )
-      .run();
+      ],
+    );
 
     return { ...existing, ...merged, updatedAt: timestamp };
   }

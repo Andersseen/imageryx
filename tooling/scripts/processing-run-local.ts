@@ -11,8 +11,8 @@
 import { join, resolve } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { R2Bucket } from "@cloudflare/workers-types";
-import type { D1Client } from "@imageryx/database";
+import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
+import { createD1DatabaseClient } from "@imageryx/database";
 import {
   readApiWorkerD1Config,
   readApiWorkerR2Config,
@@ -43,25 +43,24 @@ async function main(): Promise<void> {
   });
 
   try {
-    const db = (await mf.getD1Database(d1Binding)) as unknown as D1Client;
+    const rawDb = (await mf.getD1Database(d1Binding)) as unknown as D1Database;
+    const db = createD1DatabaseClient(rawDb);
     const bucket = (await mf.getR2Bucket(r2Binding)) as unknown as R2Bucket;
     const storage = new R2StorageProvider(bucket);
 
-    const queued = await db
-      .prepare(
-        "SELECT id FROM processing_jobs WHERE status = 'queued' ORDER BY created_at ASC",
-      )
-      .all<{ id: string }>();
+    const queued = await db.query<{ id: string }>(
+      "SELECT id FROM processing_jobs WHERE status = 'queued' ORDER BY created_at ASC",
+    );
 
-    if (queued.results.length === 0) {
+    if (queued.length === 0) {
       console.log("No queued processing jobs found.");
       return;
     }
 
-    console.log(`Draining ${queued.results.length} queued job(s)...`);
+    console.log(`Draining ${queued.length} queued job(s)...`);
     let completed = 0;
     let failed = 0;
-    for (const row of queued.results) {
+    for (const row of queued) {
       const outcome = await processJob(
         { db, storage, maxAttempts: 3, cloudinary: null, images: null },
         row.id,

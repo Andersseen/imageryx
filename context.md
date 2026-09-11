@@ -1521,3 +1521,247 @@ ON DELETE CASCADE`, and SQLite's documented `DROP TABLE` behavior with
   tuning — functionally correct, just not customizable through the UI
   yet); browser-side pre-upload compression; redesigning delivery around
   Cloudflare Images' on-demand URLs.
+
+## Self-host Phase A decisions and limitations
+
+Read this before touching `packages/database`, any Worker's repository
+construction, or `apps/self-hosted` — this phase made the repository layer
+runtime-independent and proved it on Node + SQLite, without touching
+storage, processing, or auth. Read ROADMAP.md's staged self-hosting plan
+(A/B/C/D) first — this section only covers Phase A.
+
+### D1 coupling audit
+
+Every repository/service in `packages/database/src/{repositories,services}`
+took a raw `D1Client` (`= D1Database`) and called
+`.prepare(sql).bind(...params).all()/.first()/.run()` directly — 9
+repositories, 3 services, ~80 call sites, plus `.batch()` in 5 places
+(folder move, tag delete, asset+activity, variant+processing-job). Three
+Worker apps constructed repositories from `c.env.DB`/`env.DB` at ~91 call
+sites. Classified:
+
+- **Repository requirement** (needed a runtime-independent fix): every
+  repository/service method above — now written against the new
+  `DatabaseClient` interface (`client.ts`: `query`/`queryOne`/`execute`/
+  `batch`), sized to exactly what was called (nothing inspects `.run()`'s
+  or `.batch()`'s result metadata anywhere in this codebase, except
+  `ApiKeyRepository.revoke()`'s `changes` count — the one field
+  `DatabaseExecutionResult` actually carries).
+- **Runtime composition** (Cloudflare-only, left alone): each Worker's own
+  `env.DB` → `createD1DatabaseClient(env.DB)` construction
+  (`api-worker/src/index.ts`, `delivery-worker`'s two route files,
+  `processing-worker`'s `buildProcessingDeps`).
+- **Migration tooling** (D1-only, left alone): `apps/api-worker/src/routes/diagnostics/database.ts`'s
+  raw `SELECT name FROM d1_migrations` query — wrangler-internal
+  bookkeeping, not something a self-hosted SQLite deployment has or needs;
+  this one query stays on the real `c.env.DB` binding directly, documented
+  inline, while the rest of that same route's repository calls use
+  `c.get("db")` like everything else.
+- **Test-only**: every Worker's own `.spec.ts` files that constructed
+  `new XRepository(env.DB)` directly against the real Miniflare-backed D1
+  binding from `cloudflare:test` — now wrapped with `createD1DatabaseClient`
+  via a small `testDb()` helper (`test/helpers.ts` in api-worker and
+  delivery-worker; inline in processing-worker's two spec files).
+
+### The database execution abstraction, and why it's this small
+
+`DatabaseClient` (`packages/database/src/client.ts`) is 4 methods, not a
+query builder or ORM. `D1DatabaseClient` (main barrel) and
+`SqliteDatabaseClient` (`@imageryx/database/node`, Node-only — `node:sqlite`
+never reachable from a Worker bundle) both implement it. `batch()` mirrors
+D1's real semantics exactly: one implicit transaction over a fixed,
+prepared-ahead-of-time statement list, never a "read, then conditionally
+write" multi-call transaction — this is an existing constraint (see "No
+true multi-repository-call transactions" above), not something either
+adapter works around.
+
+### `node:sqlite`, not `better-sqlite3`
+
+Node's own built-in SQLite module (stable since well before this repo's
+Node 22 floor, confirmed working with zero extra install and no native
+compilation on this repo's actual Node version) — deliberately not a
+native-binding package. `PRAGMA foreign_keys`, `PRAGMA journal_mode = WAL`
+(skipped for `:memory:`), and multi-statement `.exec()` (migration files
+run with no semicolon-splitting hack, unlike the D1/Miniflare test harness,
+which needs one since Miniflare's D1 binding executes one statement per
+`.prepare()`) are all real and confirmed working. Concurrency assumption,
+stated plainly: one Node process per database file. WAL allows concurrent
+readers alongside a writer; there is no cross-process write coordination
+beyond SQLite's own file locking, which is fine for this phase's
+single-process proof and should be revisited before any multi-process
+self-host mode. Error text matches D1's exactly (`"UNIQUE constraint
+failed: table.column"`), confirmed by direct experiment — the existing
+`UNIQUE_CONSTRAINT_ERROR_PATTERN` regex in `variant.repository.ts` and
+`variant-persistence.service.ts` needed no changes to work against either
+backend.
+
+### Migration compatibility
+
+Both existing migrations (`0001_initial_schema.sql`,
+`0002_widen_output_format_and_provider.sql` — the latter's three-step
+table-rebuild-with-FK-juggling included) are 100% portable as-is; no
+compatibility shim or second migration tree was needed. D1 applies them
+via `wrangler d1 migrations apply`; SQLite applies them via
+`@imageryx/database/node`'s own runner (`runSelfHostedMigrations`/
+`getSelfHostedMigrationStatus`), which talks to `node:sqlite` directly
+(not through `SqliteDatabaseClient`) since applying a migration file needs
+`.exec()`'s multi-statement support, which `.prepare()` doesn't have.
+Bookkeeping is a self-managed `_imageryx_migrations` table, not D1's
+`d1_migrations` (wrangler-internal, D1-only — this package doesn't own
+that table and shouldn't reuse its name). `pnpm db:migrate:self-hosted`/
+`db:status:self-hosted`/`db:reset:self-hosted` mirror the `*:local` D1
+scripts' shape; `reset` refuses to run unless the resolved `DATABASE_PATH`
+is under `<repoRoot>/.local/`, with **no override flag** (unlike
+`db-reset-local.mjs`, which checks an exact hardcoded path, `reset`'s
+target is user-configurable, so it can only check a safe prefix) — this is
+the literal mechanism behind "never automatically reset a configured
+production path."
+
+### Folder-path cascade fix (real bug, not a false alarm)
+
+Confirmed present, then fixed. `FolderRepository.move()` already cascaded
+a path-prefix rewrite to every descendant **folder** (`listSubtree()` +
+`db.batch()`, covered by existing tests) — but never touched
+`assets.path`, its own denormalized column (see "Logical path vs. physical
+storage key" above). Moving a folder left every descendant asset's stored
+`path` silently stale, and delivery resolves purely off `assets.path` — a
+real, user-visible data-integrity bug. Fixed by
+`FolderPersistenceService.moveFolderWithDescendants` (new,
+`packages/database/src/services/folder-persistence.service.ts`): loads the
+folder subtree, loads every active asset in it
+(`AssetRepository.listActiveByFolderIds`, new), rewrites each asset's path
+by the same prefix substitution the folder cascade already uses, checks
+for a destination-path collision against unrelated assets **first**
+(`AssetRepository.findActiveByPaths`, new) and throws a typed
+`FolderPathConflictError` (new `ImageryxDomainError` subclass, mapped to 409) before writing anything, then submits every folder-path and
+asset-path UPDATE as **one `db.batch()`** — atomic exactly as far as
+D1/SQLite's batch-as-transaction already allows. Physical `storage_key` is
+never touched. `apps/api-worker/src/routes/v1/folders.ts`'s `PATCH
+/:folderId` now calls this instead of `FolderRepository.move()` directly.
+`FolderRepository.move()` itself is unchanged (still folder-only,
+refactored internally into a reusable `buildMoveStatements()` the new
+service composes with) — anything else calling it directly gets the old,
+now-documented-as-incomplete behavior.
+
+`rename()` (name-only, never touches `slug`/`path`) is untouched — the API
+has no slug-changing rename route at all (`updateFolderBodySchema` only
+accepts `name`/`parentId`), matching the existing "project slug is
+read-only when editing" precedent. The cascade fix targets `move()`
+(`parentId` change), the only operation that actually rewrites `path`.
+
+### Processing-job pagination — confirmed still broken, now fixed
+
+`ProcessingJobRepository.list()` had no SQL `LIMIT`/`OFFSET`; `GET
+/v1/processing-jobs` loaded every job for a project and sliced the array
+in the route handler — exactly as "Stats and processing-job listing"
+above documented, still true as of this phase. Fixed by
+`listPaginated(filter, page, pageSize)`, copying
+`ProjectRepository.listFiltered`'s shape (one WHERE clause, reused for
+both the `LIMIT/OFFSET` query and a `COUNT(*)`, run via `Promise.all`).
+`list()` itself is unchanged and still used by `GET /v1/assets/:id`'s
+per-asset job listing (naturally bounded, not a pagination candidate) and
+`listQueued()` (already has its own `LIMIT`, used by the local drain
+tool).
+
+### Reusable API composition, and the ambient-`Env`-type trap
+
+`apps/api-worker/src/portable.ts` re-exports exactly the pieces verified
+to have zero Cloudflare-binding references beyond the database:
+`requestId`, `structuredLogger`, `errorHandler`, `notFoundHandler`,
+`projectsRoute`, and the `AppVariables` type. `apps/self-hosted` imports
+only from here, never from `./index`. A single new middleware in
+`index.ts` (`c.set("db", createD1DatabaseClient(c.env.DB))`, registered
+before every route) is the only change to the Cloudflare entrypoint's
+actual behavior.
+
+**Real trap hit while building this, worth remembering**: importing
+`projectsRoute` transitively pulls in every file it imports — including
+`folders.ts` and `tags.ts` (mounted as nested sub-routes) and `lib/env.ts`
+(for the project-cascade-delete branch's storage cleanup) — and several of
+those files' Hono/Context generics referenced the ambient `Env` type
+`wrangler types` generates into `worker-configuration.d.ts`. That type is
+invisible to any _other_ package's tsconfig program (the same
+cross-runtime ambient-type friction already documented above for
+`crypto.subtle`/`TextDecoder`/`ReadableStream` — see "Cross-runtime
+ambient type friction"), so `apps/self-hosted`'s own typecheck failed with
+`Cannot find name 'Env'` the moment it imported `portable.ts`, even though
+none of the _runtime_ logic in most of those files touches `c.env` at all.
+Fixed two ways, matching whichever was actually true per file:
+
+- Files that never read `c.env` (`folders.ts`, `tags.ts`, `error-handler.ts`,
+  `params.ts`, `log-activity.ts`): dropped `Bindings: Env` from their type
+  declarations entirely. `param()`/`logActivity()`/`errorHandler()`/
+  `notFoundHandler()` became generic functions
+  (`<E extends { Variables: AppVariables }>`) instead of fixed-type
+  constants — Hono's `Context.get`/`.set` typing is invariant in its `Env`
+  generic, so a _narrower_ fixed type (no `Bindings` at all) rejects every
+  Cloudflare caller's _wider_ `Context<{ Bindings: Env; ... }>`, and only a
+  generic parameter lets one implementation serve both.
+- `lib/env.ts` (does read `c.env`, for `getStorageProvider` et al.): traded
+  the ambient `Env` for an explicit structural `ApiWorkerEnvBindings`
+  interface (mirrors `processing-worker/src/lib/env.ts`'s existing
+  `ProcessingEnvBindings` — the same fix, already established in this
+  codebase for the identical problem) — the real Cloudflare `Env`
+  structurally satisfies it, so nothing changes at the one real call site.
+  `projects.ts`'s own Hono declaration uses this same type now instead of
+  `Env`.
+
+If a future portable-route extraction hits the same `Cannot find name
+'Env'` error, check which of these two fixes actually applies before
+reaching for anything more complicated — it's never been necessary to
+declare a fake ambient `Env` in the consuming package.
+
+### `apps/self-hosted`: what it proves, what it doesn't
+
+`createSelfHostedApp` (`apps/self-hosted/src/app.ts`) mounts the _real_
+`requestId`/`structuredLogger`/`errorHandler`/`notFoundHandler`/
+`projectsRoute` from `@imageryx/api-worker/portable`, a `db`-context
+middleware setting a `SqliteDatabaseClient`, and two Node-only routes
+(`/health`, `/health/ready`). `src/index.ts` refuses to boot if
+`getSelfHostedMigrationStatus` reports any pending migration, rather than
+serving against an incomplete schema. Runs via `tsx`
+(`pnpm dev:self-hosted`/`start:self-hosted`), not a bundled build — every
+workspace package in this monorepo exports raw `.ts` source (no build
+step), so a plain `tsc` compile-then-`node dist/index.js` would leave
+`import`s of `@imageryx/database`'s `.ts` files that plain Node cannot
+execute; `tsx`'s process-wide transpile hook (the same mechanism already
+used by `packages/database/scripts/seed.ts` and
+`tooling/scripts/processing-run-local.ts`) resolves this without a real
+bundler. `pnpm build:self-hosted` is therefore `tsc --noEmit` — a real
+verification step, not a no-op, just not a bundle-producing one in this
+phase.
+
+**Deliberately unauthenticated.** `/v1/projects` on the self-hosted
+runtime has no Bearer-key check — local authentication is explicitly out
+of scope for this phase (ROADMAP.md), and reusing `requireApiKey` would
+need a real decision about where self-host credentials live, which
+belongs with a later self-host milestone, not a proof-of-architecture app.
+
+**Known gap, deliberately not fixed**: `projects.ts`'s `DELETE
+/v1/projects/:id?cascade=true` branch calls `getStorageProvider(c.env)` for
+storage cleanup — on the self-hosted runtime, `c.env` is `undefined`
+(`@hono/node-server` never populates it), so this specific branch throws
+and returns a generic 500 (caught by the shared `errorHandler`, not a
+process crash) instead of a clean capability/unavailable response. Not
+worth special-casing shared route logic for: `cascade=true` isn't in this
+phase's required endpoint list, storage-provider portability is
+explicitly Phase B's job, and Hono's own error handling already prevents
+this from being worse than an ugly 500.
+
+### Portability limitations still open after Phase A
+
+- No self-hosted upload, image processing, or filesystem/S3 storage — only
+  `assets`/`folders`/`presets`/`processing_jobs`/etc. repositories are
+  portable in the sense of "compiles and passes tests against SQLite";
+  nothing in `@imageryx/providers` has a self-host-reachable storage or
+  transformation implementation yet.
+- `apps/self-hosted` mounts only `/health`, `/health/ready`, and
+  `/v1/projects*` — not `/v1/folders`, `/v1/tags`, `/v1/presets`,
+  `/v1/assets`, `/v1/processing-jobs`, `/v1/stats`, or `/v1/api-keys`,
+  even though their underlying repositories are now portable too. Nothing
+  architecturally blocks mounting more of them later; this phase only
+  proves the pattern with the smallest real slice.
+- No authentication on the self-hosted runtime (see above).
+- Multi-process self-host deployment (more than one Node process sharing
+  one SQLite file) is unverified and not recommended — see the
+  concurrency note above.

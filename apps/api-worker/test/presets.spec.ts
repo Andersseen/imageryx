@@ -1,13 +1,13 @@
 import { PresetRepository, ProjectRepository } from "@imageryx/database";
-import { env, SELF } from "cloudflare:test";
+import { SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { authHeaders } from "./helpers";
+import { authHeaders, testDb } from "./helpers";
 
 describe("presets", () => {
   let projectId: string;
 
   beforeEach(async () => {
-    const projects = new ProjectRepository(env.DB);
+    const projects = new ProjectRepository(testDb());
     const project = await projects.create({
       name: "Presets Test",
       slug: `presets-test-${crypto.randomUUID()}`,
@@ -33,7 +33,7 @@ describe("presets", () => {
   });
 
   it("lists presets for a project", async () => {
-    const presets = new PresetRepository(env.DB);
+    const presets = new PresetRepository(testDb());
     await presets.create({
       projectId,
       name: "Listed",
@@ -42,9 +42,12 @@ describe("presets", () => {
       outputFormat: "auto",
     });
 
-    const response = await SELF.fetch(`https://example.com/v1/presets?projectId=${projectId}`, {
-      headers: authHeaders(),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/presets?projectId=${projectId}`,
+      {
+        headers: authHeaders(),
+      },
+    );
     const body = (await response.json()) as { items: { slug: string }[] };
     expect(body.items.some((p) => p.slug === "listed")).toBe(true);
   });
@@ -79,7 +82,7 @@ describe("presets", () => {
   });
 
   it("rejects deleting a system preset", async () => {
-    const presets = new PresetRepository(env.DB);
+    const presets = new PresetRepository(testDb());
     const systemPreset = await presets.create({
       projectId,
       name: "System",
@@ -89,15 +92,18 @@ describe("presets", () => {
       isSystem: true,
     });
 
-    const response = await SELF.fetch(`https://example.com/v1/presets/${systemPreset.id}`, {
-      method: "DELETE",
-      headers: authHeaders(),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/presets/${systemPreset.id}`,
+      {
+        method: "DELETE",
+        headers: authHeaders(),
+      },
+    );
     expect(response.status).toBe(409);
   });
 
   it("previews a preset with a clearly simulated result", async () => {
-    const presets = new PresetRepository(env.DB);
+    const presets = new PresetRepository(testDb());
     const preset = await presets.create({
       projectId,
       name: "Preview Me",
@@ -106,13 +112,19 @@ describe("presets", () => {
       outputFormat: "auto",
     });
 
-    const response = await SELF.fetch(`https://example.com/v1/presets/${preset.id}/preview`, {
-      method: "POST",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/presets/${preset.id}/preview`,
+      {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { simulated: boolean; previewUrl: string };
+    const body = (await response.json()) as {
+      simulated: boolean;
+      previewUrl: string;
+    };
     expect(body.simulated).toBe(true);
     expect(body.previewUrl.startsWith("data:image/svg+xml;base64,")).toBe(true);
   });

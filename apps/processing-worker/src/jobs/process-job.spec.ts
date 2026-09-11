@@ -1,6 +1,7 @@
 import type { R2Bucket } from "@cloudflare/workers-types";
 import {
   AssetRepository,
+  createD1DatabaseClient,
   PresetRepository,
   ProcessingJobRepository,
   ProjectRepository,
@@ -38,18 +39,19 @@ describe("processJob", () => {
     const storage = new R2StorageProvider(
       env.ASSET_STORAGE as unknown as R2Bucket,
     );
+    const db = createD1DatabaseClient(env.DB);
     deps = {
-      db: env.DB,
+      db,
       storage,
       maxAttempts: 3,
       cloudinary: null,
       images: null,
     };
-    projects = new ProjectRepository(env.DB);
-    assets = new AssetRepository(env.DB);
-    jobs = new ProcessingJobRepository(env.DB);
-    variants = new VariantRepository(env.DB);
-    presets = new PresetRepository(env.DB);
+    projects = new ProjectRepository(db);
+    assets = new AssetRepository(db);
+    jobs = new ProcessingJobRepository(db);
+    variants = new VariantRepository(db);
+    presets = new PresetRepository(db);
 
     const project = await projects.create({
       name: "Test Project",

@@ -3,7 +3,7 @@ import { createApiKey, hashApiKey } from "@imageryx/image-core";
 import { Hono } from "hono";
 import { z } from "zod";
 import { NotFoundError } from "../../lib/errors";
-import type { RequestIdVariables } from "../../middleware/request-id";
+import type { AppVariables } from "../../lib/app-variables";
 
 const createApiKeySchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
@@ -29,11 +29,11 @@ function publicApiKey(record: {
 
 export const apiKeysRoute = new Hono<{
   Bindings: Env;
-  Variables: RequestIdVariables;
+  Variables: AppVariables;
 }>();
 
 apiKeysRoute.get("/", async (c) => {
-  const keys = await new ApiKeyRepository(c.env.DB).list();
+  const keys = await new ApiKeyRepository(c.get("db")).list();
   return c.json({ items: keys.map(publicApiKey) });
 });
 
@@ -41,7 +41,7 @@ apiKeysRoute.post("/", async (c) => {
   const body = createApiKeySchema.parse(await c.req.json());
   const environment = c.env.APP_ENV === "production" ? "live" : "dev";
   const generated = createApiKey(environment);
-  const repository = new ApiKeyRepository(c.env.DB);
+  const repository = new ApiKeyRepository(c.get("db"));
   const created = await repository.create({
     name: body.name ?? null,
     prefix: generated.prefix,
@@ -52,7 +52,7 @@ apiKeysRoute.post("/", async (c) => {
 });
 
 apiKeysRoute.delete("/:keyId", async (c) => {
-  const revoked = await new ApiKeyRepository(c.env.DB).revoke(
+  const revoked = await new ApiKeyRepository(c.get("db")).revoke(
     c.req.param("keyId"),
   );
   if (!revoked) throw new NotFoundError("api_key");

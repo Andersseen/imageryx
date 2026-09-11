@@ -24,9 +24,7 @@ describe("createTestDatabase (re-exported from @imageryx/database/testing)", () 
   it("is usable from the test-utils/node subpath", async () => {
     const { db, teardown } = await createTestDatabase();
     try {
-      const result = await db
-        .prepare("SELECT 1 as value")
-        .first<{ value: number }>();
+      const result = await db.queryOne<{ value: number }>("SELECT 1 as value");
       expect(result?.value).toBe(1);
     } finally {
       await teardown();
