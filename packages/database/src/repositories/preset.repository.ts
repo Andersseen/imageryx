@@ -3,7 +3,7 @@ import {
   presetOperationsSchema,
   presetSchema,
 } from "@imageryx/contracts";
-import type { D1Client } from "../client";
+import type { DatabaseClient, DatabaseStatement } from "../client";
 import { generateId, nowIso } from "../ids";
 
 interface PresetRow {
@@ -52,23 +52,21 @@ export interface CreatePresetRow {
 export class SystemPresetDeletionError extends Error {}
 
 export class PresetRepository {
-  constructor(private readonly db: D1Client) {}
+  constructor(private readonly db: DatabaseClient) {}
 
   async listByProject(projectId: string): Promise<ImagePreset[]> {
-    const result = await this.db
-      .prepare(
-        "SELECT * FROM presets WHERE project_id = ? ORDER BY created_at ASC",
-      )
-      .bind(projectId)
-      .all<PresetRow>();
-    return result.results.map(mapRow);
+    const results = await this.db.query<PresetRow>(
+      "SELECT * FROM presets WHERE project_id = ? ORDER BY created_at ASC",
+      [projectId],
+    );
+    return results.map(mapRow);
   }
 
   async findById(id: string): Promise<ImagePreset | null> {
-    const row = await this.db
-      .prepare("SELECT * FROM presets WHERE id = ?")
-      .bind(id)
-      .first<PresetRow>();
+    const row = await this.db.queryOne<PresetRow>(
+      "SELECT * FROM presets WHERE id = ?",
+      [id],
+    );
     return row ? mapRow(row) : null;
   }
 
@@ -76,10 +74,10 @@ export class PresetRepository {
     projectId: string,
     slug: string,
   ): Promise<ImagePreset | null> {
-    const row = await this.db
-      .prepare("SELECT * FROM presets WHERE project_id = ? AND slug = ?")
-      .bind(projectId, slug)
-      .first<PresetRow>();
+    const row = await this.db.queryOne<PresetRow>(
+      "SELECT * FROM presets WHERE project_id = ? AND slug = ?",
+      [projectId, slug],
+    );
     return row ? mapRow(row) : null;
   }
 
@@ -89,23 +87,23 @@ export class PresetRepository {
     const map = new Map<string, number>();
     if (projectIds.length === 0) return map;
     const placeholders = projectIds.map(() => "?").join(", ");
-    const result = await this.db
-      .prepare(
-        `SELECT project_id, COUNT(*) as count FROM presets WHERE project_id IN (${placeholders}) GROUP BY project_id`,
-      )
-      .bind(...projectIds)
-      .all<{ project_id: string; count: number }>();
-    for (const row of result.results) map.set(row.project_id, row.count);
+    const results = await this.db.query<{ project_id: string; count: number }>(
+      `SELECT project_id, COUNT(*) as count FROM presets WHERE project_id IN (${placeholders}) GROUP BY project_id`,
+      projectIds,
+    );
+    for (const row of results) map.set(row.project_id, row.count);
     return map;
   }
 
   /** Unexecuted counterpart to `create()`, for combining with another repository's statement in a `db.batch()` call. */
-  buildInsertStatement(id: string, input: CreatePresetRow, timestamp: string) {
-    return this.db
-      .prepare(
-        "INSERT INTO presets (id, project_id, name, slug, description, operations, output_format, quality, is_system, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      )
-      .bind(
+  buildInsertStatement(
+    id: string,
+    input: CreatePresetRow,
+    timestamp: string,
+  ): DatabaseStatement {
+    return {
+      sql: "INSERT INTO presets (id, project_id, name, slug, description, operations, output_format, quality, is_system, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      params: [
         id,
         input.projectId,
         input.name,
@@ -117,13 +115,15 @@ export class PresetRepository {
         input.isSystem ? 1 : 0,
         timestamp,
         timestamp,
-      );
+      ],
+    };
   }
 
   async create(input: CreatePresetRow): Promise<ImagePreset> {
     const id = generateId();
     const timestamp = nowIso();
-    await this.buildInsertStatement(id, input, timestamp).run();
+    const statement = this.buildInsertStatement(id, input, timestamp);
+    await this.db.execute(statement.sql, statement.params);
 
     return {
       id,
@@ -143,7 +143,10 @@ export class PresetRepository {
   async update(
     id: string,
     input: Partial<
-      Pick<CreatePresetRow, "name" | "description" | "operations" | "outputFormat" | "quality">
+      Pick<
+        CreatePresetRow,
+        "name" | "description" | "operations" | "outputFormat" | "quality"
+      >
     >,
   ): Promise<ImagePreset | null> {
     const existing = await this.findById(id);
@@ -152,17 +155,18 @@ export class PresetRepository {
     const timestamp = nowIso();
     const merged = {
       name: input.name ?? existing.name,
-      description: input.description !== undefined ? input.description : existing.description,
+      description:
+        input.description !== undefined
+          ? input.description
+          : existing.description,
       operations: input.operations ?? existing.operations,
       outputFormat: input.outputFormat ?? existing.outputFormat,
       quality: input.quality !== undefined ? input.quality : existing.quality,
     };
 
-    await this.db
-      .prepare(
-        "UPDATE presets SET name = ?, description = ?, operations = ?, output_format = ?, quality = ?, updated_at = ? WHERE id = ?",
-      )
-      .bind(
+    await this.db.execute(
+      "UPDATE presets SET name = ?, description = ?, operations = ?, output_format = ?, quality = ?, updated_at = ? WHERE id = ?",
+      [
         merged.name,
         merged.description,
         JSON.stringify(merged.operations),
@@ -170,8 +174,8 @@ export class PresetRepository {
         merged.quality,
         timestamp,
         id,
-      )
-      .run();
+      ],
+    );
 
     return { ...existing, ...merged, updatedAt: timestamp };
   }
@@ -185,6 +189,6 @@ export class PresetRepository {
         `preset "${id}" is a system preset and cannot be deleted`,
       );
     }
-    await this.db.prepare("DELETE FROM presets WHERE id = ?").bind(id).run();
+    await this.db.execute("DELETE FROM presets WHERE id = ?", [id]);
   }
 }

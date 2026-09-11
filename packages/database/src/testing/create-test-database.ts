@@ -1,36 +1,24 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Miniflare } from "miniflare";
-import type { D1Client } from "../client";
+import type { D1Database } from "@cloudflare/workers-types";
+import type { DatabaseClient } from "../client";
+import { createD1DatabaseClient } from "../d1-database-client";
+import { readMigrationFiles } from "../node/migration-files";
 
-const MIGRATIONS_DIR = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../migrations",
-);
-
-/** Reads every `NNNN_*.sql` migration file in numeric filename order — the same order `wrangler d1 migrations apply` uses. */
-export function readMigrationFiles(): { name: string; sql: string }[] {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((file) => file.endsWith(".sql"))
-    .sort()
-    .map((file) => ({
-      name: file,
-      sql: readFileSync(join(MIGRATIONS_DIR, file), "utf-8"),
-    }));
-}
+export { readMigrationFiles };
 
 export interface TestDatabase {
-  db: D1Client;
+  db: DatabaseClient;
   teardown: () => Promise<void>;
 }
 
 /**
  * Spins up a real, isolated, in-memory D1 database (via Miniflare) with
- * every migration applied — used by this package's own repository tests
- * and re-exported (through `@imageryx/test-utils/node`) for other
- * packages' tests. Never mocks the SQL layer: every test using this
- * exercises the actual schema, constraints, and indexes.
+ * every migration applied, wrapped as a runtime-independent
+ * `DatabaseClient` — used by this package's own repository tests and
+ * re-exported (through `@imageryx/test-utils/node`) for other packages'
+ * tests. Never mocks the SQL layer: every test using this exercises the
+ * actual schema, constraints, and indexes. See `../node/sqlite-test-database.ts`
+ * for the SQLite equivalent used by the D1/SQLite parity suite.
  */
 export async function createTestDatabase(): Promise<TestDatabase> {
   const mf = new Miniflare({
@@ -39,17 +27,17 @@ export async function createTestDatabase(): Promise<TestDatabase> {
     d1Databases: { DB: ":memory:" },
   });
 
-  const db = (await mf.getD1Database("DB")) as unknown as D1Client;
+  const rawDb = (await mf.getD1Database("DB")) as unknown as D1Database;
 
   for (const migration of readMigrationFiles()) {
     const statements = splitStatements(migration.sql);
     for (const statement of statements) {
-      await db.prepare(statement).run();
+      await rawDb.prepare(statement).run();
     }
   }
 
   return {
-    db,
+    db: createD1DatabaseClient(rawDb),
     teardown: () => mf.dispose(),
   };
 }

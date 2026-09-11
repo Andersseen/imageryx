@@ -1,10 +1,10 @@
 import { PresetRepository, ProjectRepository } from "@imageryx/database";
 import { Hono } from "hono";
-import type { RequestIdVariables } from "../../middleware/request-id";
+import type { AppVariables } from "../../lib/app-variables";
 
 export const seedDiagnosticsRoute = new Hono<{
   Bindings: Env;
-  Variables: RequestIdVariables;
+  Variables: AppVariables;
 }>();
 
 interface CountRow {
@@ -19,7 +19,7 @@ interface CountRow {
  */
 seedDiagnosticsRoute.get("/", async (c) => {
   try {
-    const db = c.env.DB;
+    const db = c.get("db");
     const projectRepository = new ProjectRepository(db);
     const presetRepository = new PresetRepository(db);
 
@@ -30,9 +30,9 @@ seedDiagnosticsRoute.get("/", async (c) => {
       systemPresetCount += presets.filter((preset) => preset.isSystem).length;
     }
 
-    const assetCountRow = await db
-      .prepare("SELECT COUNT(*) as total FROM assets")
-      .first<CountRow>();
+    const assetCountRow = await db.queryOne<CountRow>(
+      "SELECT COUNT(*) as total FROM assets",
+    );
 
     return c.json({
       seeded: projects.length > 0,

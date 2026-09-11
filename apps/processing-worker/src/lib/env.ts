@@ -2,8 +2,12 @@ import {
   createStorageProvider,
   parseProviderConfig,
 } from "@imageryx/providers";
-import type { ImagesBinding, R2Bucket } from "@cloudflare/workers-types";
-import type { D1Client } from "@imageryx/database";
+import type {
+  D1Database,
+  ImagesBinding,
+  R2Bucket,
+} from "@cloudflare/workers-types";
+import { createD1DatabaseClient } from "@imageryx/database";
 import type { ProcessingDeps } from "../jobs/deps";
 
 /**
@@ -17,7 +21,7 @@ import type { ProcessingDeps } from "../jobs/deps";
  * shape, so passing `c.env` from either Worker just works.
  */
 export interface ProcessingEnvBindings {
-  DB: D1Client;
+  DB: D1Database;
   ASSET_STORAGE: R2Bucket;
   /** Absent unless `[images] binding = "IMAGES"` is configured — required only when `TRANSFORMATION_PROVIDER`/`ADVANCED_TRANSFORMATION_PROVIDER` is "cloudflare". */
   IMAGES?: ImagesBinding;
@@ -40,7 +44,7 @@ export function buildProcessingDeps(
     CLOUDINARY_API_SECRET: env.CLOUDINARY_API_SECRET || undefined,
   });
   return {
-    db: env.DB,
+    db: createD1DatabaseClient(env.DB),
     storage: createStorageProvider({ config, r2Bucket: env.ASSET_STORAGE }),
     maxAttempts: Number(env.PROCESSING_MAX_ATTEMPTS),
     cloudinary: config.cloudinary,

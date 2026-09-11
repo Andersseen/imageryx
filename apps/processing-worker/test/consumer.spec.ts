@@ -1,4 +1,9 @@
-import { AssetRepository, ProcessingJobRepository, ProjectRepository } from "@imageryx/database";
+import {
+  AssetRepository,
+  createD1DatabaseClient,
+  ProcessingJobRepository,
+  ProjectRepository,
+} from "@imageryx/database";
 import { buildOriginalStorageKey } from "@imageryx/image-core";
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,7 +21,10 @@ function fakeMessage(body: unknown) {
 }
 
 function fakeBatch(messages: Message<unknown>[]): MessageBatch<unknown> {
-  return { messages, queue: "imageryx-processing-queue" } as unknown as MessageBatch<unknown>;
+  return {
+    messages,
+    queue: "imageryx-processing-queue",
+  } as unknown as MessageBatch<unknown>;
 }
 
 const PNG_BYTES = new Uint8Array([
@@ -28,9 +36,12 @@ describe("handleQueueBatch", () => {
   let projectId: string;
 
   beforeEach(async () => {
-    const projects = new ProjectRepository(env.DB);
+    const projects = new ProjectRepository(createD1DatabaseClient(env.DB));
     projectId = (
-      await projects.create({ name: "Consumer Test", slug: `consumer-${crypto.randomUUID()}` })
+      await projects.create({
+        name: "Consumer Test",
+        slug: `consumer-${crypto.randomUUID()}`,
+      })
     ).id;
   });
 
@@ -39,7 +50,7 @@ describe("handleQueueBatch", () => {
     const storageKey = buildOriginalStorageKey(projectId, assetId, "png");
     await env.ASSET_STORAGE.put(storageKey, PNG_BYTES);
 
-    const assets = new AssetRepository(env.DB);
+    const assets = new AssetRepository(createD1DatabaseClient(env.DB));
     const asset = await assets.create(
       {
         projectId,
@@ -58,7 +69,7 @@ describe("handleQueueBatch", () => {
       assetId,
     );
 
-    const jobs = new ProcessingJobRepository(env.DB);
+    const jobs = new ProcessingJobRepository(createD1DatabaseClient(env.DB));
     const job = await jobs.create({
       projectId,
       assetId: asset.id,
@@ -94,7 +105,7 @@ describe("handleQueueBatch", () => {
     const storageKey = buildOriginalStorageKey(projectId, assetId, "png");
     await env.ASSET_STORAGE.put(storageKey, PNG_BYTES);
 
-    const assets = new AssetRepository(env.DB);
+    const assets = new AssetRepository(createD1DatabaseClient(env.DB));
     const asset = await assets.create(
       {
         projectId,
@@ -113,7 +124,7 @@ describe("handleQueueBatch", () => {
       assetId,
     );
 
-    const jobs = new ProcessingJobRepository(env.DB);
+    const jobs = new ProcessingJobRepository(createD1DatabaseClient(env.DB));
     const job = await jobs.create({
       projectId,
       assetId: asset.id,
@@ -122,11 +133,19 @@ describe("handleQueueBatch", () => {
     });
 
     const firstMessage = fakeMessage({ jobId: job.id });
-    await handleQueueBatch(fakeBatch([firstMessage]), env, {} as ExecutionContext);
+    await handleQueueBatch(
+      fakeBatch([firstMessage]),
+      env,
+      {} as ExecutionContext,
+    );
     expect(firstMessage.ack).toHaveBeenCalledOnce();
 
     const secondMessage = fakeMessage({ jobId: job.id });
-    await handleQueueBatch(fakeBatch([secondMessage]), env, {} as ExecutionContext);
+    await handleQueueBatch(
+      fakeBatch([secondMessage]),
+      env,
+      {} as ExecutionContext,
+    );
     expect(secondMessage.ack).toHaveBeenCalledOnce();
 
     const finalJob = await jobs.findById(job.id);
@@ -137,7 +156,7 @@ describe("handleQueueBatch", () => {
     // A generate-variant job whose referenced asset does not exist raises MissingResourceError
     // (non-retryable) — used here only to exercise the "not retryable -> ack" path distinctly
     // from the retryable path already covered by process-job.spec.ts's classification tests.
-    const jobs = new ProcessingJobRepository(env.DB);
+    const jobs = new ProcessingJobRepository(createD1DatabaseClient(env.DB));
     const job = await jobs.create({
       projectId,
       assetId: null,

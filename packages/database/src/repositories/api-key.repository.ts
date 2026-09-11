@@ -1,4 +1,4 @@
-import type { D1Client } from "../client";
+import type { DatabaseClient } from "../client";
 import { generateId, nowIso } from "../ids";
 
 export interface ApiKeyRecord {
@@ -34,22 +34,20 @@ function mapRow(row: ApiKeyRow): ApiKeyRecord {
 }
 
 export class ApiKeyRepository {
-  constructor(private readonly db: D1Client) {}
+  constructor(private readonly db: DatabaseClient) {}
 
   async list(): Promise<ApiKeyRecord[]> {
-    const result = await this.db
-      .prepare(
-        "SELECT * FROM api_keys ORDER BY revoked_at IS NOT NULL ASC, created_at DESC",
-      )
-      .all<ApiKeyRow>();
-    return result.results.map(mapRow);
+    const results = await this.db.query<ApiKeyRow>(
+      "SELECT * FROM api_keys ORDER BY revoked_at IS NOT NULL ASC, created_at DESC",
+    );
+    return results.map(mapRow);
   }
 
   async findActiveByPrefix(prefix: string): Promise<ApiKeyRecord | null> {
-    const row = await this.db
-      .prepare("SELECT * FROM api_keys WHERE prefix = ? AND revoked_at IS NULL")
-      .bind(prefix)
-      .first<ApiKeyRow>();
+    const row = await this.db.queryOne<ApiKeyRow>(
+      "SELECT * FROM api_keys WHERE prefix = ? AND revoked_at IS NULL",
+      [prefix],
+    );
     return row ? mapRow(row) : null;
   }
 
@@ -60,12 +58,10 @@ export class ApiKeyRepository {
   }): Promise<ApiKeyRecord> {
     const id = generateId();
     const timestamp = nowIso();
-    await this.db
-      .prepare(
-        "INSERT INTO api_keys (id, prefix, hashed_secret, name, created_at, last_used_at, revoked_at) VALUES (?, ?, ?, ?, ?, NULL, NULL)",
-      )
-      .bind(id, input.prefix, input.hashedSecret, input.name ?? null, timestamp)
-      .run();
+    await this.db.execute(
+      "INSERT INTO api_keys (id, prefix, hashed_secret, name, created_at, last_used_at, revoked_at) VALUES (?, ?, ?, ?, ?, NULL, NULL)",
+      [id, input.prefix, input.hashedSecret, input.name ?? null, timestamp],
+    );
 
     return {
       id,
@@ -79,19 +75,17 @@ export class ApiKeyRepository {
   }
 
   async markUsed(id: string): Promise<void> {
-    await this.db
-      .prepare("UPDATE api_keys SET last_used_at = ? WHERE id = ?")
-      .bind(nowIso(), id)
-      .run();
+    await this.db.execute("UPDATE api_keys SET last_used_at = ? WHERE id = ?", [
+      nowIso(),
+      id,
+    ]);
   }
 
   async revoke(id: string): Promise<boolean> {
-    const result = await this.db
-      .prepare(
-        "UPDATE api_keys SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
-      )
-      .bind(nowIso(), id)
-      .run();
-    return (result.meta?.changes ?? 0) > 0;
+    const result = await this.db.execute(
+      "UPDATE api_keys SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
+      [nowIso(), id],
+    );
+    return result.changes > 0;
   }
 }

@@ -1,4 +1,8 @@
-import type { AssetVisibility, ImageAsset, SupportedImageExtension } from "@imageryx/contracts";
+import type {
+  AssetVisibility,
+  ImageAsset,
+  SupportedImageExtension,
+} from "@imageryx/contracts";
 import {
   AssetPersistenceService,
   AssetRepository,
@@ -6,7 +10,7 @@ import {
   ProcessingJobRepository,
   ProjectRepository,
   TagRepository,
-  type D1Client,
+  type DatabaseClient,
 } from "@imageryx/database";
 import {
   buildOriginalStorageKey,
@@ -16,7 +20,12 @@ import {
   validateImageAsset,
 } from "@imageryx/image-core";
 import type { StorageProvider } from "@imageryx/providers";
-import { NotFoundError, PayloadTooLargeError, UnsupportedMediaTypeError, ValidationHttpError } from "../lib/errors";
+import {
+  NotFoundError,
+  PayloadTooLargeError,
+  UnsupportedMediaTypeError,
+  ValidationHttpError,
+} from "../lib/errors";
 
 export interface UploadAssetFile {
   bytes: Uint8Array;
@@ -35,7 +44,7 @@ export interface UploadAssetInput {
 }
 
 export interface UploadAssetDeps {
-  db: D1Client;
+  db: DatabaseClient;
   storage: StorageProvider;
   maxUploadSizeBytes: number;
 }
@@ -76,7 +85,9 @@ export async function uploadAsset(
   if (input.folderId) {
     folder = await new FolderRepository(deps.db).findById(input.folderId);
     if (!folder || folder.projectId !== input.projectId) {
-      throw new ValidationHttpError("folderId does not reference a folder in this project.");
+      throw new ValidationHttpError(
+        "folderId does not reference a folder in this project.",
+      );
     }
   }
 
@@ -95,7 +106,11 @@ export async function uploadAsset(
     claimedExtension: rawExtension,
     bytes: input.file.bytes,
   });
-  if (!validation.valid || !validation.detectedMimeType || !validation.detectedExtension) {
+  if (
+    !validation.valid ||
+    !validation.detectedMimeType ||
+    !validation.detectedExtension
+  ) {
     throw new UnsupportedMediaTypeError(
       "The uploaded file failed MIME type, extension, or signature validation.",
       { securityWarnings: validation.securityWarnings },
@@ -111,23 +126,40 @@ export async function uploadAsset(
 
   const checksum = await computeSha256Checksum(input.file.bytes);
   const assets = new AssetRepository(deps.db);
-  const duplicateAssets = await assets.listByChecksum(input.projectId, checksum);
+  const duplicateAssets = await assets.listByChecksum(
+    input.projectId,
+    checksum,
+  );
 
   const folderPath = folder ? folder.path : "";
   let candidateSlug = baseSlug;
   let path = generateAssetPath(folderPath, candidateSlug);
-  for (let attempt = 0; await assets.findByPublicPath(input.projectId, path); attempt++) {
+  for (
+    let attempt = 0;
+    await assets.findByPublicPath(input.projectId, path);
+    attempt++
+  ) {
     if (attempt >= MAX_PATH_SUFFIX_ATTEMPTS) {
-      throw new ValidationHttpError("Could not find a free logical path for this asset.");
+      throw new ValidationHttpError(
+        "Could not find a free logical path for this asset.",
+      );
     }
     candidateSlug = `${baseSlug}-${attempt + 1}`;
     path = generateAssetPath(folderPath, candidateSlug);
   }
 
   const assetId = crypto.randomUUID();
-  const storageKey = buildOriginalStorageKey(input.projectId, assetId, extension);
+  const storageKey = buildOriginalStorageKey(
+    input.projectId,
+    assetId,
+    extension,
+  );
 
-  await deps.storage.put({ key: storageKey, body: input.file.bytes, contentType: mimeType });
+  await deps.storage.put({
+    key: storageKey,
+    body: input.file.bytes,
+    contentType: mimeType,
+  });
 
   const persistence = new AssetPersistenceService(deps.db);
   let asset: ImageAsset;
@@ -149,7 +181,11 @@ export async function uploadAsset(
         processingStatus: "pending",
         downloadOriginalEnabled: input.downloadOriginalEnabled ?? false,
       },
-      { id: assetId, event: "asset.uploaded", metadata: { originalFilename: input.file.filename } },
+      {
+        id: assetId,
+        event: "asset.uploaded",
+        metadata: { originalFilename: input.file.filename },
+      },
     );
   } catch (error) {
     // Storage write succeeded but the metadata row didn't — clean up the orphaned object rather
@@ -162,7 +198,10 @@ export async function uploadAsset(
         JSON.stringify({
           event: "upload.storage_cleanup_failed",
           storageKey,
-          error: cleanupError instanceof Error ? cleanupError.message : "unknown error",
+          error:
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : "unknown error",
         }),
       );
     }
@@ -172,7 +211,9 @@ export async function uploadAsset(
   if (input.tags && input.tags.length > 0) {
     const tags = new TagRepository(deps.db);
     const tagIds = await Promise.all(
-      input.tags.map(async (name) => (await tags.findOrCreate(input.projectId, name)).id),
+      input.tags.map(
+        async (name) => (await tags.findOrCreate(input.projectId, name)).id,
+      ),
     );
     await tags.setAssetTags(asset.id, tagIds);
   }

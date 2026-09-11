@@ -2,16 +2,14 @@ import { describe, expect, it } from "vitest";
 import { createTestDatabase } from "./create-test-database";
 
 describe("createTestDatabase", () => {
-  it("applies migrations and exposes a queryable D1 database", async () => {
+  it("applies migrations and exposes a queryable DatabaseClient", async () => {
     const { db, teardown } = await createTestDatabase();
     try {
-      const result = await db
-        .prepare("SELECT name FROM sqlite_master WHERE type = ? ORDER BY name")
-        .bind("table")
-        .all();
-      const tableNames = result.results.map(
-        (row) => (row as { name: string }).name,
+      const rows = await db.query<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type = ? ORDER BY name",
+        ["table"],
       );
+      const tableNames = rows.map((row) => row.name);
       expect(tableNames).toEqual(
         expect.arrayContaining([
           "projects",
@@ -35,20 +33,16 @@ describe("createTestDatabase", () => {
     const { db, teardown } = await createTestDatabase();
     try {
       const now = new Date().toISOString();
-      await db
-        .prepare(
-          "INSERT INTO projects (id, name, slug, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind("p1", "Project One", "dup-slug", null, 0, now, now)
-        .run();
+      await db.execute(
+        "INSERT INTO projects (id, name, slug, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ["p1", "Project One", "dup-slug", null, 0, now, now],
+      );
 
       await expect(
-        db
-          .prepare(
-            "INSERT INTO projects (id, name, slug, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          )
-          .bind("p2", "Project Two", "dup-slug", null, 0, now, now)
-          .run(),
+        db.execute(
+          "INSERT INTO projects (id, name, slug, description, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          ["p2", "Project Two", "dup-slug", null, 0, now, now],
+        ),
       ).rejects.toThrow();
     } finally {
       await teardown();

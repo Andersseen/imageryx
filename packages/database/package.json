@@ -13,6 +13,10 @@
     "./testing": {
       "types": "./src/testing/index.ts",
       "default": "./src/testing/index.ts"
+    },
+    "./node": {
+      "types": "./src/node/index.ts",
+      "default": "./src/node/index.ts"
     }
   },
   "scripts": {
@@ -20,7 +24,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "seed:local": "tsx scripts/seed.ts"
+    "seed:local": "tsx scripts/seed.ts",
+    "migrate:self-hosted": "tsx scripts/self-hosted-migrate.ts",
+    "status:self-hosted": "tsx scripts/self-hosted-status.ts",
+    "reset:self-hosted": "tsx scripts/self-hosted-reset.ts"
   },
   "dependencies": {
     "@imageryx/contracts": "workspace:*",

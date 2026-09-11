@@ -17,6 +17,9 @@ apps/
   api-worker/          Cloudflare Worker (Hono) — public API entry point
   delivery-worker/      Cloudflare Worker (Hono) — asset delivery edge
   processing-worker/    Cloudflare Worker — transformation job runner
+  self-hosted/          Node (Hono + @hono/node-server) — minimal self-host
+                        runtime proof, SQLite-backed (see "Future
+                        self-hosted model" below)
 ```
 
 ### dashboard
@@ -480,16 +483,16 @@ delivery-route `/p/` marker ambiguity, caching policy, etc.).
 
 ## Shared packages
 
-| Package                              | Role as of Phase 4B                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `contracts`                          | Full domain Zod schemas + inferred types (projects, folders, assets, presets, variants, processing jobs, stats, providers), organized by domain, plus the Phase 1 `HealthCheckResponse` shape                                                                                                                                                                                                                                                                                                |
-| `image-core`                         | Provider-independent domain logic: filename/path normalization, MIME/signature validation, checksums, preset normalization + hashing, transformation validation, provider selection, job/variant state machines, **plus (Phase 3)** real per-format dimension inspection, HMAC signed tokens, constant-time comparison, the shared delivery-path/URL builder, simulated-variant SVG rendering, and placeholder generation                                                                    |
-| `database`                           | D1 schema + migrations, repository classes (Phase 3 additions: bulk counts, folder subtree moves, tag CRUD, activity feeds; Phase 4A: ready-preset-slug lookup per asset), 3 cross-table persistence services; `/testing` subpath exposes a real Miniflare-backed D1 test harness                                                                                                                                                                                                            |
-| `providers`                          | `StorageProvider`/`TransformationProvider` interfaces and implementations (local filesystem — Node-only, R2 — real, used by every Worker, mock transform — real, Cloudflare/Cloudinary parameter mapping) plus a validated-config provider registry; `/node` subpath adds the Node-only local storage provider                                                                                                                                                                               |
-| `sdk`                                | Real, tested, framework-independent Fetch client (`createImageryxClient`) — typed resource namespaces, typed errors, FormData upload, delivery-URL/snippet helpers, and (Phase 4A) support for a **relative** `baseUrl` resolved against the document origin, which the dashboard's same-origin proxy depends on; (Phase 4B) `ServiceInfoResponse`/`PreviewPresetResponse` types and corrected `variants()`/`activity()`/`AssetDetails.processingJobs` return types (previously `unknown[]`) |
-| `angular`                            | Real, tested standalone `<imgyx-image>` component — signal inputs/outputs, responsive preset support, no SDK or API-key dependency                                                                                                                                                                                                                                                                                                                                                           |
-| `test-utils`                         | `isValidHealthCheckResponse` plus domain fixture builders and, via `/node`, a D1 test database + temporary storage directory helper, plus (Phase 3) real decodable-image fixtures (PNG/JPEG/GIF/WebP/SVG/AVIF) for metadata-inspection tests                                                                                                                                                                                                                                                 |
-| `typescript-config`, `eslint-config` | Shared strict TS/lint configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Package                              | Role as of Phase 4B                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `contracts`                          | Full domain Zod schemas + inferred types (projects, folders, assets, presets, variants, processing jobs, stats, providers), organized by domain, plus the Phase 1 `HealthCheckResponse` shape                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `image-core`                         | Provider-independent domain logic: filename/path normalization, MIME/signature validation, checksums, preset normalization + hashing, transformation validation, provider selection, job/variant state machines, **plus (Phase 3)** real per-format dimension inspection, HMAC signed tokens, constant-time comparison, the shared delivery-path/URL builder, simulated-variant SVG rendering, and placeholder generation                                                                                                                                                                                      |
+| `database`                           | Schema + migrations, repository classes (Phase 3 additions: bulk counts, folder subtree moves, tag CRUD, activity feeds; Phase 4A: ready-preset-slug lookup per asset; Self-host Phase A: `moveFolderWithDescendants` cascades to descendant assets, SQL-backed processing-job pagination), 4 cross-table persistence services, all written against a runtime-independent `DatabaseClient`; `/testing` subpath exposes real D1 (Miniflare) and SQLite test harnesses plus a shared D1/SQLite parity suite; `/node` subpath (Node-only) adds the `SqliteDatabaseClient` adapter and self-host migration tooling |
+| `providers`                          | `StorageProvider`/`TransformationProvider` interfaces and implementations (local filesystem — Node-only, R2 — real, used by every Worker, mock transform — real, Cloudflare/Cloudinary parameter mapping) plus a validated-config provider registry; `/node` subpath adds the Node-only local storage provider                                                                                                                                                                                                                                                                                                 |
+| `sdk`                                | Real, tested, framework-independent Fetch client (`createImageryxClient`) — typed resource namespaces, typed errors, FormData upload, delivery-URL/snippet helpers, and (Phase 4A) support for a **relative** `baseUrl` resolved against the document origin, which the dashboard's same-origin proxy depends on; (Phase 4B) `ServiceInfoResponse`/`PreviewPresetResponse` types and corrected `variants()`/`activity()`/`AssetDetails.processingJobs` return types (previously `unknown[]`)                                                                                                                   |
+| `angular`                            | Real, tested standalone `<imgyx-image>` component — signal inputs/outputs, responsive preset support, no SDK or API-key dependency                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `test-utils`                         | `isValidHealthCheckResponse` plus domain fixture builders and, via `/node`, a D1 test database + temporary storage directory helper, plus (Phase 3) real decodable-image fixtures (PNG/JPEG/GIF/WebP/SVG/AVIF) for metadata-inspection tests                                                                                                                                                                                                                                                                                                                                                                   |
+| `typescript-config`, `eslint-config` | Shared strict TS/lint configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 ## Security boundaries
 
@@ -506,17 +509,65 @@ server-side proxy injects it — though that proxy is not yet verified to
 run in the dashboard's current static-SPA production deployment (see
 context.md's "Dashboard dev-only proxy" note).
 
+## Database execution boundary (D1 / SQLite)
+
+Repositories and cross-table services in `@imageryx/database` are written
+against a runtime-independent `DatabaseClient` interface
+(`query`/`queryOne`/`execute`/`batch`), never against `D1Database` directly:
+
+```text
+                     Imageryx domain
+                           │
+                     repositories
+                           │
+                  DatabaseClient
+                    ┌─────┴─────┐
+                    │           │
+                   D1        SQLite
+                    │           │
+               Cloudflare      Node
+```
+
+- **D1 adapter** (`createD1DatabaseClient`, main `@imageryx/database`
+  barrel): wraps a Cloudflare `D1Database` binding. Every Cloudflare Worker
+  entrypoint (`api-worker`, `delivery-worker`, `processing-worker`)
+  constructs one from its own `env.DB` — this is the only place any of them
+  still reference the raw binding type.
+- **SQLite adapter** (`createSqliteDatabaseClient`,
+  `@imageryx/database/node` subpath — Node-only, `node:sqlite`, never
+  imported from the main barrel or reachable from a Worker bundle): backs
+  `apps/self-hosted`, using Node's own built-in SQLite module rather than a
+  native-binding package.
+- Both adapters run the exact same migration files
+  (`packages/database/migrations/*.sql`) — D1 via `wrangler d1 migrations
+apply`, SQLite via `@imageryx/database/node`'s own migration runner (a
+  self-managed `_imageryx_migrations` bookkeeping table, since D1's
+  `d1_migrations` table is wrangler-internal).
+- A shared parity test suite (`describeRepositoryContract`, in
+  `@imageryx/database/testing`) runs the same assertions against both
+  backends, proving they behave identically for CRUD, uniqueness
+  constraints, cascades, and JSON column mapping.
+
+See README.md's "Self-hosting" section for the exact current scope
+(project CRUD only, no upload/processing/storage yet) and context.md's
+"Self-host Phase A decisions and limitations" for the full detail.
+
 ## Future self-hosted model
 
-Today, "self-hosting" means cloning this repo and deploying it as-is —
-there's no packaged distribution. A real self-hosted offering (Roadmap's
-"Future — Self-Hosted Mode") would need: the Workers/dashboard published
-as installable units (not just source you fork), a setup flow that
-provisions D1/R2/Queue resources rather than assuming
-`docs/deployment-cloudflare.md` is followed by hand, and a clean split
-between "this maintainer's own deployment" and "anyone's deployment" —
-concretely, the production `wrangler.jsonc` resource names/IDs would need
-to stop being hardcoded in this repo's own config.
+**Runtime portability now exists** (see "Database execution boundary"
+above and README.md's "Self-hosting" section) — the shared backend runs on
+Node with SQLite as well as Cloudflare with D1. What "self-hosting" still
+means today beyond that, though, is cloning this repo and deploying it by
+hand — there's no packaged distribution yet. A complete self-hosted
+offering (ROADMAP.md's staged self-hosting plan) still needs: filesystem
+storage and real (Sharp-based) local image processing (Phase B),
+S3-compatible object storage (Phase C), and Docker packaging plus local
+auth and a real distribution flow (Phase D) — a setup flow that provisions
+resources rather than assuming this document is followed by hand, and a
+clean split between "this maintainer's own deployment" and "anyone's
+deployment" (the production `wrangler.jsonc` resource names/IDs would need
+to stop being hardcoded in this repo's own config, for the Cloudflare path
+specifically).
 
 ## Future hosted (managed) model
 

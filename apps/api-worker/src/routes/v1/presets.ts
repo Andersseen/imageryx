@@ -20,15 +20,19 @@ import {
 } from "@imageryx/image-core";
 import { MockTransformationProvider } from "@imageryx/providers";
 import { Hono } from "hono";
-import { ConflictError, NotFoundError, ValidationHttpError } from "../../lib/errors";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationHttpError,
+} from "../../lib/errors";
 import { hasJobsDependingOnPreset } from "../../lib/preset-dependents";
 import { logActivity } from "../../lib/log-activity";
 import { slugify } from "../../lib/slugify";
-import type { RequestIdVariables } from "../../middleware/request-id";
+import type { AppVariables } from "../../lib/app-variables";
 
 export const presetsRoute = new Hono<{
   Bindings: Env;
-  Variables: RequestIdVariables;
+  Variables: AppVariables;
 }>();
 
 presetsRoute.get("/", async (c) => {
@@ -37,13 +41,16 @@ presetsRoute.get("/", async (c) => {
     throw new ValidationHttpError("projectId is a required query parameter.");
   }
 
-  let items = await new PresetRepository(c.env.DB).listByProject(projectId);
+  let items = await new PresetRepository(c.get("db")).listByProject(projectId);
 
   const systemOnly = c.req.query("system");
   if (systemOnly === "true") items = items.filter((preset) => preset.isSystem);
-  if (systemOnly === "false") items = items.filter((preset) => !preset.isSystem);
+  if (systemOnly === "false")
+    items = items.filter((preset) => !preset.isSystem);
 
-  const outputFormat = outputImageFormatSchema.safeParse(c.req.query("outputFormat"));
+  const outputFormat = outputImageFormatSchema.safeParse(
+    c.req.query("outputFormat"),
+  );
   if (outputFormat.success) {
     items = items.filter((preset) => preset.outputFormat === outputFormat.data);
   }
@@ -52,7 +59,8 @@ presetsRoute.get("/", async (c) => {
   if (search) {
     items = items.filter(
       (preset) =>
-        preset.name.toLowerCase().includes(search) || preset.slug.toLowerCase().includes(search),
+        preset.name.toLowerCase().includes(search) ||
+        preset.slug.toLowerCase().includes(search),
     );
   }
 
@@ -62,7 +70,9 @@ presetsRoute.get("/", async (c) => {
 presetsRoute.post("/", async (c) => {
   const body = createPresetInputSchema.parse(await c.req.json());
 
-  const project = await new ProjectRepository(c.env.DB).findById(body.projectId);
+  const project = await new ProjectRepository(c.get("db")).findById(
+    body.projectId,
+  );
   if (!project) throw new NotFoundError("project");
 
   validatePresetSemantics({
@@ -71,7 +81,7 @@ presetsRoute.post("/", async (c) => {
     quality: body.quality ?? null,
   });
 
-  const presets = new PresetRepository(c.env.DB);
+  const presets = new PresetRepository(c.get("db"));
   const slug = body.slug ?? slugify(body.name);
   const existingSlug = await presets.findBySlug(body.projectId, slug);
   if (existingSlug) {
@@ -97,7 +107,9 @@ presetsRoute.post("/", async (c) => {
       }),
     })),
   );
-  const equivalent = equivalentHashes.find((entry) => entry.hash === candidateHash);
+  const equivalent = equivalentHashes.find(
+    (entry) => entry.hash === candidateHash,
+  );
   if (equivalent) {
     throw new ConflictError(
       "equivalent_preset_exists",
@@ -106,7 +118,7 @@ presetsRoute.post("/", async (c) => {
     );
   }
 
-  const preset = await new PresetPersistenceService(c.env.DB).createPreset({
+  const preset = await new PresetPersistenceService(c.get("db")).createPreset({
     projectId: body.projectId,
     name: body.name,
     slug,
@@ -117,28 +129,37 @@ presetsRoute.post("/", async (c) => {
     isSystem: false,
   });
 
-  logActivity(c, "preset.created", { projectId: body.projectId, presetId: preset.id });
+  logActivity(c, "preset.created", {
+    projectId: body.projectId,
+    presetId: preset.id,
+  });
 
   return c.json(preset, 201);
 });
 
 presetsRoute.get("/:presetId", async (c) => {
-  const preset = await new PresetRepository(c.env.DB).findById(c.req.param("presetId"));
+  const preset = await new PresetRepository(c.get("db")).findById(
+    c.req.param("presetId"),
+  );
   if (!preset) throw new NotFoundError("preset");
   return c.json(preset);
 });
 
 presetsRoute.patch("/:presetId", async (c) => {
   const presetId = c.req.param("presetId");
-  const body = updatePresetInputSchema.parse({ ...(await c.req.json()), id: presetId });
+  const body = updatePresetInputSchema.parse({
+    ...(await c.req.json()),
+    id: presetId,
+  });
 
-  const presets = new PresetRepository(c.env.DB);
+  const presets = new PresetRepository(c.get("db"));
   const existing = await presets.findById(presetId);
   if (!existing) throw new NotFoundError("preset");
 
   const nextOperations = body.operations ?? existing.operations;
   const nextOutputFormat = body.outputFormat ?? existing.outputFormat;
-  const nextQuality = body.quality !== undefined ? body.quality : existing.quality;
+  const nextQuality =
+    body.quality !== undefined ? body.quality : existing.quality;
 
   validatePresetSemantics({
     operations: presetOperationsSchema.parse(nextOperations),
@@ -156,18 +177,21 @@ presetsRoute.patch("/:presetId", async (c) => {
     outputFormat: body.outputFormat,
     quality: body.quality,
   });
-  logActivity(c, "preset.updated", { presetId, fields: Object.keys(body).filter((k) => k !== "id") });
+  logActivity(c, "preset.updated", {
+    presetId,
+    fields: Object.keys(body).filter((k) => k !== "id"),
+  });
 
   return c.json(updated);
 });
 
 presetsRoute.delete("/:presetId", async (c) => {
   const presetId = c.req.param("presetId");
-  const presets = new PresetRepository(c.env.DB);
+  const presets = new PresetRepository(c.get("db"));
   const existing = await presets.findById(presetId);
   if (!existing) throw new NotFoundError("preset");
 
-  const pendingJobs = await hasJobsDependingOnPreset(c.env.DB, presetId);
+  const pendingJobs = await hasJobsDependingOnPreset(c.get("db"), presetId);
   if (pendingJobs) {
     throw new ConflictError(
       "preset_has_pending_jobs",
@@ -191,9 +215,12 @@ const MOCK_PREVIEW_PROVIDER = new MockTransformationProvider();
 
 presetsRoute.post("/:presetId/preview", async (c) => {
   const presetId = c.req.param("presetId");
-  const body = previewPresetInputSchema.parse({ ...(await c.req.json().catch(() => ({}))), id: presetId });
+  const body = previewPresetInputSchema.parse({
+    ...(await c.req.json().catch(() => ({}))),
+    id: presetId,
+  });
 
-  const preset = await new PresetRepository(c.env.DB).findById(presetId);
+  const preset = await new PresetRepository(c.get("db")).findById(presetId);
   if (!preset) throw new NotFoundError("preset");
 
   const sourceWidth = body.sourceWidth ?? 1600;
@@ -216,10 +243,15 @@ presetsRoute.post("/:presetId/preview", async (c) => {
     presetName: preset.name,
     width: transformed.width ?? sourceWidth,
     height: transformed.height ?? sourceHeight,
-    outputFormat: preset.outputFormat === "auto" ? "auto (webp)" : preset.outputFormat,
+    outputFormat:
+      preset.outputFormat === "auto" ? "auto (webp)" : preset.outputFormat,
   });
   const previewUrl = `data:image/svg+xml;base64,${utf8ToBase64(svg)}`;
-  const placeholder = buildColorPlaceholderDataUri("#6366f1", transformed.width ?? 1, transformed.height ?? 1);
+  const placeholder = buildColorPlaceholderDataUri(
+    "#6366f1",
+    transformed.width ?? 1,
+    transformed.height ?? 1,
+  );
 
   return c.json({
     width: transformed.width,

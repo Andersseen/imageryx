@@ -1,11 +1,11 @@
 import type { ApiErrorResponse } from "@imageryx/contracts";
 import { ImageryxDomainError } from "@imageryx/image-core";
-import type { ErrorHandler, NotFoundHandler } from "hono";
+import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { ZodError } from "zod";
+import type { AppVariables } from "../lib/app-variables";
 import { ApiHttpError } from "../lib/errors";
-import type { RequestIdVariables } from "./request-id";
 
 /** Every non-`ApiHttpError` domain error maps to a fixed status + code — never a raw error message forwarded as-is. */
 const DOMAIN_ERROR_STATUS: Record<string, ContentfulStatusCode> = {
@@ -17,6 +17,7 @@ const DOMAIN_ERROR_STATUS: Record<string, ContentfulStatusCode> = {
   provider_unavailable: 503,
   storage_object_not_found: 404,
   invalid_state_transition: 409,
+  folder_path_conflict: 409,
 };
 
 function apiErrorBody(
@@ -25,7 +26,9 @@ function apiErrorBody(
   requestId: string,
   details?: Record<string, unknown>,
 ): ApiErrorResponse {
-  return { error: { code, message, requestId, ...(details ? { details } : {}) } };
+  return {
+    error: { code, message, requestId, ...(details ? { details } : {}) },
+  };
 }
 
 /**
@@ -36,10 +39,10 @@ function apiErrorBody(
  * message; anything else (a genuinely unexpected error) becomes a fixed,
  * generic 500 message, with the real error only ever logged server-side.
  */
-export const errorHandler: ErrorHandler<{
-  Bindings: Env;
-  Variables: RequestIdVariables;
-}> = (err, c) => {
+export function errorHandler<E extends { Variables: AppVariables }>(
+  err: Error,
+  c: Context<E>,
+): Response {
   const requestId = c.get("requestId");
 
   if (err instanceof ApiHttpError) {
@@ -79,18 +82,27 @@ export const errorHandler: ErrorHandler<{
     const status = DOMAIN_ERROR_STATUS[err.code] ?? 400;
     const details =
       "unsupportedOperations" in err &&
-      Array.isArray((err as { unsupportedOperations?: unknown }).unsupportedOperations)
+      Array.isArray(
+        (err as { unsupportedOperations?: unknown }).unsupportedOperations,
+      )
         ? {
             unsupportedOperations: (err as { unsupportedOperations: string[] })
               .unsupportedOperations,
           }
         : undefined;
-    return c.json(apiErrorBody(err.code, err.message, requestId, details), status);
+    return c.json(
+      apiErrorBody(err.code, err.message, requestId, details),
+      status,
+    );
   }
 
   if (err instanceof HTTPException) {
     return c.json(
-      apiErrorBody("http_error", err.message || "Request could not be processed.", requestId),
+      apiErrorBody(
+        "http_error",
+        err.message || "Request could not be processed.",
+        requestId,
+      ),
       err.status,
     );
   }
@@ -102,16 +114,20 @@ export const errorHandler: ErrorHandler<{
       timestamp: new Date().toISOString(),
     }),
   );
-  return c.json(apiErrorBody("internal_error", "An unexpected error occurred.", requestId), 500);
-};
+  return c.json(
+    apiErrorBody("internal_error", "An unexpected error occurred.", requestId),
+    500,
+  );
+}
 
-export const notFoundHandler: NotFoundHandler<{
-  Bindings: Env;
-  Variables: RequestIdVariables;
-}> = (c) => {
+export function notFoundHandler<E extends { Variables: AppVariables }>(
+  c: Context<E>,
+): Response {
   const requestId = c.get("requestId");
   return c.json(
-    { error: { code: "not_found", message: "Not Found", requestId } } satisfies ApiErrorResponse,
+    {
+      error: { code: "not_found", message: "Not Found", requestId },
+    } satisfies ApiErrorResponse,
     404,
   );
-};
+}

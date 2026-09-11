@@ -1,10 +1,10 @@
 import { AssetRepository, ProjectRepository } from "@imageryx/database";
 import { Hono } from "hono";
-import type { RequestIdVariables } from "../../middleware/request-id";
+import type { AppVariables } from "../../lib/app-variables";
 
 export const databaseDiagnosticsRoute = new Hono<{
   Bindings: Env;
-  Variables: RequestIdVariables;
+  Variables: AppVariables;
 }>();
 
 interface MigrationRow {
@@ -23,9 +23,15 @@ interface CountRow {
  */
 databaseDiagnosticsRoute.get("/", async (c) => {
   try {
-    const db = c.env.DB;
+    // `d1_migrations` is a wrangler-internal, D1-only bookkeeping table — this is the one place
+    // in this route that stays tied to the real Cloudflare binding rather than the portable
+    // `DatabaseClient` (`c.get("db")`, used for every repository call below). A self-hosted SQLite
+    // deployment has its own equivalent (`_imageryx_migrations`, see `@imageryx/database/node`)
+    // but this diagnostics route is Cloudflare-only and was never claimed to be portable.
+    const rawD1 = c.env.DB;
+    const db = c.get("db");
 
-    const migrations = await db
+    const migrations = await rawD1
       .prepare("SELECT name FROM d1_migrations ORDER BY id ASC")
       .all<MigrationRow>();
     const projectRepository = new ProjectRepository(db);
@@ -45,18 +51,18 @@ databaseDiagnosticsRoute.get("/", async (c) => {
       });
     }
 
-    const presetCountRow = await db
-      .prepare("SELECT COUNT(*) as total FROM presets")
-      .first<CountRow>();
-    const folderCountRow = await db
-      .prepare("SELECT COUNT(*) as total FROM folders")
-      .first<CountRow>();
-    const variantCountRow = await db
-      .prepare("SELECT COUNT(*) as total FROM variants")
-      .first<CountRow>();
-    const processingJobCountRow = await db
-      .prepare("SELECT COUNT(*) as total FROM processing_jobs")
-      .first<CountRow>();
+    const presetCountRow = await db.queryOne<CountRow>(
+      "SELECT COUNT(*) as total FROM presets",
+    );
+    const folderCountRow = await db.queryOne<CountRow>(
+      "SELECT COUNT(*) as total FROM folders",
+    );
+    const variantCountRow = await db.queryOne<CountRow>(
+      "SELECT COUNT(*) as total FROM variants",
+    );
+    const processingJobCountRow = await db.queryOne<CountRow>(
+      "SELECT COUNT(*) as total FROM processing_jobs",
+    );
 
     return c.json({
       available: true,

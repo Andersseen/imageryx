@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import type { RequestIdVariables } from "../middleware/request-id";
+import type { AppVariables } from "./app-variables";
 
 /**
  * Structured-log entry point for project/folder/preset-level events that
@@ -9,8 +9,8 @@ import type { RequestIdVariables } from "../middleware/request-id";
  * via logs, not `GET /v1/assets/:id/activity`. Asset-scoped events use
  * `AssetActivityRepository.record` directly instead.
  */
-export function logActivity(
-  c: Context<{ Bindings: Env; Variables: RequestIdVariables }>,
+export function logActivity<E extends { Variables: AppVariables }>(
+  c: Context<E>,
   event: string,
   metadata: Record<string, unknown> = {},
 ): void {

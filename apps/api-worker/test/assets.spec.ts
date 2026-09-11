@@ -6,9 +6,9 @@ import {
   VariantRepository,
 } from "@imageryx/database";
 import { createDecodableImageFixture } from "@imageryx/test-utils";
-import { env, SELF } from "cloudflare:test";
+import { SELF } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { authHeaders } from "./helpers";
+import { authHeaders, testDb } from "./helpers";
 
 interface AssetListRow {
   id: string;
@@ -45,7 +45,7 @@ describe("POST /v1/assets/upload", () => {
   let projectId: string;
 
   beforeEach(async () => {
-    const projects = new ProjectRepository(env.DB);
+    const projects = new ProjectRepository(testDb());
     const project = await projects.create({
       name: "Upload Test",
       slug: `upload-test-${crypto.randomUUID()}`,
@@ -226,13 +226,13 @@ describe("asset lifecycle", () => {
   let assetId: string;
 
   beforeEach(async () => {
-    const projects = new ProjectRepository(env.DB);
+    const projects = new ProjectRepository(testDb());
     const project = await projects.create({
       name: "Lifecycle",
       slug: `lifecycle-${crypto.randomUUID()}`,
     });
     projectId = project.id;
-    const assets = new AssetRepository(env.DB);
+    const assets = new AssetRepository(testDb());
     const asset = await assets.create({
       projectId,
       name: "Lifecycle Asset",
@@ -263,14 +263,14 @@ describe("asset lifecycle", () => {
   });
 
   it("reports ready preset slugs per asset, excluding not-yet-ready variants", async () => {
-    const preset = await new PresetRepository(env.DB).create({
+    const preset = await new PresetRepository(testDb()).create({
       projectId,
       name: "Thumbnail",
       slug: "thumbnail",
       operations: [],
       outputFormat: "auto",
     });
-    const variants = new VariantRepository(env.DB);
+    const variants = new VariantRepository(testDb());
     const ready = await variants.create({
       assetId,
       presetId: preset.id,
@@ -332,7 +332,7 @@ describe("asset lifecycle", () => {
   });
 
   it("moves the asset into a folder within the same project", async () => {
-    const folder = await new FolderRepository(env.DB).create({
+    const folder = await new FolderRepository(testDb()).create({
       projectId,
       parentId: null,
       name: "Target",
@@ -378,7 +378,7 @@ describe("asset lifecycle", () => {
     );
     expect(deleteResponse.status).toBe(204);
 
-    const assets = new AssetRepository(env.DB);
+    const assets = new AssetRepository(testDb());
     expect((await assets.findById(assetId))?.deletedAt).not.toBeNull();
 
     const restoreResponse = await SELF.fetch(

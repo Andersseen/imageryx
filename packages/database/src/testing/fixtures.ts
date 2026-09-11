@@ -1,5 +1,5 @@
 import type { Project } from "@imageryx/contracts";
-import type { D1Client } from "../client";
+import type { DatabaseClient } from "../client";
 import {
   AssetRepository,
   type CreateAssetRow,
@@ -18,7 +18,7 @@ function unique(label: string): string {
 }
 
 export async function insertTestProject(
-  db: D1Client,
+  db: DatabaseClient,
   overrides: Partial<{ name: string; slug: string }> = {},
 ): Promise<Project> {
   const repository = new ProjectRepository(db);
@@ -30,7 +30,7 @@ export async function insertTestProject(
 }
 
 export async function insertTestFolder(
-  db: D1Client,
+  db: DatabaseClient,
   projectId: string,
   overrides: Partial<CreateFolderRow> = {},
 ) {
@@ -46,7 +46,7 @@ export async function insertTestFolder(
 }
 
 export async function insertTestAsset(
-  db: D1Client,
+  db: DatabaseClient,
   projectId: string,
   overrides: Partial<CreateAssetRow> = {},
 ) {

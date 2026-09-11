@@ -55,3 +55,7 @@ export class InvalidStateTransitionError extends ImageryxDomainError {
 export class SvgOptimizationError extends ImageryxDomainError {
   readonly code = "svg_optimization_failed";
 }
+
+export class FolderPathConflictError extends ImageryxDomainError {
+  readonly code = "folder_path_conflict";
+}

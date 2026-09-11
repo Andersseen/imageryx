@@ -9,7 +9,7 @@ import {
   ProcessingJobRepository,
   VariantPersistenceService,
   VariantRepository,
-  type D1Client,
+  type DatabaseClient,
 } from "@imageryx/database";
 import {
   DuplicateVariantError,
@@ -63,7 +63,7 @@ const CAPABILITIES = [
  * backend integration test.
  */
 export async function requestVariant(
-  db: D1Client,
+  db: DatabaseClient,
   input: RequestVariantInput,
 ): Promise<RequestVariantOutcome> {
   const assets = new AssetRepository(db);

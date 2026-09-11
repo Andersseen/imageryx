@@ -10,20 +10,21 @@ import {
   PresetPersistenceService,
   PresetRepository,
   ProjectRepository,
+  type DatabaseClient,
 } from "@imageryx/database";
 import { Hono } from "hono";
-import { getStorageProvider } from "../../lib/env";
+import type { AppVariables } from "../../lib/app-variables";
+import { getStorageProvider, type ApiWorkerEnvBindings } from "../../lib/env";
 import { ConflictError, NotFoundError } from "../../lib/errors";
 import { logActivity } from "../../lib/log-activity";
 import { buildPaginatedResponse } from "../../lib/pagination";
 import { slugify } from "../../lib/slugify";
-import type { RequestIdVariables } from "../../middleware/request-id";
 import { foldersForProjectRoute } from "./folders";
 import { tagsForProjectRoute } from "./tags";
 
 export const projectsRoute = new Hono<{
-  Bindings: Env;
-  Variables: RequestIdVariables;
+  Bindings: ApiWorkerEnvBindings;
+  Variables: AppVariables;
 }>();
 
 export interface ProjectSummary extends Project {
@@ -34,13 +35,16 @@ export interface ProjectSummary extends Project {
   latestActivity: { event: string; createdAt: string } | null;
 }
 
-async function withSummaries(env: Env, items: Project[]): Promise<ProjectSummary[]> {
+async function withSummaries(
+  db: DatabaseClient,
+  items: Project[],
+): Promise<ProjectSummary[]> {
   const ids = items.map((project) => project.id);
   const [assetStats, folderCounts, presetCounts, latest] = await Promise.all([
-    new AssetRepository(env.DB).countAndSizeByProjectIds(ids),
-    new FolderRepository(env.DB).countByProjectIds(ids),
-    new PresetRepository(env.DB).countByProjectIds(ids),
-    new AssetActivityRepository(env.DB).latestByProjectIds(ids),
+    new AssetRepository(db).countAndSizeByProjectIds(ids),
+    new FolderRepository(db).countByProjectIds(ids),
+    new PresetRepository(db).countByProjectIds(ids),
+    new AssetActivityRepository(db).latestByProjectIds(ids),
   ]);
 
   return items.map((project) => {
@@ -63,7 +67,10 @@ const SORT_FIELDS = new Set(["name", "createdAt", "updatedAt"]);
 
 projectsRoute.get("/", async (c) => {
   const page = Math.max(1, Number(c.req.query("page") ?? "1") || 1);
-  const pageSize = Math.min(100, Math.max(1, Number(c.req.query("pageSize") ?? "24") || 24));
+  const pageSize = Math.min(
+    100,
+    Math.max(1, Number(c.req.query("pageSize") ?? "24") || 24),
+  );
   const search = c.req.query("search")?.trim() || undefined;
   const sortFieldRaw = c.req.query("sortField") ?? "createdAt";
   const sortField = SORT_FIELDS.has(sortFieldRaw)
@@ -71,7 +78,7 @@ projectsRoute.get("/", async (c) => {
     : "createdAt";
   const sortDirection = c.req.query("sortDirection") === "asc" ? "asc" : "desc";
 
-  const projects = new ProjectRepository(c.env.DB);
+  const projects = new ProjectRepository(c.get("db"));
   const { items, total } = await projects.listFiltered({
     page,
     pageSize,
@@ -79,14 +86,14 @@ projectsRoute.get("/", async (c) => {
     sortField,
     sortDirection,
   });
-  const withStats = await withSummaries(c.env, items);
+  const withStats = await withSummaries(c.get("db"), items);
 
   return c.json(buildPaginatedResponse(withStats, page, pageSize, total));
 });
 
 projectsRoute.post("/", async (c) => {
   const body = createProjectInputSchema.parse(await c.req.json());
-  const projects = new ProjectRepository(c.env.DB);
+  const projects = new ProjectRepository(c.get("db"));
 
   const slug = body.slug ?? slugify(body.name);
   const existing = await projects.findBySlug(slug);
@@ -105,27 +112,35 @@ projectsRoute.post("/", async (c) => {
   });
 
   if (body.withSystemPresets) {
-    await new PresetPersistenceService(c.env.DB).createSystemPresetsForProject(project.id);
+    await new PresetPersistenceService(
+      c.get("db"),
+    ).createSystemPresetsForProject(project.id);
   }
 
-  logActivity(c, "project.created", { projectId: project.id, slug: project.slug });
+  logActivity(c, "project.created", {
+    projectId: project.id,
+    slug: project.slug,
+  });
 
   return c.json(project, 201);
 });
 
 projectsRoute.get("/:projectId", async (c) => {
-  const projects = new ProjectRepository(c.env.DB);
+  const projects = new ProjectRepository(c.get("db"));
   const project = await projects.findById(c.req.param("projectId"));
   if (!project) throw new NotFoundError("project");
-  const [summary] = await withSummaries(c.env, [project]);
+  const [summary] = await withSummaries(c.get("db"), [project]);
   return c.json(summary);
 });
 
 projectsRoute.patch("/:projectId", async (c) => {
   const projectId = c.req.param("projectId");
-  const body = updateProjectInputSchema.parse({ ...(await c.req.json()), id: projectId });
+  const body = updateProjectInputSchema.parse({
+    ...(await c.req.json()),
+    id: projectId,
+  });
 
-  const projects = new ProjectRepository(c.env.DB);
+  const projects = new ProjectRepository(c.get("db"));
   const existing = await projects.findById(projectId);
   if (!existing) throw new NotFoundError("project");
 
@@ -151,11 +166,11 @@ projectsRoute.delete("/:projectId", async (c) => {
   const projectId = c.req.param("projectId");
   const cascade = c.req.query("cascade") === "true";
 
-  const projects = new ProjectRepository(c.env.DB);
+  const projects = new ProjectRepository(c.get("db"));
   const existing = await projects.findById(projectId);
   if (!existing) throw new NotFoundError("project");
 
-  const assets = new AssetRepository(c.env.DB);
+  const assets = new AssetRepository(c.get("db"));
   const activeAssetCount = await assets.count({
     projectId,
     deleted: "active",
@@ -189,18 +204,22 @@ projectsRoute.delete("/:projectId", async (c) => {
     const storage = getStorageProvider(c.env);
     const keys = allAssets.map((asset) => asset.storageKey);
     c.executionCtx.waitUntil(
-      Promise.allSettled(keys.map((key) => storage.delete(key))).then((results) => {
-        const failed = results.filter((result) => result.status === "rejected").length;
-        if (failed > 0) {
-          console.error(
-            JSON.stringify({
-              event: "project.cascade_delete.storage_cleanup_failed",
-              projectId,
-              failedCount: failed,
-            }),
-          );
-        }
-      }),
+      Promise.allSettled(keys.map((key) => storage.delete(key))).then(
+        (results) => {
+          const failed = results.filter(
+            (result) => result.status === "rejected",
+          ).length;
+          if (failed > 0) {
+            console.error(
+              JSON.stringify({
+                event: "project.cascade_delete.storage_cleanup_failed",
+                projectId,
+                failedCount: failed,
+              }),
+            );
+          }
+        },
+      ),
     );
   }
 

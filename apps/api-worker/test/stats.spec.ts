@@ -1,11 +1,11 @@
 import { ProjectRepository } from "@imageryx/database";
-import { env, SELF } from "cloudflare:test";
+import { SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { authHeaders } from "./helpers";
+import { authHeaders, testDb } from "./helpers";
 
 describe("GET /v1/stats", () => {
   it("returns aggregate counters derived from real queries", async () => {
-    await new ProjectRepository(env.DB).create({
+    await new ProjectRepository(testDb()).create({
       name: "Stats Test",
       slug: `stats-test-${crypto.randomUUID()}`,
     });

@@ -4,7 +4,7 @@ import {
   processingJobResultSchema,
   processingJobSchema,
 } from "@imageryx/contracts";
-import type { D1Client } from "../client";
+import type { DatabaseClient, DatabaseStatement } from "../client";
 import { generateId, nowIso } from "../ids";
 
 interface ProcessingJobRow {
@@ -74,60 +74,93 @@ export interface ListProcessingJobsFilter {
   status?: ProcessingJob["status"];
 }
 
+/** Shared by `list` and `listPaginated` so the two never drift out of sync with each other. */
+function buildWhereClause(filter: ListProcessingJobsFilter): {
+  sql: string;
+  params: unknown[];
+} {
+  const conditions = ["project_id = ?"];
+  const params: unknown[] = [filter.projectId];
+
+  if (filter.assetId) {
+    conditions.push("asset_id = ?");
+    params.push(filter.assetId);
+  }
+  if (filter.type) {
+    conditions.push("type = ?");
+    params.push(filter.type);
+  }
+  if (filter.status) {
+    conditions.push("status = ?");
+    params.push(filter.status);
+  }
+
+  return { sql: conditions.join(" AND "), params };
+}
+
 export class ProcessingJobRepository {
-  constructor(private readonly db: D1Client) {}
+  constructor(private readonly db: DatabaseClient) {}
 
   async list(filter: ListProcessingJobsFilter): Promise<ProcessingJob[]> {
-    const conditions = ["project_id = ?"];
-    const params: unknown[] = [filter.projectId];
+    const where = buildWhereClause(filter);
+    const results = await this.db.query<ProcessingJobRow>(
+      `SELECT * FROM processing_jobs WHERE ${where.sql} ORDER BY created_at DESC`,
+      where.params,
+    );
+    return results.map(mapRow);
+  }
 
-    if (filter.assetId) {
-      conditions.push("asset_id = ?");
-      params.push(filter.assetId);
-    }
-    if (filter.type) {
-      conditions.push("type = ?");
-      params.push(filter.type);
-    }
-    if (filter.status) {
-      conditions.push("status = ?");
-      params.push(filter.status);
-    }
+  /**
+   * SQL-backed pagination — used by `GET /v1/processing-jobs` so the route
+   * never loads every job for a project into memory just to slice a page
+   * off the front. `list()` above stays as-is for callers that are
+   * naturally bounded already (e.g. one asset's own job history).
+   */
+  async listPaginated(
+    filter: ListProcessingJobsFilter,
+    page: number,
+    pageSize: number,
+  ): Promise<{ items: ProcessingJob[]; total: number }> {
+    const where = buildWhereClause(filter);
+    const offset = (page - 1) * pageSize;
 
-    const result = await this.db
-      .prepare(
-        `SELECT * FROM processing_jobs WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC`,
-      )
-      .bind(...params)
-      .all<ProcessingJobRow>();
-    return result.results.map(mapRow);
+    const [rows, countRow] = await Promise.all([
+      this.db.query<ProcessingJobRow>(
+        `SELECT * FROM processing_jobs WHERE ${where.sql} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+        [...where.params, pageSize, offset],
+      ),
+      this.db.queryOne<{ total: number }>(
+        `SELECT COUNT(*) as total FROM processing_jobs WHERE ${where.sql}`,
+        where.params,
+      ),
+    ]);
+
+    return { items: rows.map(mapRow), total: countRow?.total ?? 0 };
   }
 
   async findById(id: string): Promise<ProcessingJob | null> {
-    const row = await this.db
-      .prepare("SELECT * FROM processing_jobs WHERE id = ?")
-      .bind(id)
-      .first<ProcessingJobRow>();
+    const row = await this.db.queryOne<ProcessingJobRow>(
+      "SELECT * FROM processing_jobs WHERE id = ?",
+      [id],
+    );
     return row ? mapRow(row) : null;
   }
 
   /** Every project's queued jobs, oldest first — used by the local `processing:run-local` drain tool and by any future automatic sweep, not by normal request handling. */
   async listQueued(limit = 100): Promise<ProcessingJob[]> {
-    const result = await this.db
-      .prepare(
-        "SELECT * FROM processing_jobs WHERE status = 'queued' ORDER BY created_at ASC LIMIT ?",
-      )
-      .bind(limit)
-      .all<ProcessingJobRow>();
-    return result.results.map(mapRow);
+    const results = await this.db.query<ProcessingJobRow>(
+      "SELECT * FROM processing_jobs WHERE status = 'queued' ORDER BY created_at ASC LIMIT ?",
+      [limit],
+    );
+    return results.map(mapRow);
   }
 
   async countByStatus(): Promise<Map<string, number>> {
-    const result = await this.db
-      .prepare("SELECT status, COUNT(*) as count FROM processing_jobs GROUP BY status")
-      .all<{ status: string; count: number }>();
+    const results = await this.db.query<{ status: string; count: number }>(
+      "SELECT status, COUNT(*) as count FROM processing_jobs GROUP BY status",
+    );
     const map = new Map<string, number>();
-    for (const row of result.results) map.set(row.status, row.count);
+    for (const row of results) map.set(row.status, row.count);
     return map;
   }
 
@@ -136,12 +169,10 @@ export class ProcessingJobRepository {
     id: string,
     input: CreateProcessingJobRow,
     timestamp: string,
-  ) {
-    return this.db
-      .prepare(
-        "INSERT INTO processing_jobs (id, project_id, asset_id, type, provider, status, input, result, error_code, error_message, attempts, created_at, started_at, completed_at, failed_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 0, ?, NULL, NULL, NULL)",
-      )
-      .bind(
+  ): DatabaseStatement {
+    return {
+      sql: "INSERT INTO processing_jobs (id, project_id, asset_id, type, provider, status, input, result, error_code, error_message, attempts, created_at, started_at, completed_at, failed_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 0, ?, NULL, NULL, NULL)",
+      params: [
         id,
         input.projectId,
         input.assetId ?? null,
@@ -150,13 +181,15 @@ export class ProcessingJobRepository {
         "queued",
         JSON.stringify(input.input),
         timestamp,
-      );
+      ],
+    };
   }
 
   async create(input: CreateProcessingJobRow): Promise<ProcessingJob> {
     const id = generateId();
     const timestamp = nowIso();
-    await this.buildInsertStatement(id, input, timestamp).run();
+    const statement = this.buildInsertStatement(id, input, timestamp);
+    await this.db.execute(statement.sql, statement.params);
 
     return {
       id,
@@ -204,11 +237,9 @@ export class ProcessingJobRepository {
         input.failedAt !== undefined ? input.failedAt : existing.failedAt,
     };
 
-    await this.db
-      .prepare(
-        "UPDATE processing_jobs SET status = ?, result = ?, error_code = ?, error_message = ?, attempts = ?, started_at = ?, completed_at = ?, failed_at = ? WHERE id = ?",
-      )
-      .bind(
+    await this.db.execute(
+      "UPDATE processing_jobs SET status = ?, result = ?, error_code = ?, error_message = ?, attempts = ?, started_at = ?, completed_at = ?, failed_at = ? WHERE id = ?",
+      [
         merged.status,
         merged.result === null ? null : JSON.stringify(merged.result),
         merged.errorCode,
@@ -218,8 +249,8 @@ export class ProcessingJobRepository {
         merged.completedAt,
         merged.failedAt,
         id,
-      )
-      .run();
+      ],
+    );
 
     return { ...existing, ...merged };
   }

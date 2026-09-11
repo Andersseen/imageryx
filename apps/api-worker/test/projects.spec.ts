@@ -1,7 +1,7 @@
 import { AssetRepository, ProjectRepository } from "@imageryx/database";
-import { env, SELF } from "cloudflare:test";
+import { SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { authHeaders } from "./helpers";
+import { authHeaders, testDb } from "./helpers";
 
 describe("POST /v1/projects", () => {
   it("creates a project and returns 201", async () => {
@@ -34,12 +34,20 @@ describe("POST /v1/projects", () => {
     await SELF.fetch("https://example.com/v1/projects", {
       method: "POST",
       headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Dup", slug: "dup-project", withSystemPresets: false }),
+      body: JSON.stringify({
+        name: "Dup",
+        slug: "dup-project",
+        withSystemPresets: false,
+      }),
     });
     const response = await SELF.fetch("https://example.com/v1/projects", {
       method: "POST",
       headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Dup Again", slug: "dup-project", withSystemPresets: false }),
+      body: JSON.stringify({
+        name: "Dup Again",
+        slug: "dup-project",
+        withSystemPresets: false,
+      }),
     });
     expect(response.status).toBe(409);
     const body = (await response.json()) as { error: { code: string } };
@@ -49,12 +57,15 @@ describe("POST /v1/projects", () => {
 
 describe("GET /v1/projects", () => {
   it("lists projects with summary counts", async () => {
-    const projects = new ProjectRepository(env.DB);
+    const projects = new ProjectRepository(testDb());
     await projects.create({ name: "List Test", slug: "list-test" });
 
-    const response = await SELF.fetch("https://example.com/v1/projects?pageSize=100", {
-      headers: authHeaders(),
-    });
+    const response = await SELF.fetch(
+      "https://example.com/v1/projects?pageSize=100",
+      {
+        headers: authHeaders(),
+      },
+    );
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
       items: { slug: string; assetCount: number }[];
@@ -66,8 +77,11 @@ describe("GET /v1/projects", () => {
   });
 
   it("supports search by name", async () => {
-    const projects = new ProjectRepository(env.DB);
-    await projects.create({ name: "Findable Unique Name", slug: "findable-unique" });
+    const projects = new ProjectRepository(testDb());
+    await projects.create({
+      name: "Findable Unique Name",
+      slug: "findable-unique",
+    });
 
     const response = await SELF.fetch(
       "https://example.com/v1/projects?search=Findable%20Unique",
@@ -90,14 +104,20 @@ describe("GET /v1/projects/:projectId", () => {
 
 describe("PATCH /v1/projects/:projectId", () => {
   it("updates the project name", async () => {
-    const projects = new ProjectRepository(env.DB);
-    const project = await projects.create({ name: "Before", slug: "before-slug" });
-
-    const response = await SELF.fetch(`https://example.com/v1/projects/${project.id}`, {
-      method: "PATCH",
-      headers: { ...authHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "After" }),
+    const projects = new ProjectRepository(testDb());
+    const project = await projects.create({
+      name: "Before",
+      slug: "before-slug",
     });
+
+    const response = await SELF.fetch(
+      `https://example.com/v1/projects/${project.id}`,
+      {
+        method: "PATCH",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "After" }),
+      },
+    );
     expect(response.status).toBe(200);
     const body = (await response.json()) as { name: string };
     expect(body.name).toBe("After");
@@ -106,9 +126,12 @@ describe("PATCH /v1/projects/:projectId", () => {
 
 describe("DELETE /v1/projects/:projectId", () => {
   it("rejects deletion when active assets exist", async () => {
-    const projects = new ProjectRepository(env.DB);
-    const project = await projects.create({ name: "Has Assets", slug: "has-assets" });
-    const assets = new AssetRepository(env.DB);
+    const projects = new ProjectRepository(testDb());
+    const project = await projects.create({
+      name: "Has Assets",
+      slug: "has-assets",
+    });
+    const assets = new AssetRepository(testDb());
     await assets.create({
       projectId: project.id,
       name: "Asset",
@@ -124,21 +147,30 @@ describe("DELETE /v1/projects/:projectId", () => {
       processingStatus: "ready",
     });
 
-    const response = await SELF.fetch(`https://example.com/v1/projects/${project.id}`, {
-      method: "DELETE",
-      headers: authHeaders(),
-    });
+    const response = await SELF.fetch(
+      `https://example.com/v1/projects/${project.id}`,
+      {
+        method: "DELETE",
+        headers: authHeaders(),
+      },
+    );
     expect(response.status).toBe(409);
   });
 
   it("deletes a project with no assets", async () => {
-    const projects = new ProjectRepository(env.DB);
-    const project = await projects.create({ name: "Empty", slug: "empty-project" });
-
-    const response = await SELF.fetch(`https://example.com/v1/projects/${project.id}`, {
-      method: "DELETE",
-      headers: authHeaders(),
+    const projects = new ProjectRepository(testDb());
+    const project = await projects.create({
+      name: "Empty",
+      slug: "empty-project",
     });
+
+    const response = await SELF.fetch(
+      `https://example.com/v1/projects/${project.id}`,
+      {
+        method: "DELETE",
+        headers: authHeaders(),
+      },
+    );
     expect(response.status).toBe(204);
     expect(await projects.findById(project.id)).toBeNull();
   });

@@ -113,10 +113,10 @@ describe("ProcessingJobRepository", () => {
       type: "inspect-metadata",
       input: { type: "inspect-metadata", assetId },
     });
-    await testDb.db
-      .prepare("UPDATE processing_jobs SET input = ? WHERE id = ?")
-      .bind(JSON.stringify({ type: "inspect-metadata" }), created.id)
-      .run();
+    await testDb.db.execute(
+      "UPDATE processing_jobs SET input = ? WHERE id = ?",
+      [JSON.stringify({ type: "inspect-metadata" }), created.id],
+    );
 
     await expect(repository.findById(created.id)).rejects.toThrow();
   });
