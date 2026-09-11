@@ -42,8 +42,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/providers
       hono:
-        specifier: ^4.12.32
-        version: 4.12.32
+        specifier: ^4.13.7
+        version: 4.13.7
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -215,8 +215,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/providers
       hono:
-        specifier: ^4.12.32
-        version: 4.12.32
+        specifier: ^4.13.7
+        version: 4.13.7
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.22.0
@@ -261,8 +261,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/providers
       hono:
-        specifier: ^4.12.32
-        version: 4.12.32
+        specifier: ^4.13.7
+        version: 4.13.7
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.22.0
@@ -299,7 +299,7 @@ importers:
     dependencies:
       '@hono/node-server':
         specifier: ^2.1.1
-        version: 2.1.1(hono@4.12.32)
+        version: 2.1.1(hono@4.13.7)
       '@imageryx/api-worker':
         specifier: workspace:*
         version: link:../api-worker
@@ -310,8 +310,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/database
       hono:
-        specifier: ^4.12.32
-        version: 4.12.32
+        specifier: ^4.13.7
+        version: 4.13.7
       zod:
         specifier: ^4.3.6
         version: 4.4.3
@@ -4440,8 +4440,8 @@ packages:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
 
-  hono@4.12.32:
-    resolution: {integrity: sha512-XcuyW9qE2kJn07PkecMOBd5Vq/hMy7mmGw+idz1yblbg9N17ijJODrvPkn7/dwL3Kulj8LcRJ69DLOWf91dRUg==}
+  hono@4.13.7:
+    resolution: {integrity: sha512-c8/gF9ac8Y78/agExVocyLevgR+JlpNB444Py0FSX8pJoPdYUfUzRcXtYEYGwt6l19qIlVZPN5Mfsw9jFShmQQ==}
     engines: {node: '>=16.9.0'}
 
   hookable@5.5.3:
@@ -7706,13 +7706,13 @@ snapshots:
   '@harperfast/extended-iterable@1.0.3':
     optional: true
 
-  '@hono/node-server@1.19.17(hono@4.12.32)':
+  '@hono/node-server@1.19.17(hono@4.13.7)':
     dependencies:
-      hono: 4.12.32
+      hono: 4.13.7
 
-  '@hono/node-server@2.1.1(hono@4.12.32)':
+  '@hono/node-server@2.1.1(hono@4.13.7)':
     dependencies:
-      hono: 4.12.32
+      hono: 4.13.7
 
   '@humanfs/core@0.19.1': {}
 
@@ -8062,7 +8062,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.26.0(zod@4.3.6)':
     dependencies:
-      '@hono/node-server': 1.19.17(hono@4.12.32)
+      '@hono/node-server': 1.19.17(hono@4.13.7)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -8072,7 +8072,7 @@ snapshots:
       eventsource-parser: 3.1.0
       express: 5.2.1
       express-rate-limit: 8.6.1(express@5.2.1)
-      hono: 4.12.32
+      hono: 4.13.7
       jose: 6.2.5
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -10128,7 +10128,7 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  hono@4.12.32: {}
+  hono@4.13.7: {}
 
   hookable@5.5.3: {}
 
