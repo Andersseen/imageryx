@@ -22,7 +22,7 @@
     "angular-movement": "^0.7.0",
     "lumen-icons": "^0.2.0",
     "tslib": "^2.8.1",
-    "@voltui/components": "^1.0.0"
+    "@voltui/components": "^1.0.1"
   },
   "devDependencies": {
     "@analogjs/platform": "^2.6.4",
