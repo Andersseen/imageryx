@@ -18,7 +18,7 @@
     "@imageryx/api-worker": "workspace:*",
     "@imageryx/contracts": "workspace:*",
     "@imageryx/database": "workspace:*",
-    "hono": "^4.12.32",
+    "hono": "^4.13.7",
     "zod": "^4.3.6"
   },
   "devDependencies": {
