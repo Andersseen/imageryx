@@ -34,7 +34,7 @@
     "@angular/platform-browser": "^21.2.0",
     "@imageryx/eslint-config": "workspace:*",
     "@imageryx/typescript-config": "workspace:*",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^5.0.5",
     "jsdom": "^30.0.1",
     "typescript": "^5.9.2",
     "vite": "^8.2.2",
